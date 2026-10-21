@@ -1,96 +1,30 @@
-import { list } from '@keystone-6/core'
-import { allOperations, denyAll } from '@keystone-6/core/access'
-import { checkbox, password, relationship, text } from '@keystone-6/core/fields'
+import { list } from "@keystone-6/core";
+import { denyAll } from "@keystone-6/core/access";
+import { password, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { canManageScopedPeople, isSignedIn, rules } from "../access";
+import { trackingFields } from "./trackingFields";
 
-import { isSignedIn, permissions, rules } from '../access'
-import type { Session } from '../access'
+const authorityFieldUI = { createView: { fieldMode: 'hidden' as const }, itemView: { fieldMode: 'read' as const } };
+const scopedPeopleUI = { itemView: { fieldMode: async (args: Parameters<typeof canManageScopedPeople>[0]) => await canManageScopedPeople(args) ? 'edit' as const : 'read' as const } };
 
 export const User = list({
   access: {
-    operation: {
-      ...allOperations(isSignedIn),
-      create: (args) => {
-        // Allow public sign-ups if environment variable is set to true
-        if (process.env.PUBLIC_SIGNUPS_ALLOWED === 'true') {
-          return true;
-        }
-        // Otherwise, require canManagePeople permission
-        return permissions.canManagePeople(args);
-      },
-      delete: permissions.canManagePeople,
-    },
-    filter: {
-      query: rules.canReadPeople,
-      update: rules.canUpdatePeople,
-    },
-  },
-  ui: {
-    hideCreate: args => !permissions.canManagePeople(args),
-    hideDelete: args => !permissions.canManagePeople(args),
-    listView: {
-      initialColumns: ['name', 'email', 'role', 'tasks'],
-    },
-    itemView: {
-      defaultFieldMode: ({ session, item }) => {
-        // canEditOtherPeople can edit other people
-        if (session?.data.role?.canEditOtherPeople) return 'edit'
-
-        // edit themselves
-        if (session?.itemId === item?.id) return 'edit'
-
-        // else, default all fields to read mode
-        return 'read'
-      },
-    },
+    operation: { query: isSignedIn, create: () => false, update: isSignedIn, delete: () => false },
+    filter: { query: rules.canReadPeople, update: rules.canUpdatePeople },
   },
   fields: {
-    name: text({
-      validation: {
-        isRequired: true,
-      },
-    }),
-    email: text({
-      isFilterable: false,
-      isOrderable: false,
-      isIndexed: 'unique',
-      validation: {
-        isRequired: true,
-      },
-    }),
-    password: password({
-      access: {
-        read: denyAll,
-        update: ({ session, item }) =>
-          permissions.canManagePeople({ session }) || session?.itemId === item.id,
-      },
-      validation: { isRequired: true },
-    }),
-    role: relationship({
-      ref: 'Role.assignedTo',
-      access: {
-        create: permissions.canManagePeople,
-        update: permissions.canManagePeople,
-      },
-      ui: {
-        itemView: {
-          fieldMode: args => (permissions.canManagePeople(args) ? 'edit' : 'read'),
-        },
-      },
-    }),
-    tasks: relationship({
-      ref: 'Todo.assignedTo',
-      many: true,
-      access: {
-        create: permissions.canManageAllTodos,
-        update: ({ session, item }) =>
-          permissions.canManageAllTodos({ session }) || session?.itemId === item.id,
-      },
-      ui: {
-        createView: {
-          fieldMode: args => (permissions.canManageAllTodos(args) ? 'edit' : 'hidden'),
-        },
-        // itemView: { fieldMode: 'read' },
-      },
-    }),
+    name: text({ validation: { isRequired: true } }),
+    email: text({ isIndexed: "unique", validation: { isRequired: true }, isFilterable: false, isOrderable: false }),
+    password: password({ access: { read: denyAll, update: async (args) => args.session?.itemId === args.item.id || await canManageScopedPeople(args as any) }, validation: { isRequired: true, length: { min: 10, max: 1000 }, rejectCommon: true } }),
+    status: select({ ui: scopedPeopleUI, access: { update: canManageScopedPeople }, type: "enum", options: [{ label: "Active", value: "active" }, { label: "Disabled", value: "disabled" }], defaultValue: "active", validation: { isRequired: true } }),
+    organization: relationship({ ui: authorityFieldUI, ref: "Organization.users", access: { create: denyAll, update: denyAll } }),
+    premises: relationship({ ui: authorityFieldUI, ref: "Premises.users", access: { create: denyAll, update: denyAll } }),
+    role: relationship({ ui: authorityFieldUI, ref: "Role.assignedTo", access: { create: denyAll, update: denyAll } }),
+    mfaMethod: text({ ui: authorityFieldUI, access: { create: denyAll, update: denyAll } }), mfaVerifiedAt: timestamp({ ui: authorityFieldUI, access: { create: denyAll, update: denyAll } }),
+    staffCredential: relationship({ ui: authorityFieldUI, ref: "StaffCredential.user", access: { create: denyAll, update: denyAll } }), customerProfile: relationship({ ui: authorityFieldUI, ref: "Customer.user", access: { create: denyAll, update: denyAll } }),
+    onboardingStatus: select({ ui: scopedPeopleUI, access: { update: canManageScopedPeople }, type: "enum", options: [
+      { label: "Not Started", value: "not_started" }, { label: "In Progress", value: "in_progress" }, { label: "Completed", value: "completed" }, { label: "Dismissed", value: "dismissed" },
+    ], defaultValue: "not_started", validation: { isRequired: true } }),
+    ...trackingFields,
   },
 });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { getPublicCannabisStorefrontSettings } from "@/features/storefront/lib/data/menu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,10 +13,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Next x Keystone Starter",
-  description: "Next, Keystone, and Tailwind Starter Template",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublicCannabisStorefrontSettings();
+  return {
+    title: settings.businessName || "Dispensary menu",
+    description: settings.description || settings.tagline || "Dispensary menu.",
+  };
+}
 
 export default function RootLayout({
   children,

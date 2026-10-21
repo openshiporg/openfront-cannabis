@@ -12,69 +12,1390 @@ generator client {
 }
 
 model User {
-  id                      String    @id @default(cuid())
-  name                    String    @default("")
-  email                   String    @unique @default("")
-  password                String
-  role                    Role?     @relation("User_role", fields: [roleId], references: [id])
-  roleId                  String?   @map("role")
-  tasks                   Todo[]    @relation("Todo_assignedTo")
-  passwordResetToken      String?
-  passwordResetIssuedAt   DateTime?
-  passwordResetRedeemedAt DateTime?
+  id                                   String                   @id @default(cuid())
+  name                                 String                   @default("")
+  email                                String                   @unique @default("")
+  password                             String
+  status                               UserStatusType           @default(active)
+  organization                         Organization?            @relation("User_organization", fields: [organizationId], references: [id])
+  organizationId                       String?                  @map("organization")
+  premises                             Premises?                @relation("User_premises", fields: [premisesId], references: [id])
+  premisesId                           String?                  @map("premises")
+  role                                 Role?                    @relation("User_role", fields: [roleId], references: [id])
+  roleId                               String?                  @map("role")
+  mfaMethod                            String                   @default("")
+  mfaVerifiedAt                        DateTime?
+  staffCredential                      StaffCredential?         @relation("StaffCredential_user")
+  customerProfile                      Customer?                @relation("Customer_user")
+  onboardingStatus                     UserOnboardingStatusType @default(not_started)
+  createdAt                            DateTime                 @default(now())
+  updatedAt                            DateTime                 @default(now()) @updatedAt
+  passwordResetToken                   String?
+  passwordResetIssuedAt                DateTime?
+  passwordResetRedeemedAt              DateTime?
+  from_JurisdictionRulePack_approvedBy JurisdictionRulePack[]   @relation("JurisdictionRulePack_approvedBy")
+  from_PackageHold_placedBy            PackageHold[]            @relation("PackageHold_placedBy")
+  from_PackageHold_releasedBy          PackageHold[]            @relation("PackageHold_releasedBy")
+  from_RegulatedManifest_actor         RegulatedManifest[]      @relation("RegulatedManifest_actor")
+  from_RegulatedManifest_approvedBy    RegulatedManifest[]      @relation("RegulatedManifest_approvedBy")
+  from_InventoryEvent_actor            InventoryEvent[]         @relation("InventoryEvent_actor")
+  from_InventoryEvent_approvedBy       InventoryEvent[]         @relation("InventoryEvent_approvedBy")
+  from_RegisterShift_operator          RegisterShift[]          @relation("RegisterShift_operator")
+  from_RegisterShift_approvedBy        RegisterShift[]          @relation("RegisterShift_approvedBy")
+  from_CashEvent_actor                 CashEvent[]              @relation("CashEvent_actor")
+  from_CashEvent_approvedBy            CashEvent[]              @relation("CashEvent_approvedBy")
+  from_Refund_actor                    Refund[]                 @relation("Refund_actor")
+  from_Refund_approvedBy               Refund[]                 @relation("Refund_approvedBy")
+  from_AuditEvent_actor                AuditEvent[]             @relation("AuditEvent_actor")
+  from_IdempotencyKey_actor            IdempotencyKey[]         @relation("IdempotencyKey_actor")
+  from_ReconciliationRun_owner         ReconciliationRun[]      @relation("ReconciliationRun_owner")
+  from_ReconciliationRun_approvedBy    ReconciliationRun[]      @relation("ReconciliationRun_approvedBy")
+  from_ComplianceIncident_actor        ComplianceIncident[]     @relation("ComplianceIncident_actor")
+  from_ComplianceIncident_owner        ComplianceIncident[]     @relation("ComplianceIncident_owner")
 
+  @@index([organizationId])
+  @@index([premisesId])
   @@index([roleId])
 }
 
 model Role {
-  id                 String  @id @default(cuid())
-  name               String  @default("")
-  canCreateTodos     Boolean @default(false)
-  canManageAllTodos  Boolean @default(false)
-  canSeeOtherPeople  Boolean @default(false)
-  canEditOtherPeople Boolean @default(false)
-  canManagePeople    Boolean @default(false)
-  canManageRoles     Boolean @default(false)
-  canAccessDashboard Boolean @default(false)
-  assignedTo         User[]  @relation("User_role")
+  id                    String        @id @default(cuid())
+  organization          Organization? @relation("Role_organization", fields: [organizationId], references: [id])
+  organizationId        String?       @map("organization")
+  name                  String        @default("")
+  canManagePeople       Boolean       @default(false)
+  canManageRoles        Boolean       @default(false)
+  canAccessDashboard    Boolean       @default(false)
+  canManageOnboarding   Boolean       @default(false)
+  canManageAuthority    Boolean       @default(false)
+  canManageCompliance   Boolean       @default(false)
+  canManageInventory    Boolean       @default(false)
+  canManageSales        Boolean       @default(false)
+  canManageFinance      Boolean       @default(false)
+  canManageIntegrations Boolean       @default(false)
+  canViewReports        Boolean       @default(false)
+  assignedTo            User[]        @relation("User_role")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @default(now()) @updatedAt
+
+  @@index([organizationId])
 }
 
-model Todo {
-  id                   String      @id @default(cuid())
-  label                String      @default("")
-  description          Json        @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
-  isComplete           Boolean     @default(false)
-  status               String?     @default("todo")
-  priority             Int?        @default(1)
-  tags                 Json        @default("[]")
-  dueDate              DateTime?
-  weight               Float?      @default(1)
-  budget               Decimal?    @default("0.00") @postgresql.Decimal(10, 2)
-  isPrivate            Boolean     @default(false)
-  largeNumber          BigInt?
-  metadata             Json?
-  secretNote           String?
-  coverImage_id        String?
-  coverImage_filesize  Int?
-  coverImage_width     Int?
-  coverImage_height    Int?
-  coverImage_extension String?
-  todoImages           TodoImage[] @relation("Todo_todoImages")
-  assignedTo           User?       @relation("Todo_assignedTo", fields: [assignedToId], references: [id])
-  assignedToId         String?     @map("assignedTo")
+model Organization {
+  id                                        String                    @id @default(cuid())
+  name                                      String                    @default("")
+  legalName                                 String                    @default("")
+  status                                    OrganizationStatusType    @default(pending_authority)
+  jurisdictionCode                          String                    @default("")
+  premises                                  Premises[]                @relation("Premises_organization")
+  storefrontSettings                        StorefrontSettings[]      @relation("StorefrontSettings_organization")
+  users                                     User[]                    @relation("User_organization")
+  createdAt                                 DateTime                  @default(now())
+  updatedAt                                 DateTime                  @default(now()) @updatedAt
+  from_Role_organization                    Role[]                    @relation("Role_organization")
+  from_CannabisLicense_organization         CannabisLicense[]         @relation("CannabisLicense_organization")
+  from_StaffCredential_organization         StaffCredential[]         @relation("StaffCredential_organization")
+  from_Customer_organization                Customer[]                @relation("Customer_organization")
+  from_EligibilityEvidence_organization     EligibilityEvidence[]     @relation("EligibilityEvidence_organization")
+  from_JurisdictionRulePack_organization    JurisdictionRulePack[]    @relation("JurisdictionRulePack_organization")
+  from_Product_organization                 Product[]                 @relation("Product_organization")
+  from_InventoryPackage_organization        InventoryPackage[]        @relation("InventoryPackage_organization")
+  from_PackageHold_organization             PackageHold[]             @relation("PackageHold_organization")
+  from_RegulatedManifest_organization       RegulatedManifest[]       @relation("RegulatedManifest_organization")
+  from_InventoryEvent_organization          InventoryEvent[]          @relation("InventoryEvent_organization")
+  from_RecallCase_organization              RecallCase[]              @relation("RecallCase_organization")
+  from_Register_organization                Register[]                @relation("Register_organization")
+  from_RegisterShift_organization           RegisterShift[]           @relation("RegisterShift_organization")
+  from_CashEvent_organization               CashEvent[]               @relation("CashEvent_organization")
+  from_TenderConfiguration_organization     TenderConfiguration[]     @relation("TenderConfiguration_organization")
+  from_Cart_organization                    Cart[]                    @relation("Cart_organization")
+  from_CartLine_organization                CartLine[]                @relation("CartLine_organization")
+  from_Sale_organization                    Sale[]                    @relation("Sale_organization")
+  from_SaleLine_organization                SaleLine[]                @relation("SaleLine_organization")
+  from_Tender_organization                  Tender[]                  @relation("Tender_organization")
+  from_Refund_organization                  Refund[]                  @relation("Refund_organization")
+  from_AuditEvent_organization              AuditEvent[]              @relation("AuditEvent_organization")
+  from_IdempotencyKey_organization          IdempotencyKey[]          @relation("IdempotencyKey_organization")
+  from_OutboxEvent_organization             OutboxEvent[]             @relation("OutboxEvent_organization")
+  from_StateEventInbox_organization         StateEventInbox[]         @relation("StateEventInbox_organization")
+  from_IntegrationInstallation_organization IntegrationInstallation[] @relation("IntegrationInstallation_organization")
+  from_ReconciliationRun_organization       ReconciliationRun[]       @relation("ReconciliationRun_organization")
+  from_ComplianceIncident_organization      ComplianceIncident[]      @relation("ComplianceIncident_organization")
 
-  @@index([assignedToId])
+  @@index([jurisdictionCode])
 }
 
-model TodoImage {
-  id              String  @id @default(cuid())
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  imagePath       String  @default("")
-  altText         String  @default("")
-  todos           Todo[]  @relation("Todo_todoImages")
-  metadata        Json?
+model Premises {
+  id                                    String                    @id @default(cuid())
+  organization                          Organization?             @relation("Premises_organization", fields: [organizationId], references: [id])
+  organizationId                        String?                   @map("organization")
+  name                                  String                    @default("")
+  premisesCode                          String                    @unique @default("")
+  addressSnapshot                       Json?                     @default("{}")
+  timezone                              String                    @default("")
+  currencyCode                          String?
+  status                                PremisesStatusType        @default(pending_authority)
+  users                                 User[]                    @relation("User_premises")
+  storefrontSettings                    StorefrontSettings[]      @relation("StorefrontSettings_premises")
+  createdAt                             DateTime                  @default(now())
+  updatedAt                             DateTime                  @default(now()) @updatedAt
+  from_CannabisLicense_premises         CannabisLicense[]         @relation("CannabisLicense_premises")
+  from_StaffCredential_premises         StaffCredential[]         @relation("StaffCredential_premises")
+  from_Customer_premises                Customer[]                @relation("Customer_premises")
+  from_EligibilityEvidence_premises     EligibilityEvidence[]     @relation("EligibilityEvidence_premises")
+  from_JurisdictionRulePack_premises    JurisdictionRulePack[]    @relation("JurisdictionRulePack_premises")
+  from_Product_premises                 Product[]                 @relation("Product_premises")
+  from_InventoryPackage_premises        InventoryPackage[]        @relation("InventoryPackage_premises")
+  from_PackageHold_premises             PackageHold[]             @relation("PackageHold_premises")
+  from_RegulatedManifest_premises       RegulatedManifest[]       @relation("RegulatedManifest_premises")
+  from_InventoryEvent_premises          InventoryEvent[]          @relation("InventoryEvent_premises")
+  from_RecallCase_premises              RecallCase[]              @relation("RecallCase_premises")
+  from_Register_premises                Register[]                @relation("Register_premises")
+  from_RegisterShift_premises           RegisterShift[]           @relation("RegisterShift_premises")
+  from_CashEvent_premises               CashEvent[]               @relation("CashEvent_premises")
+  from_TenderConfiguration_premises     TenderConfiguration[]     @relation("TenderConfiguration_premises")
+  from_Cart_premises                    Cart[]                    @relation("Cart_premises")
+  from_CartLine_premises                CartLine[]                @relation("CartLine_premises")
+  from_Sale_premises                    Sale[]                    @relation("Sale_premises")
+  from_SaleLine_premises                SaleLine[]                @relation("SaleLine_premises")
+  from_Tender_premises                  Tender[]                  @relation("Tender_premises")
+  from_Refund_premises                  Refund[]                  @relation("Refund_premises")
+  from_AuditEvent_premises              AuditEvent[]              @relation("AuditEvent_premises")
+  from_IdempotencyKey_premises          IdempotencyKey[]          @relation("IdempotencyKey_premises")
+  from_OutboxEvent_premises             OutboxEvent[]             @relation("OutboxEvent_premises")
+  from_StateEventInbox_premises         StateEventInbox[]         @relation("StateEventInbox_premises")
+  from_IntegrationInstallation_premises IntegrationInstallation[] @relation("IntegrationInstallation_premises")
+  from_ReconciliationRun_premises       ReconciliationRun[]       @relation("ReconciliationRun_premises")
+  from_ComplianceIncident_premises      ComplianceIncident[]      @relation("ComplianceIncident_premises")
+
+  @@index([organizationId])
+}
+
+model StorefrontSettings {
+  id                String                                  @id @default(cuid())
+  organization      Organization                            @relation("StorefrontSettings_organization", fields: [organizationId], references: [id])
+  organizationId    String                                  @map("organization")
+  premises          Premises                                @relation("StorefrontSettings_premises", fields: [premisesId], references: [id])
+  premisesId        String                                  @map("premises")
+  businessName      String                                  @default("")
+  tagline           String                                  @default("")
+  description       String                                  @default("")
+  brandHue          Int                                     @default(215)
+  logoIcon          String                                  @default("<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" height=\"100%\" width=\"100%\" viewBox=\"0 0 200 200\"><g clip-path=\"url(#restaurant-logo-clip)\"><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M107.143 0H92.8571V63.2531L69.1621 4.60582L55.9166 9.95735L80.2255 70.1239L34.3401 24.2385L24.2386 34.3401L68.2177 78.3191L11.2241 53.4181L5.50459 66.5089L65.8105 92.8571H0V107.143H65.8104L5.50461 133.491L11.2241 146.582L68.2176 121.681L24.2386 165.66L34.3401 175.761L80.2255 129.876L55.9166 190.043L69.1621 195.394L92.8571 136.747V200H107.143V136.747L130.838 195.394L144.083 190.043L119.775 129.876L165.66 175.761L175.761 165.66L131.782 121.681L188.776 146.582L194.495 133.491L134.19 107.143H200V92.8571H134.189L194.495 66.5089L188.776 53.4181L131.782 78.3191L175.761 34.34L165.66 24.2385L119.775 70.1238L144.083 9.95735L130.838 4.60582L107.143 63.2531V0Z\" fill=\"url(#restaurant-logo-gradient)\"/></g><defs><linearGradient id=\"restaurant-logo-gradient\" x1=\"14\" y1=\"26\" x2=\"179\" y2=\"179.5\" gradientUnits=\"userSpaceOnUse\"><stop stop-color=\"#5c6bc0\"/><stop offset=\"1\" stop-color=\"#4f39f6\"/></linearGradient><clipPath id=\"restaurant-logo-clip\"><rect width=\"200\" height=\"200\" fill=\"white\"/></clipPath></defs></svg>")
+  logoColor         String                                  @default("0")
+  publicationStatus StorefrontSettingsPublicationStatusType @default(draft)
+  storefrontMode    StorefrontSettingsStorefrontModeType    @default(configured)
+  demoCatalog       Json?                                   @default("[]")
+  createdAt         DateTime                                @default(now())
+  updatedAt         DateTime                                @default(now()) @updatedAt
+
+  @@unique([organizationId, premisesId], map: "StorefrontSettings_authority_scope_key")
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model CannabisLicense {
+  id                   String                    @id @default(cuid())
+  organization         Organization?             @relation("CannabisLicense_organization", fields: [organizationId], references: [id])
+  organizationId       String?                   @map("organization")
+  premises             Premises?                 @relation("CannabisLicense_premises", fields: [premisesId], references: [id])
+  premisesId           String?                   @map("premises")
+  licenseNumber        String                    @unique @default("")
+  licenseType          String                    @default("")
+  regulatorName        String                    @default("")
+  authorizedActivities Json?                     @default("[]")
+  status               CannabisLicenseStatusType @default(draft)
+  effectiveAt          DateTime
+  expiresAt            DateTime
+  verifiedAt           DateTime?
+  authorityReference   String                    @default("")
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model StaffCredential {
+  id                  String                    @id @default(cuid())
+  organization        Organization?             @relation("StaffCredential_organization", fields: [organizationId], references: [id])
+  organizationId      String?                   @map("organization")
+  premises            Premises?                 @relation("StaffCredential_premises", fields: [premisesId], references: [id])
+  premisesId          String?                   @map("premises")
+  user                User?                     @relation("StaffCredential_user", fields: [userId], references: [id])
+  userId              String?                   @unique @map("user")
+  credentialType      String                    @default("")
+  credentialReference String                    @default("")
+  allowedActivities   Json?                     @default("[]")
+  approvalLimitCents  Int?                      @default(0)
+  status              StaffCredentialStatusType @default(pending)
+  effectiveAt         DateTime
+  expiresAt           DateTime
+  trainingVerifiedAt  DateTime?
+  authorityVerifiedAt DateTime?
+  evidenceHash        String                    @default("")
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model Customer {
+  id                                String                @id @default(cuid())
+  organization                      Organization?         @relation("Customer_organization", fields: [organizationId], references: [id])
+  organizationId                    String?               @map("organization")
+  premises                          Premises?             @relation("Customer_premises", fields: [premisesId], references: [id])
+  premisesId                        String?               @map("premises")
+  user                              User?                 @relation("Customer_user", fields: [userId], references: [id])
+  userId                            String?               @unique @map("user")
+  reference                         String                @unique @default("")
+  capacity                          CustomerCapacityType
+  status                            CustomerStatusType    @default(pending_verification)
+  marketingConsent                  Boolean               @default(false)
+  intakeProofHash                   String                @default("")
+  contact                           Json?
+  createdAt                         DateTime              @default(now())
+  updatedAt                         DateTime              @default(now()) @updatedAt
+  from_EligibilityEvidence_customer EligibilityEvidence[] @relation("EligibilityEvidence_customer")
+  from_Cart_customer                Cart[]                @relation("Cart_customer")
+  from_Sale_customer                Sale[]                @relation("Sale_customer")
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model EligibilityEvidence {
+  id                              String                          @id @default(cuid())
+  organization                    Organization?                   @relation("EligibilityEvidence_organization", fields: [organizationId], references: [id])
+  organizationId                  String?                         @map("organization")
+  premises                        Premises?                       @relation("EligibilityEvidence_premises", fields: [premisesId], references: [id])
+  premisesId                      String?                         @map("premises")
+  customer                        Customer?                       @relation("EligibilityEvidence_customer", fields: [customerId], references: [id])
+  customerId                      String?                         @map("customer")
+  capacity                        EligibilityEvidenceCapacityType
+  identityMethod                  String                          @default("")
+  identityReferenceHash           String                          @default("")
+  dateOfBirth                     DateTime
+  identityExpiresAt               DateTime
+  registryName                    String                          @default("")
+  registryReferenceHash           String                          @default("")
+  registryVerifiedAt              DateTime?
+  registryExpiresAt               DateTime?
+  representedPatientReferenceHash String                          @default("")
+  allotmentRemainingMicrounits    Int?
+  result                          EligibilityEvidenceResultType   @default(pending)
+  reasonCodes                     Json?                           @default("[]")
+  evidenceHash                    String                          @default("")
+  verifiedAt                      DateTime?
+  createdAt                       DateTime                        @default(now())
+  updatedAt                       DateTime                        @default(now()) @updatedAt
+  from_Cart_eligibilityEvidence   Cart[]                          @relation("Cart_eligibilityEvidence")
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([customerId])
+}
+
+model JurisdictionRulePack {
+  id                   String                         @id @default(cuid())
+  organization         Organization?                  @relation("JurisdictionRulePack_organization", fields: [organizationId], references: [id])
+  organizationId       String?                        @map("organization")
+  premises             Premises?                      @relation("JurisdictionRulePack_premises", fields: [premisesId], references: [id])
+  premisesId           String?                        @map("premises")
+  version              String                         @default("")
+  jurisdictionCode     String                         @default("")
+  authorityCitations   Json?                          @default("[]")
+  policyHash           String                         @unique @default("")
+  status               JurisdictionRulePackStatusType @default(draft)
+  effectiveAt          DateTime
+  expiresAt            DateTime
+  approvedAt           DateTime?
+  approvedBy           User?                          @relation("JurisdictionRulePack_approvedBy", fields: [approvedById], references: [id])
+  approvedById         String?                        @map("approvedBy")
+  adultMinimumAge      Int
+  medicalMinimumAge    Int
+  operatingStartMinute Int
+  operatingEndMinute   Int
+  purchaseLimits       Json?                          @default("[]")
+  taxRules             Json?                          @default("[]")
+  discountRules        Json?                          @default("[]")
+  allowedTenderTypes   Json?                          @default("[]")
+  labelRequirements    Json?                          @default("[]")
+  returnRules          Json?                          @default("{}")
+  outagePolicy         Json?                          @default("{}")
+  privacyRules         Json?                          @default("{}")
+  retentionRules       Json?                          @default("{}")
+  medicalEnabled       Boolean                        @default(false)
+  pickupEnabled        Boolean                        @default(false)
+  deliveryEnabled      Boolean                        @default(false)
+  offlineSalesAllowed  Boolean                        @default(false)
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @default(now()) @updatedAt
+  from_Cart_rulePack   Cart[]                         @relation("Cart_rulePack")
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([approvedById])
+}
+
+model Product {
+  id                     String             @id @default(cuid())
+  organization           Organization?      @relation("Product_organization", fields: [organizationId], references: [id])
+  organizationId         String?            @map("organization")
+  premises               Premises?          @relation("Product_premises", fields: [premisesId], references: [id])
+  premisesId             String?            @map("premises")
+  sku                    String             @unique @default("")
+  name                   String             @default("")
+  brand                  String             @default("")
+  form                   String             @default("")
+  categoryCode           String             @default("")
+  unitOfMeasure          String             @default("")
+  unitQuantityMicrounits Int
+  equivalencyMicrounits  Int
+  priceCents             Int
+  taxCategoryCode        String             @default("")
+  adultUseEligible       Boolean            @default(false)
+  medicalEligible        Boolean            @default(false)
+  status                 ProductStatusType  @default(draft)
+  publicDescription      String             @default("")
+  publicImageUrl         String             @default("")
+  packages               InventoryPackage[] @relation("InventoryPackage_product")
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @default(now()) @updatedAt
+  from_CartLine_product  CartLine[]         @relation("CartLine_product")
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model InventoryPackage {
+  id                         String                         @id @default(cuid())
+  organization               Organization?                  @relation("InventoryPackage_organization", fields: [organizationId], references: [id])
+  organizationId             String?                        @map("organization")
+  premises                   Premises?                      @relation("InventoryPackage_premises", fields: [premisesId], references: [id])
+  premisesId                 String?                        @map("premises")
+  product                    Product?                       @relation("InventoryPackage_product", fields: [productId], references: [id])
+  productId                  String?                        @map("product")
+  packageUid                 String                         @unique @default("")
+  sourcePackageUid           String                         @default("")
+  productionBatchNumber      String                         @default("")
+  lotNumber                  String                         @default("")
+  quantityReceivedMicrounits Int
+  quantityOnHandMicrounits   Int
+  reservedMicrounits         Int?                           @default(0)
+  unitOfMeasure              String                         @default("")
+  status                     InventoryPackageStatusType     @default(expected_inbound)
+  testStatus                 InventoryPackageTestStatusType @default(unknown)
+  labName                    String                         @default("")
+  labResultReference         String                         @default("")
+  coaReference               String                         @default("")
+  labVerifiedAt              DateTime?
+  manufacturedAt             DateTime?
+  receivedAt                 DateTime?
+  expiresAt                  DateTime
+  releasedAt                 DateTime?
+  labelVersion               String                         @default("")
+  potencySnapshot            Json?                          @default("{}")
+  lineage                    Json?                          @default("[]")
+  version                    Int?                           @default(1)
+  holds                      PackageHold[]                  @relation("PackageHold_package")
+  events                     InventoryEvent[]               @relation("InventoryEvent_package")
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @default(now()) @updatedAt
+  from_CartLine_package      CartLine[]                     @relation("CartLine_package")
+  from_SaleLine_package      SaleLine[]                     @relation("SaleLine_package")
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([productId])
+}
+
+model PackageHold {
+  id                        String                @id @default(cuid())
+  organization              Organization?         @relation("PackageHold_organization", fields: [organizationId], references: [id])
+  organizationId            String?               @map("organization")
+  premises                  Premises?             @relation("PackageHold_premises", fields: [premisesId], references: [id])
+  premisesId                String?               @map("premises")
+  package                   InventoryPackage?     @relation("PackageHold_package", fields: [packageId], references: [id])
+  packageId                 String?               @map("package")
+  type                      PackageHoldTypeType
+  status                    PackageHoldStatusType @default(active)
+  reasonCode                String                @default("")
+  reason                    String                @default("")
+  placedBy                  User?                 @relation("PackageHold_placedBy", fields: [placedById], references: [id])
+  placedById                String?               @map("placedBy")
+  placedAt                  DateTime
+  releasedBy                User?                 @relation("PackageHold_releasedBy", fields: [releasedById], references: [id])
+  releasedById              String?               @map("releasedBy")
+  releasedAt                DateTime?
+  releaseAuthorityReference String                @default("")
+  evidenceHash              String                @default("")
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([packageId])
+  @@index([placedById])
+  @@index([releasedById])
+}
+
+model RegulatedManifest {
+  id                       String                      @id @default(cuid())
+  organization             Organization?               @relation("RegulatedManifest_organization", fields: [organizationId], references: [id])
+  organizationId           String?                     @map("organization")
+  premises                 Premises?                   @relation("RegulatedManifest_premises", fields: [premisesId], references: [id])
+  premisesId               String?                     @map("premises")
+  manifestNumber           String                      @unique @default("")
+  type                     RegulatedManifestTypeType
+  status                   RegulatedManifestStatusType @default(proposed)
+  sourceLicenseNumber      String                      @default("")
+  destinationLicenseNumber String                      @default("")
+  transporterReference     String                      @default("")
+  regulatorManifestId      String                      @default("")
+  occurredAt               DateTime
+  completedAt              DateTime?
+  reasonCode               String                      @default("")
+  evidence                 Json?                       @default("{}")
+  evidenceHash             String                      @default("")
+  actor                    User?                       @relation("RegulatedManifest_actor", fields: [actorId], references: [id])
+  actorId                  String?                     @map("actor")
+  approvedBy               User?                       @relation("RegulatedManifest_approvedBy", fields: [approvedById], references: [id])
+  approvedById             String?                     @map("approvedBy")
+  packageEvents            InventoryEvent[]            @relation("InventoryEvent_manifest")
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([actorId])
+  @@index([approvedById])
+}
+
+model InventoryEvent {
+  id                       String                              @id @default(cuid())
+  organization             Organization?                       @relation("InventoryEvent_organization", fields: [organizationId], references: [id])
+  organizationId           String?                             @map("organization")
+  premises                 Premises?                           @relation("InventoryEvent_premises", fields: [premisesId], references: [id])
+  premisesId               String?                             @map("premises")
+  package                  InventoryPackage?                   @relation("InventoryEvent_package", fields: [packageId], references: [id])
+  packageId                String?                             @map("package")
+  manifest                 RegulatedManifest?                  @relation("InventoryEvent_manifest", fields: [manifestId], references: [id])
+  manifestId               String?                             @map("manifest")
+  eventType                InventoryEventEventTypeType
+  quantityDeltaMicrounits  Int
+  beforeQuantityMicrounits Int
+  afterQuantityMicrounits  Int
+  reasonCode               String                              @default("")
+  actor                    User?                               @relation("InventoryEvent_actor", fields: [actorId], references: [id])
+  actorId                  String?                             @map("actor")
+  approvedBy               User?                               @relation("InventoryEvent_approvedBy", fields: [approvedById], references: [id])
+  approvedById             String?                             @map("approvedBy")
+  sourceType               String                              @default("")
+  sourceId                 String                              @default("")
+  idempotencyKey           String                              @unique @default("")
+  occurredAt               DateTime
+  evidenceHash             String                              @default("")
+  stateReportStatus        InventoryEventStateReportStatusType @default(local_recorded)
+  createdAt                DateTime                            @default(now())
+  updatedAt                DateTime                            @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([packageId])
+  @@index([manifestId])
+  @@index([actorId])
+  @@index([approvedById])
+  @@index([sourceId])
+}
+
+model RecallCase {
+  id                 String               @id @default(cuid())
+  organization       Organization?        @relation("RecallCase_organization", fields: [organizationId], references: [id])
+  organizationId     String?              @map("organization")
+  premises           Premises?            @relation("RecallCase_premises", fields: [premisesId], references: [id])
+  premisesId         String?              @map("premises")
+  reference          String               @unique @default("")
+  status             RecallCaseStatusType @default(suspected)
+  authorityReference String               @default("")
+  packageUids        Json?                @default("[]")
+  batchNumbers       Json?                @default("[]")
+  reason             String               @default("")
+  openedAt           DateTime
+  closedAt           DateTime?
+  evidenceHash       String               @default("")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model Register {
+  id                          String             @id @default(cuid())
+  organization                Organization?      @relation("Register_organization", fields: [organizationId], references: [id])
+  organizationId              String?            @map("organization")
+  premises                    Premises?          @relation("Register_premises", fields: [premisesId], references: [id])
+  premisesId                  String?            @map("premises")
+  code                        String             @unique @default("")
+  name                        String             @default("")
+  status                      RegisterStatusType @default(active)
+  createdAt                   DateTime           @default(now())
+  updatedAt                   DateTime           @default(now()) @updatedAt
+  from_RegisterShift_register RegisterShift[]    @relation("RegisterShift_register")
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model RegisterShift {
+  id                String                  @id @default(cuid())
+  organization      Organization?           @relation("RegisterShift_organization", fields: [organizationId], references: [id])
+  organizationId    String?                 @map("organization")
+  premises          Premises?               @relation("RegisterShift_premises", fields: [premisesId], references: [id])
+  premisesId        String?                 @map("premises")
+  register          Register?               @relation("RegisterShift_register", fields: [registerId], references: [id])
+  registerId        String?                 @map("register")
+  operator          User?                   @relation("RegisterShift_operator", fields: [operatorId], references: [id])
+  operatorId        String?                 @map("operator")
+  status            RegisterShiftStatusType @default(scheduled)
+  openingFloatCents Int
+  expectedCashCents Int?
+  actualCashCents   Int?
+  varianceCents     Int?
+  openedAt          DateTime?
+  countedAt         DateTime?
+  closedAt          DateTime?
+  approvedBy        User?                   @relation("RegisterShift_approvedBy", fields: [approvedById], references: [id])
+  approvedById      String?                 @map("approvedBy")
+  evidenceHash      String                  @default("")
+  cashEvents        CashEvent[]             @relation("CashEvent_shift")
+  sales             Sale[]                  @relation("Sale_shift")
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @default(now()) @updatedAt
+  from_Cart_shift   Cart[]                  @relation("Cart_shift")
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([registerId])
+  @@index([operatorId])
+  @@index([approvedById])
+}
+
+model CashEvent {
+  id             String            @id @default(cuid())
+  organization   Organization?     @relation("CashEvent_organization", fields: [organizationId], references: [id])
+  organizationId String?           @map("organization")
+  premises       Premises?         @relation("CashEvent_premises", fields: [premisesId], references: [id])
+  premisesId     String?           @map("premises")
+  shift          RegisterShift?    @relation("CashEvent_shift", fields: [shiftId], references: [id])
+  shiftId        String?           @map("shift")
+  type           CashEventTypeType
+  amountCents    Int
+  reasonCode     String            @default("")
+  actor          User?             @relation("CashEvent_actor", fields: [actorId], references: [id])
+  actorId        String?           @map("actor")
+  approvedBy     User?             @relation("CashEvent_approvedBy", fields: [approvedById], references: [id])
+  approvedById   String?           @map("approvedBy")
+  occurredAt     DateTime
+  idempotencyKey String            @unique @default("")
+  evidenceHash   String            @default("")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([shiftId])
+  @@index([actorId])
+  @@index([approvedById])
+}
+
+model TenderConfiguration {
+  id                        String                      @id @default(cuid())
+  organization              Organization?               @relation("TenderConfiguration_organization", fields: [organizationId], references: [id])
+  organizationId            String?                     @map("organization")
+  premises                  Premises?                   @relation("TenderConfiguration_premises", fields: [premisesId], references: [id])
+  premisesId                String?                     @map("premises")
+  code                      String                      @unique @default("")
+  type                      TenderConfigurationTypeType
+  displayName               String                      @default("")
+  enabled                   Boolean                     @default(false)
+  providerCode              String                      @default("")
+  authorityReference        String                      @default("")
+  effectiveAt               DateTime
+  expiresAt                 DateTime
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @default(now()) @updatedAt
+  from_Tender_configuration Tender[]                    @relation("Tender_configuration")
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model Cart {
+  id                    String                @id @default(cuid())
+  organization          Organization?         @relation("Cart_organization", fields: [organizationId], references: [id])
+  organizationId        String?               @map("organization")
+  premises              Premises?             @relation("Cart_premises", fields: [premisesId], references: [id])
+  premisesId            String?               @map("premises")
+  customer              Customer?             @relation("Cart_customer", fields: [customerId], references: [id])
+  customerId            String?               @map("customer")
+  shift                 RegisterShift?        @relation("Cart_shift", fields: [shiftId], references: [id])
+  shiftId               String?               @map("shift")
+  reference             String                @unique @default("")
+  source                CartSourceType
+  status                CartStatusType        @default(draft)
+  guestProofHash        String                @default("")
+  expiresAt             DateTime
+  rulePack              JurisdictionRulePack? @relation("Cart_rulePack", fields: [rulePackId], references: [id])
+  rulePackId            String?               @map("rulePack")
+  eligibilityEvidence   EligibilityEvidence?  @relation("Cart_eligibilityEvidence", fields: [eligibilityEvidenceId], references: [id])
+  eligibilityEvidenceId String?               @map("eligibilityEvidence")
+  subtotalCents         Int?                  @default(0)
+  discountCents         Int?                  @default(0)
+  taxCents              Int?                  @default(0)
+  totalCents            Int?                  @default(0)
+  lines                 CartLine[]            @relation("CartLine_cart")
+  version               Int?                  @default(1)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @default(now()) @updatedAt
+  from_Sale_cart        Sale[]                @relation("Sale_cart")
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([customerId])
+  @@index([shiftId])
+  @@index([rulePackId])
+  @@index([eligibilityEvidenceId])
+}
+
+model CartLine {
+  id                    String            @id @default(cuid())
+  organization          Organization?     @relation("CartLine_organization", fields: [organizationId], references: [id])
+  organizationId        String?           @map("organization")
+  premises              Premises?         @relation("CartLine_premises", fields: [premisesId], references: [id])
+  premisesId            String?           @map("premises")
+  cart                  Cart?             @relation("CartLine_cart", fields: [cartId], references: [id])
+  cartId                String?           @map("cart")
+  idempotencyKey        String            @unique @default("")
+  package               InventoryPackage? @relation("CartLine_package", fields: [packageId], references: [id])
+  packageId             String?           @map("package")
+  product               Product?          @relation("CartLine_product", fields: [productId], references: [id])
+  productId             String?           @map("product")
+  quantityMicrounits    Int
+  equivalencyMicrounits Int
+  titleSnapshot         String            @default("")
+  skuSnapshot           String            @default("")
+  categoryCodeSnapshot  String            @default("")
+  packageUidSnapshot    String            @default("")
+  batchSnapshot         String            @default("")
+  potencySnapshot       Json?             @default("{}")
+  unitPriceCents        Int
+  subtotalCents         Int
+  discountCents         Int?              @default(0)
+  discountSnapshot      Json?             @default("{}")
+  taxBasisPoints        Int
+  taxCents              Int
+  totalCents            Int
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([cartId])
+  @@index([packageId])
+  @@index([productId])
+}
+
+model Sale {
+  id                       String         @id @default(cuid())
+  organization             Organization?  @relation("Sale_organization", fields: [organizationId], references: [id])
+  organizationId           String?        @map("organization")
+  premises                 Premises?      @relation("Sale_premises", fields: [premisesId], references: [id])
+  premisesId               String?        @map("premises")
+  shift                    RegisterShift? @relation("Sale_shift", fields: [shiftId], references: [id])
+  shiftId                  String?        @map("shift")
+  customer                 Customer?      @relation("Sale_customer", fields: [customerId], references: [id])
+  customerId               String?        @map("customer")
+  cart                     Cart?          @relation("Sale_cart", fields: [cartId], references: [id])
+  cartId                   String?        @map("cart")
+  receiptNumber            String         @unique @default("")
+  status                   SaleStatusType
+  customerCapacitySnapshot String         @default("")
+  rulePackVersion          String         @default("")
+  eligibilityEvidenceHash  String         @default("")
+  purchaseLimitEvaluation  Json?          @default("{}")
+  subtotalCents            Int
+  discountCents            Int
+  taxCents                 Int
+  totalCents               Int
+  refundedCents            Int?           @default(0)
+  finalizedAt              DateTime
+  lines                    SaleLine[]     @relation("SaleLine_sale")
+  tenders                  Tender[]       @relation("Tender_sale")
+  refunds                  Refund[]       @relation("Refund_sale")
+  receiptSnapshot          Json?          @default("{}")
+  receiptHash              String         @default("")
+  labelSnapshot            Json?          @default("{}")
+  labelHash                String         @default("")
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([shiftId])
+  @@index([customerId])
+  @@index([cartId])
+}
+
+model SaleLine {
+  id                    String            @id @default(cuid())
+  organization          Organization?     @relation("SaleLine_organization", fields: [organizationId], references: [id])
+  organizationId        String?           @map("organization")
+  premises              Premises?         @relation("SaleLine_premises", fields: [premisesId], references: [id])
+  premisesId            String?           @map("premises")
+  sale                  Sale?             @relation("SaleLine_sale", fields: [saleId], references: [id])
+  saleId                String?           @map("sale")
+  package               InventoryPackage? @relation("SaleLine_package", fields: [packageId], references: [id])
+  packageId             String?           @map("package")
+  titleSnapshot         String            @default("")
+  skuSnapshot           String            @default("")
+  categoryCodeSnapshot  String            @default("")
+  packageUidSnapshot    String            @default("")
+  batchSnapshot         String            @default("")
+  coaReferenceSnapshot  String            @default("")
+  potencySnapshot       Json?             @default("{}")
+  quantityMicrounits    Int
+  equivalencyMicrounits Int
+  unitPriceCents        Int
+  discountCents         Int
+  discountSnapshot      Json?             @default("{}")
+  taxCents              Int
+  totalCents            Int
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([saleId])
+  @@index([packageId])
+}
+
+model Tender {
+  id                String               @id @default(cuid())
+  organization      Organization?        @relation("Tender_organization", fields: [organizationId], references: [id])
+  organizationId    String?              @map("organization")
+  premises          Premises?            @relation("Tender_premises", fields: [premisesId], references: [id])
+  premisesId        String?              @map("premises")
+  sale              Sale?                @relation("Tender_sale", fields: [saleId], references: [id])
+  saleId            String?              @map("sale")
+  configuration     TenderConfiguration? @relation("Tender_configuration", fields: [configurationId], references: [id])
+  configurationId   String?              @map("configuration")
+  typeSnapshot      String               @default("")
+  amountCents       Int
+  tenderedCents     Int?
+  changeCents       Int?                 @default(0)
+  status            TenderStatusType     @default(received)
+  providerReference String               @default("")
+  idempotencyKey    String               @unique @default("")
+  evidenceHash      String               @default("")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([saleId])
+  @@index([configurationId])
+}
+
+model Refund {
+  id                      String                         @id @default(cuid())
+  organization            Organization?                  @relation("Refund_organization", fields: [organizationId], references: [id])
+  organizationId          String?                        @map("organization")
+  premises                Premises?                      @relation("Refund_premises", fields: [premisesId], references: [id])
+  premisesId              String?                        @map("premises")
+  sale                    Sale?                          @relation("Refund_sale", fields: [saleId], references: [id])
+  saleId                  String?                        @map("sale")
+  amountCents             Int
+  reasonCode              String                         @default("")
+  inventoryDisposition    RefundInventoryDispositionType
+  status                  RefundStatusType               @default(pending)
+  actor                   User?                          @relation("Refund_actor", fields: [actorId], references: [id])
+  actorId                 String?                        @map("actor")
+  approvedBy              User?                          @relation("Refund_approvedBy", fields: [approvedById], references: [id])
+  approvedById            String?                        @map("approvedBy")
+  originalTenderReference String                         @default("")
+  providerReference       String                         @default("")
+  occurredAt              DateTime
+  evidenceHash            String                         @default("")
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([saleId])
+  @@index([actorId])
+  @@index([approvedById])
+}
+
+model AuditEvent {
+  id             String        @id @default(cuid())
+  organization   Organization? @relation("AuditEvent_organization", fields: [organizationId], references: [id])
+  organizationId String?       @map("organization")
+  premises       Premises?     @relation("AuditEvent_premises", fields: [premisesId], references: [id])
+  premisesId     String?       @map("premises")
+  actor          User?         @relation("AuditEvent_actor", fields: [actorId], references: [id])
+  actorId        String?       @map("actor")
+  action         String        @default("")
+  resourceType   String        @default("")
+  resourceId     String        @default("")
+  correlationId  String        @default("")
+  reasonCode     String        @default("")
+  evidence       Json?         @default("{}")
+  evidenceHash   String        @default("")
+  occurredAt     DateTime
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([actorId])
+  @@index([correlationId])
+}
+
+model IdempotencyKey {
+  id               String                   @id @default(cuid())
+  organization     Organization?            @relation("IdempotencyKey_organization", fields: [organizationId], references: [id])
+  organizationId   String?                  @map("organization")
+  premises         Premises?                @relation("IdempotencyKey_premises", fields: [premisesId], references: [id])
+  premisesId       String?                  @map("premises")
+  scope            String                   @default("")
+  lookupKey        String                   @unique @default("")
+  requestHash      String                   @default("")
+  status           IdempotencyKeyStatusType @default(processing)
+  responseSnapshot Json?
+  requestSnapshot  Json?
+  startedAt        DateTime
+  completedAt      DateTime?
+  expiresAt        DateTime
+  actor            User?                    @relation("IdempotencyKey_actor", fields: [actorId], references: [id])
+  actorId          String?                  @map("actor")
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([actorId])
+}
+
+model OutboxEvent {
+  id                 String                @id @default(cuid())
+  organization       Organization?         @relation("OutboxEvent_organization", fields: [organizationId], references: [id])
+  organizationId     String?               @map("organization")
+  premises           Premises?             @relation("OutboxEvent_premises", fields: [premisesId], references: [id])
+  premisesId         String?               @map("premises")
+  eventKey           String                @unique @default("")
+  topic              String                @default("")
+  aggregateType      String                @default("")
+  aggregateId        String                @default("")
+  payload            Json?                 @default("{}")
+  requestHash        String                @default("")
+  idempotencyKey     String                @default("")
+  status             OutboxEventStatusType @default(queued)
+  attempts           Int?                  @default(0)
+  availableAt        DateTime
+  lastAttemptAt      DateTime?
+  acceptedAt         DateTime?
+  regulatorReference String                @default("")
+  lastErrorCode      String                @default("")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model StateEventInbox {
+  id                String                    @id @default(cuid())
+  organization      Organization?             @relation("StateEventInbox_organization", fields: [organizationId], references: [id])
+  organizationId    String?                   @map("organization")
+  premises          Premises?                 @relation("StateEventInbox_premises", fields: [premisesId], references: [id])
+  premisesId        String?                   @map("premises")
+  providerCode      String                    @default("")
+  providerEventId   String                    @unique @default("")
+  payloadHash       String                    @default("")
+  signatureEvidence String                    @default("")
+  status            StateEventInboxStatusType @default(received)
+  receivedAt        DateTime
+  processedAt       DateTime?
+  rejectionReason   String                    @default("")
+  payload           Json?                     @default("{}")
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model IntegrationInstallation {
+  id                   String                                  @id @default(cuid())
+  organization         Organization?                           @relation("IntegrationInstallation_organization", fields: [organizationId], references: [id])
+  organizationId       String?                                 @map("organization")
+  premises             Premises?                               @relation("IntegrationInstallation_premises", fields: [premisesId], references: [id])
+  premisesId           String?                                 @map("premises")
+  providerCode         String                                  @default("")
+  providerType         IntegrationInstallationProviderTypeType
+  status               IntegrationInstallationStatusType       @default(unconfigured)
+  credentialReference  String                                  @default("")
+  facilityReference    String                                  @default("")
+  capabilities         Json?                                   @default("[]")
+  validatedAt          DateTime?
+  authorityReference   String                                  @default("")
+  lastSuccessfulSyncAt DateTime?
+  createdAt            DateTime                                @default(now())
+  updatedAt            DateTime                                @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+}
+
+model ReconciliationRun {
+  id                   String                      @id @default(cuid())
+  organization         Organization?               @relation("ReconciliationRun_organization", fields: [organizationId], references: [id])
+  organizationId       String?                     @map("organization")
+  premises             Premises?                   @relation("ReconciliationRun_premises", fields: [premisesId], references: [id])
+  premisesId           String?                     @map("premises")
+  type                 ReconciliationRunTypeType
+  status               ReconciliationRunStatusType @default(pending)
+  startedAt            DateTime
+  completedAt          DateTime?
+  localSnapshotHash    String                      @default("")
+  externalSnapshotHash String                      @default("")
+  discrepancyCount     Int?                        @default(0)
+  discrepancies        Json?                       @default("[]")
+  owner                User?                       @relation("ReconciliationRun_owner", fields: [ownerId], references: [id])
+  ownerId              String?                     @map("owner")
+  approvedBy           User?                       @relation("ReconciliationRun_approvedBy", fields: [approvedById], references: [id])
+  approvedById         String?                     @map("approvedBy")
+  evidenceHash         String                      @default("")
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([ownerId])
+  @@index([approvedById])
+}
+
+model ComplianceIncident {
+  id                     String                           @id @default(cuid())
+  organization           Organization?                    @relation("ComplianceIncident_organization", fields: [organizationId], references: [id])
+  organizationId         String?                          @map("organization")
+  premises               Premises?                        @relation("ComplianceIncident_premises", fields: [premisesId], references: [id])
+  premisesId             String?                          @map("premises")
+  reference              String                           @unique @default("")
+  type                   ComplianceIncidentTypeType
+  severity               ComplianceIncidentSeverityType
+  status                 ComplianceIncidentStatusType     @default(open)
+  occurredAt             DateTime
+  detectedAt             DateTime
+  notificationDueAt      DateTime?
+  reportedAt             DateTime?
+  description            String                           @default("")
+  affectedPackageUids    Json?                            @default("[]")
+  customerReferenceHash  String                           @default("")
+  outageMode             ComplianceIncidentOutageModeType @default(none)
+  recoveryQueueReference String                           @default("")
+  authorityReference     String                           @default("")
+  actor                  User?                            @relation("ComplianceIncident_actor", fields: [actorId], references: [id])
+  actorId                String?                          @map("actor")
+  owner                  User?                            @relation("ComplianceIncident_owner", fields: [ownerId], references: [id])
+  ownerId                String?                          @map("owner")
+  evidenceHash           String                           @default("")
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([premisesId])
+  @@index([actorId])
+  @@index([ownerId])
+}
+
+enum UserStatusType {
+  active
+  disabled
+}
+
+enum UserOnboardingStatusType {
+  not_started
+  in_progress
+  completed
+  dismissed
+}
+
+enum OrganizationStatusType {
+  pending_authority
+  active
+  suspended
+  closed
+}
+
+enum PremisesStatusType {
+  pending_authority
+  active
+  suspended
+  closed
+}
+
+enum StorefrontSettingsPublicationStatusType {
+  draft
+  published
+}
+
+enum StorefrontSettingsStorefrontModeType {
+  demo
+  configured
+}
+
+enum CannabisLicenseStatusType {
+  draft
+  active
+  conditioned
+  suspended
+  expired
+  revoked
+  surrendered
+}
+
+enum StaffCredentialStatusType {
+  pending
+  active
+  suspended
+  expired
+  terminated
+}
+
+enum CustomerCapacityType {
+  adult_use
+  patient
+  caregiver
+}
+
+enum CustomerStatusType {
+  pending_verification
+  eligible
+  ineligible
+  suspended
+}
+
+enum EligibilityEvidenceCapacityType {
+  adult_use
+  patient
+  caregiver
+}
+
+enum EligibilityEvidenceResultType {
+  pending
+  eligible
+  ineligible
+  expired
+  revoked
+}
+
+enum JurisdictionRulePackStatusType {
+  draft
+  approved
+  effective
+  superseded
+  revoked
+}
+
+enum ProductStatusType {
+  draft
+  active
+  inactive
+}
+
+enum InventoryPackageStatusType {
+  expected_inbound
+  receiving_hold
+  quarantined
+  saleable
+  reserved
+  staged
+  transfer_allocated
+  in_transit
+  waste_pending
+  recalled
+  depleted
+  destroyed
+}
+
+enum InventoryPackageTestStatusType {
+  unknown
+  pending
+  passed
+  failed
+  retest
+}
+
+enum PackageHoldTypeType {
+  quarantine
+  test_hold
+  recall
+  discrepancy
+  authority
+  expiry
+}
+
+enum PackageHoldStatusType {
+  active
+  released
+  disposed
+}
+
+enum RegulatedManifestTypeType {
+  receiving
+  transfer_out
+  transfer_in
+  count
+  adjustment
+  waste
+  destruction
+  recall
+}
+
+enum RegulatedManifestStatusType {
+  proposed
+  manifested
+  receiving_hold
+  accepted
+  partially_accepted
+  rejected
+  dispatched
+  in_transit
+  completed
+  reconciled
+}
+
+enum InventoryEventEventTypeType {
+  receive
+  release
+  reserve
+  release_reservation
+  sale
+  return_quarantine
+  transfer_out
+  transfer_in
+  count
+  adjustment
+  waste
+  destruction
+  recall_hold
+  recall_release
+}
+
+enum InventoryEventStateReportStatusType {
+  local_recorded
+  queued
+  accepted
+  rejected
+  reconciled
+}
+
+enum RecallCaseStatusType {
+  suspected
+  hold
+  scope_confirmed
+  active
+  monitoring
+  disposition
+  regulator_closed
+}
+
+enum RegisterStatusType {
+  active
+  inactive
+  maintenance
+}
+
+enum RegisterShiftStatusType {
+  scheduled
+  open
+  count_pending
+  counted
+  variance_review
+  closed
+  deposited
+}
+
+enum CashEventTypeType {
+  opening_float
+  sale
+  refund
+  paid_in
+  paid_out
+  safe_drop
+  count
+  deposit
+}
+
+enum TenderConfigurationTypeType {
+  cash
+  debit
+  ach
+  wallet
+  other
+}
+
+enum CartSourceType {
+  pos
+  pickup
+  customer_intake
+}
+
+enum CartStatusType {
+  draft
+  preliminarily_eligible
+  reserved
+  picking
+  staged
+  final_verification
+  completed
+  expired
+  cancelled
+  rejected
+}
+
+enum SaleStatusType {
+  finalized
+  state_queued
+  state_accepted
+  state_rejected
+  reconciled
+  reversal_pending
+  reversed
+  partially_refunded
+  refunded
+}
+
+enum TenderStatusType {
+  received
+  authorized
+  captured
+  reversed
+  failed
+}
+
+enum RefundInventoryDispositionType {
+  none
+  quarantine
+  waste
+  returned_to_authority
+}
+
+enum RefundStatusType {
+  pending
+  completed
+  failed
+  reconciled
+}
+
+enum IdempotencyKeyStatusType {
+  processing
+  succeeded
+  failed
+}
+
+enum OutboxEventStatusType {
+  queued
+  sending
+  accepted
+  rejected
+  retryable
+  dead_letter
+  reconciled
+}
+
+enum StateEventInboxStatusType {
+  received
+  verified
+  processed
+  rejected
+  needs_review
+}
+
+enum IntegrationInstallationProviderTypeType {
+  traceability
+  patient_registry
+  identity
+  laboratory
+  payment
+  tax
+}
+
+enum IntegrationInstallationStatusType {
+  unconfigured
+  pending_validation
+  active
+  suspended
+  revoked
+}
+
+enum ReconciliationRunTypeType {
+  inventory_state_physical
+  sale_package
+  tender_settlement
+  tax
+  cash
+  outbox
+}
+
+enum ReconciliationRunStatusType {
+  pending
+  running
+  exceptions
+  balanced
+  approved
+  failed
+}
+
+enum ComplianceIncidentTypeType {
+  refusal_of_sale
+  identity
+  patient_registry_outage
+  traceability_outage
+  payment_ambiguity
+  inventory_discrepancy
+  theft
+  loss
+  diversion
+  recall
+  privacy
+  security
+  system_outage
+  offline_attempt
+}
+
+enum ComplianceIncidentSeverityType {
+  low
+  medium
+  high
+  critical
+}
+
+enum ComplianceIncidentStatusType {
+  open
+  contained
+  investigating
+  reported
+  resolved
+  closed
+}
+
+enum ComplianceIncidentOutageModeType {
+  none
+  fail_closed
+  approved_degraded
 }

@@ -183,23 +183,23 @@ function SidebarProvider({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebarLeft, toggleSidebarRight]);
 
-  const leftState: SidebarState = {
+  const leftState = useMemo<SidebarState>(() => ({
     state: openLeft ? "expanded" : "collapsed",
     open: openLeft,
     setOpen: setOpenLeft,
     openMobile: openMobileLeft,
     setOpenMobile: setOpenMobileLeft,
     toggleSidebar: toggleSidebarLeft,
-  };
+  }), [openLeft, openMobileLeft, setOpenLeft, setOpenMobileLeft, toggleSidebarLeft]);
 
-  const rightState: SidebarState = {
+  const rightState = useMemo<SidebarState>(() => ({
     state: openRight ? "expanded" : "collapsed",
     open: openRight,
     setOpen: setOpenRight,
     openMobile: openMobileRight,
     setOpenMobile: setOpenMobileRight,
     toggleSidebar: toggleSidebarRight,
-  };
+  }), [openRight, openMobileRight, setOpenRight, setOpenMobileRight, toggleSidebarRight]);
 
   const contextValue = useMemo<SidebarContextProps>(
     () => ({
@@ -207,21 +207,7 @@ function SidebarProvider({
       right: rightState,
       isMobile,
     }),
-    [
-      leftState.state,
-      leftState.open,
-      leftState.openMobile,
-      rightState.state,
-      rightState.open,
-      rightState.openMobile,
-      isMobile,
-      setOpenLeft,
-      setOpenRight,
-      setOpenMobileLeft,
-      setOpenMobileRight,
-      toggleSidebarLeft,
-      toggleSidebarRight,
-    ],
+    [leftState, rightState, isMobile],
   );
 
   return (

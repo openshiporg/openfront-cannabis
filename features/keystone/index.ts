@@ -5,22 +5,15 @@ import { models } from "./models";
 import { statelessSessions } from "@keystone-6/core/session";
 import { extendGraphqlSchema } from "./mutations";
 import { sendPasswordResetEmail } from "./lib/mail";
+import { OPERATOR_SESSION_MAX_AGE_SECONDS } from "../../lib/security";
+import { readRuntimeEnvironment } from "./config/environment";
 
-const databaseURL = process.env.DATABASE_URL || "file:./keystone.db";
+const runtimeEnvironment = readRuntimeEnvironment();
 
 const sessionConfig = {
-  maxAge: 60 * 60 * 24 * 360, // How long they stay signed in?
-  secret:
-    process.env.SESSION_SECRET || "this secret should only be used in testing",
+  maxAge: OPERATOR_SESSION_MAX_AGE_SECONDS,
+  secret: runtimeEnvironment.sessionSecret,
 };
-
-const {
-  S3_BUCKET_NAME: bucketName = "keystone-test",
-  S3_REGION: region = "ap-southeast-2",
-  S3_ACCESS_KEY_ID: accessKeyId = "keystone",
-  S3_SECRET_ACCESS_KEY: secretAccessKey = "keystone",
-  S3_ENDPOINT: endpoint = "https://sfo3.digitaloceanspaces.com",
-} = process.env;
 
 const { withAuth } = createAuth({
   listKey: "User",
@@ -32,13 +25,17 @@ const { withAuth } = createAuth({
       role: {
         create: {
           name: "Admin",
-          canCreateTodos: true,
-          canManageAllTodos: true,
-          canSeeOtherPeople: true,
-          canEditOtherPeople: true,
           canManagePeople: true,
           canManageRoles: true,
           canAccessDashboard: true,
+          canManageOnboarding: true,
+          canManageAuthority: true,
+          canManageCompliance: true,
+          canManageInventory: true,
+          canManageSales: true,
+          canManageFinance: true,
+          canManageIntegrations: true,
+          canViewReports: true,
         },
       },
     },
@@ -52,16 +49,25 @@ const { withAuth } = createAuth({
   sessionData: `
     name
     email
+    status
+    onboardingStatus
+    organization { id }
+    premises { id }
+    staffCredential { id status effectiveAt expiresAt allowedActivities evidenceHash }
     role {
       id
       name
-      canCreateTodos
-      canManageAllTodos
-      canSeeOtherPeople
-      canEditOtherPeople
       canManagePeople
       canManageRoles
       canAccessDashboard
+      canManageOnboarding
+      canManageAuthority
+      canManageCompliance
+      canManageInventory
+      canManageSales
+      canManageFinance
+      canManageIntegrations
+      canViewReports
     }
   `,
 });
@@ -70,19 +76,19 @@ export default withAuth(
   config({
     db: {
       provider: "postgresql",
-      url: databaseURL,
+      url: runtimeEnvironment.databaseUrl,
     },
     lists: models,
     storage: {
       my_images: {
         kind: "s3",
         type: "image",
-        bucketName,
-        region,
-        accessKeyId,
-        secretAccessKey,
-        endpoint,
-        signed: { expiry: 5000 },
+        bucketName: runtimeEnvironment.storage.bucketName,
+        region: runtimeEnvironment.storage.region,
+        accessKeyId: runtimeEnvironment.storage.accessKeyId,
+        secretAccessKey: runtimeEnvironment.storage.secretAccessKey,
+        endpoint: runtimeEnvironment.storage.endpoint,
+        signed: { expiry: 300 },
         forcePathStyle: true,
       },
     },

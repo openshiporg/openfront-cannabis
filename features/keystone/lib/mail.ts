@@ -1,6 +1,6 @@
 'use server' 
 
-import { createTransport, getTestMessageUrl } from "nodemailer";
+import { createTransport } from "nodemailer";
 
 // Utility function to get base URL for emails
 function getBaseUrlForEmails(): string {
@@ -13,15 +13,15 @@ function getBaseUrlForEmails(): string {
   return '';
 }
 
-const transport = createTransport({
-  // @ts-ignore
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+function mailTransport() {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+    throw new Error('Password reset delivery is not configured');
+  }
+  const port = Number(process.env.SMTP_PORT);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Password reset delivery is not configured');
+  return createTransport({ host: process.env.SMTP_HOST, port,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } });
+}
 
 function passwordResetEmail({ url }: { url: string }): string {
   const backgroundColor = "#f9f9f9";
@@ -63,7 +63,7 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
   const frontendUrl = baseUrl || getBaseUrlForEmails();
   
   // email the user a token
-  const info = await transport.sendMail({
+  await mailTransport().sendMail({
     to,
     from: process.env.SMTP_FROM,
     subject: "Your password reset token!",
@@ -71,7 +71,4 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
       url: `${frontendUrl}/dashboard/reset?token=${resetToken}`,
     }),
   });
-  if (process.env.MAIL_USER?.includes("ethereal.email")) {
-    console.log(`📧 Message Sent!  Preview it at ${getTestMessageUrl(info as any)}`);
-  }
 }

@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  allowedDevOrigins: ['cannabis.local'],
+  // Next 16.3 server-function argument traces can contain credentials.
+  logging: { serverFunctions: false },
   serverExternalPackages: ['graphql'],
   // Workaround since we diverged from Keystone reltionship and document views
   // typescript: {

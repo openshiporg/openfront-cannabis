@@ -120,3 +120,36 @@
     @apply bg-background text-foreground;
   }
 }
+
+.storefront-theme {
+  --storefront-hue: 215;
+  --storefront-accent: hsl(var(--storefront-hue) 58% 34%);
+}
+
+.storefront-accent-text {
+  color: var(--storefront-accent);
+}
+
+.storefront-accent-bg {
+  background-color: var(--storefront-accent);
+}
+
+.storefront-accent-border {
+  border-color: var(--storefront-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 639px) {
+  /* Touch targets for the public storefront only; dashboard controls keep their shared sizing. */
+  .storefront-theme :where(button, a[href], summary, select, textarea, input:not([type="hidden"])) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
