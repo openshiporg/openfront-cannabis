@@ -1,3 +1,4 @@
+import { s3ForcePathStyle } from "./lib/s3-storage";
 import { createAuth } from "@keystone-6/auth";
 import { config } from "@keystone-6/core";
 import "dotenv/config";
@@ -89,7 +90,7 @@ export default withAuth(
         secretAccessKey: runtimeEnvironment.storage.secretAccessKey,
         endpoint: runtimeEnvironment.storage.endpoint,
         signed: { expiry: 300 },
-        forcePathStyle: true,
+        forcePathStyle: s3ForcePathStyle(runtimeEnvironment.storage.endpoint),
       },
     },
     ui: {
