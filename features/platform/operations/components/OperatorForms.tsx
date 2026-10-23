@@ -4,9 +4,10 @@ import { ActionTrack, inputClass, labelClass, PillButton, textareaClass } from '
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
 import {
   amendProductFromMenu, amendRegisterFromDesk, approveVarianceFromDesk, renewAuthorityFromDesk, configureProductFromMenu, configureRegisterFromDesk, openShiftFromDesk,
-  provisionStaffFromDesk, recordIncidentFromDesk, retryOutboxEventFromDesk, revokeCredentialFromDesk, transitionIncidentFromDesk,
+  provisionStaffFromDesk, recordIncidentFromDesk, setTemporaryPasswordFromDesk, retryOutboxEventFromDesk, revokeCredentialFromDesk, transitionIncidentFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
+import { zonedLocalToInstant } from '@/features/platform/lib/time';
 
 const input = inputClass;
 const label = labelClass;
@@ -20,10 +21,16 @@ function Select({ name, title, errors, children, ...rest }: { name: string; titl
 }
 
 function Check({ name, title, defaultChecked }: { name: string; title: string; defaultChecked?: boolean }) {
-  return <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm capitalize transition-colors has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" name={name} id={`field-${name}`} defaultChecked={defaultChecked} className="size-4 accent-green-700 dark:accent-green-400" />{title}</label>;
+  return <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm transition-colors has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" name={name} id={`field-${name}`} defaultChecked={defaultChecked} className="size-4 accent-green-700 dark:accent-green-400" />{title}</label>;
 }
 
-export function NewProductForm() {
+function CategoryField({ name, title, errors, options }: { name: string; title: string; errors?: FieldErrors; options: string[] }) {
+  // Pick from the codes the sales rules define, so a product can't miss its limit or tax rule.
+  if (!options.length) return <Field name={name} title={title} errors={errors} required />;
+  return <Select name={name} title={title} errors={errors} required defaultValue=""><option value="" disabled>Choose a category</option>{options.map(code => <option key={code} value={code}>{code}</option>)}</Select>;
+}
+
+export function NewProductForm({ limitCategories = [], taxCategories = [] }: { limitCategories?: string[]; taxCategories?: string[] }) {
   const { state, formAction, pending, key, summary, markDirty } = useCommand(configureProductFromMenu);
   const errors = state.fieldErrors;
   return <form action={formAction} onChange={markDirty} className="space-y-3" aria-label="Add product">
@@ -33,8 +40,8 @@ export function NewProductForm() {
       <Field name="sku" title="SKU" errors={errors} required autoComplete="off" />
       <Field name="brand" title="Brand (optional)" errors={errors} />
       <Field name="form" title="Form" errors={errors} required placeholder="Flower, edible, vape…" />
-      <Field name="categoryCode" title="Purchase-limit category" errors={errors} required />
-      <Field name="taxCategoryCode" title="Tax category" errors={errors} required />
+      <CategoryField name="categoryCode" title="Purchase-limit category" errors={errors} options={limitCategories} />
+      <CategoryField name="taxCategoryCode" title="Tax category" errors={errors} options={taxCategories} />
       <Field name="unitOfMeasure" title="Unit of measure" errors={errors} required placeholder="g, each, ml" />
       <Field name="unitQuantity" title="Sale increment" errors={errors} required inputMode="decimal" placeholder="3.5" />
       <Field name="equivalency" title="Limit equivalency per increment" errors={errors} required inputMode="decimal" />
@@ -65,26 +72,28 @@ export function AmendProductForm({ product }: { product: { id: string; name: str
   </form>;
 }
 
+const sentence = (code: string) => { const text = code.replaceAll('_', ' '); return text.charAt(0).toUpperCase() + text.slice(1); };
+
 const INCIDENT_TYPES = ['refusal_of_sale', 'identity', 'patient_registry_outage', 'traceability_outage', 'payment_ambiguity', 'inventory_discrepancy', 'theft', 'loss', 'diversion', 'recall', 'privacy', 'security', 'system_outage', 'offline_attempt'];
 
-export function RecordIncidentForm() {
+export function RecordIncidentForm({ timezone }: { timezone: string | null }) {
   const { state, formAction, pending, key, summary, markDirty } = useCommand(recordIncidentFromDesk);
   const errors = state.fieldErrors;
-  // datetime-local has no zone; convert in the browser so the server receives the instant the operator meant.
+  // datetime-local has no zone; read it as premises wall time so every browser records the same instant.
   function withInstants(formData: FormData) {
     for (const name of ['occurredAt', 'notificationDueAt']) {
-      const value = String(formData.get(name) || '');
-      if (value && Number.isFinite(new Date(value).getTime())) formData.set(`${name}Instant`, new Date(value).toISOString());
+      const instant = zonedLocalToInstant(String(formData.get(name) || ''), timezone);
+      if (instant) formData.set(`${name}Instant`, instant);
     }
     formAction(formData);
   }
   return <form action={withInstants} onChange={markDirty} className="space-y-3" aria-label="Record incident">
     <input type="hidden" name="idempotencyKey" value={key} />
     <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
-      <Select name="type" title="Type" errors={errors} required defaultValue=""><option value="" disabled>Select type</option>{INCIDENT_TYPES.map(type => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}</Select>
-      <Select name="severity" title="Severity" errors={errors} required defaultValue=""><option value="" disabled>Select severity</option>{['low', 'medium', 'high', 'critical'].map(value => <option key={value} value={value}>{value}</option>)}</Select>
-      <Field name="occurredAt" title="Occurred at" type="datetime-local" errors={errors} required />
-      <Field name="notificationDueAt" title="Notify regulator by (optional)" type="datetime-local" errors={errors} />
+      <Select name="type" title="Type" errors={errors} required defaultValue=""><option value="" disabled>Select type</option>{INCIDENT_TYPES.map(type => <option key={type} value={type}>{sentence(type)}</option>)}</Select>
+      <Select name="severity" title="Severity" errors={errors} required defaultValue=""><option value="" disabled>Select severity</option>{['low', 'medium', 'high', 'critical'].map(value => <option key={value} value={value}>{sentence(value)}</option>)}</Select>
+      <Field name="occurredAt" title={`Occurred at${timezone ? ` (${timezone})` : ''}`} type="datetime-local" errors={errors} required />
+      <Field name="notificationDueAt" title={`Notify regulator by${timezone ? ` (${timezone})` : ''} (optional)`} type="datetime-local" errors={errors} />
       <label className={`${label} sm:col-span-2`}>What happened<textarea {...fieldProps('description', errors)} required minLength={4} maxLength={5000} className={textareaClass} /><FieldError name="description" errors={errors} /></label>
       <Field name="authorityReference" title="Regulator or police reference (optional)" errors={errors} />
     </fieldset>
@@ -185,22 +194,31 @@ export function ProvisionStaffForm() {
       <Field name="approvalLimit" title="Approval limit (optional)" errors={errors} inputMode="decimal" placeholder="0.00" />
     </fieldset>
     <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2"><legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Permissions</legend>{PERMISSIONS.map(([permission, title]) => <Check key={permission} name={`permission:${permission}`} title={title} />)}</fieldset>
-    <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3" aria-describedby={errors?.activities ? 'field-activities-error' : undefined}><legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Credential activities</legend>{ACTIVITIES.map(activity => <Check key={activity} name={`activity:${activity}`} title={activity.replaceAll('_', ' ')} />)}<span id="field-activities" tabIndex={-1} /><FieldError name="activities" errors={errors} /></fieldset>
+    <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3" aria-describedby={errors?.activities ? 'field-activities-error' : undefined}><legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Credential activities</legend>{ACTIVITIES.map(activity => <Check key={activity} name={`activity:${activity}`} title={sentence(activity)} />)}<span id="field-activities" tabIndex={-1} /><FieldError name="activities" errors={errors} /></fieldset>
     <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Adding…' : 'Add staff member'}</PillButton></ActionTrack>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
 
-export function RevokeCredentialForm({ credentialId, status }: { credentialId: string; status: string }) {
+export function RevokeCredentialForm({ credentialId, status, name }: { credentialId: string; status: string; name: string }) {
   const { state, formAction, pending, key, summary, markDirty } = useCommand(revokeCredentialFromDesk);
   if (!['active', 'pending', 'suspended'].includes(status)) return null;
-  return <form action={formAction} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2">
-    <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="credentialId" value={credentialId} />
-    <Select name="nextStatus" title="Change to" errors={state.fieldErrors} disabled={pending}>{status !== 'suspended' && <option value="suspended">Suspended</option>}<option value="terminated">Terminated</option></Select>
-    <Field name="reasonCode" title="Reason code" errors={state.fieldErrors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="left_employment" disabled={pending} />
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="raised">{pending ? 'Saving…' : 'Update credential'}</PillButton></ActionTrack>
-    <CommandStatus state={state} summary={summary} />
-  </form>;
+  // Nothing is preselected, and the change is confirmed: one click must never suspend a person.
+  function submit(formData: FormData) {
+    const next = String(formData.get('nextStatus') || '');
+    if (!next || !window.confirm(`${next === 'terminated' ? 'Terminate' : 'Suspend'} the credential for ${name}?`)) return;
+    formAction(formData);
+  }
+  return <details className="mt-2">
+    <summary className="inline-flex cursor-pointer list-none text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Suspend or terminate</summary>
+    <form action={submit} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2">
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="credentialId" value={credentialId} />
+      <Select name="nextStatus" title="Change to" errors={state.fieldErrors} disabled={pending} required defaultValue=""><option value="" disabled>Choose</option>{status !== 'suspended' && <option value="suspended">Suspended</option>}<option value="terminated">Terminated</option></Select>
+      <Field name="reasonCode" title="Reason code" errors={state.fieldErrors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="reason_code" disabled={pending} />
+      <ActionTrack><PillButton type="submit" disabled={pending} tone="danger">{pending ? 'Saving…' : 'Update credential'}</PillButton></ActionTrack>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </details>;
 }
 
 export function RegisterStatusForm({ register }: { register: { id: string; status: string } }) {
@@ -225,6 +243,19 @@ export function RenewAuthorityForm({ kind, id }: { kind: 'license' | 'credential
         <Field name="expiresAt" title="Valid until" type="date" errors={errors} required />
       </fieldset>
       <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Renewing…' : 'Renew'}</PillButton></ActionTrack>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </details>;
+}
+
+export function TemporaryPasswordForm({ userId, name }: { userId: string; name: string }) {
+  const { state, formAction, pending, key, summary, markDirty } = useCommand(setTemporaryPasswordFromDesk);
+  return <details className="mt-2">
+    <summary className="inline-flex cursor-pointer list-none text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Set temporary password</summary>
+    <form action={formAction} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2" aria-label={`Set a temporary password for ${name}`}>
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="userId" value={userId} />
+      <Field name="temporaryPassword" title="Temporary password" type="password" errors={state.fieldErrors} required minLength={10} autoComplete="new-password" disabled={pending} />
+      <ActionTrack><PillButton type="submit" disabled={pending} tone="raised">{pending ? 'Saving…' : 'Set password'}</PillButton></ActionTrack>
       <CommandStatus state={state} summary={summary} />
     </form>
   </details>;

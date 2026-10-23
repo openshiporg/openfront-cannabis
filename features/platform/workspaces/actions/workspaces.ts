@@ -27,7 +27,11 @@ export async function getCannabisWorkspace<S extends WorkspaceSection>(section: 
     );
     if (!response.success) return { state: 'unavailable' };
     const payload = response.data.cannabisOperationsWorkspace;
-    if (payload?.state === 'forbidden') return { state: 'forbidden' };
+    if (payload?.state === 'forbidden') {
+      // Before onboarding the owner has every permission but no premises yet: that is setup, not missing access.
+      const user = auth.data.authenticatedItem as { onboardingStatus?: string | null; role?: { canManageOnboarding?: boolean } | null };
+      return user.role?.canManageOnboarding === true && user.onboardingStatus !== 'completed' ? { state: 'setup_required' } : { state: 'forbidden' };
+    }
     if (payload?.state === 'operating_closed') return { state: 'operating_closed', reason: typeof payload.reason === 'string' ? payload.reason : 'Operating authority is not current' };
     const data = payload?.state === 'ok' ? parseWorkspace(section, payload) : null;
     return data ? { state: 'ok', data } : { state: 'unavailable' };

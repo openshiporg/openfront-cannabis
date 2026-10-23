@@ -114,17 +114,22 @@ export function SectionTitle({ children, meta, action, id }: { children: ReactNo
   </div>;
 }
 
+const METRIC_COLUMNS: Record<number, string> = {
+  0: 'grid-cols-1', 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2 sm:grid-cols-4', 5: 'grid-cols-2 sm:grid-cols-5', 6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+};
+
 export type MetricItem = { label: string; value: ReactNode; href?: string; tone?: DotTone };
 
 /** Mono figures in one recessed band; each links to its filtered list when it has one. */
 export function MetricStrip({ items, className }: { items: MetricItem[]; className?: string }) {
-  return <div className={cn('overflow-hidden rounded-xl bg-muted/40 shadow-[inset_0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-inset ring-border/60', className)}><div className={cn('-mb-px -mr-px grid grid-cols-2', items.length >= 3 && 'sm:grid-cols-3', items.length >= 6 && 'lg:grid-cols-6')}>
+  return <div className={cn('overflow-hidden rounded-xl bg-muted/40 shadow-[inset_0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-inset ring-border/60', className)}><div className={cn('-mb-px -mr-px grid', METRIC_COLUMNS[Math.min(items.length, 6)])}>
     {items.map(item => {
       const body = <>
         <span className="flex items-baseline gap-1.5 text-xs text-muted-foreground">{item.tone && <Dot tone={item.tone} />}{item.label}</span>
         <span className="mt-1.5 block font-mono text-2xl font-medium tabular-nums text-foreground">{item.value}</span>
       </>;
-      const cell = 'block min-w-0 border-b border-r border-border/70 px-4 py-3';
+      // An odd count on the two-column phone grid lets the last figure take the full row instead of leaving a hole.
+      const cell = cn('block min-w-0 border-b border-r border-border/70 px-4 py-3', items.length > 3 && items.length % 2 === 1 && 'last:max-sm:col-span-2');
       return item.href
         ? <Link key={item.label} href={item.href} className={cn(cell, 'transition-colors hover:bg-background/70 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring')}>{body}</Link>
         : <div key={item.label} className={cell}>{body}</div>;

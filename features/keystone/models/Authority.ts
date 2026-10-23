@@ -29,6 +29,8 @@ export const Organization = list({
 
 export const Premises = list({
   graphql: { plural: "CannabisPremises" },
+  // The dashboard derives GraphQL names from the UI plural; "Premises" alone would equal the list key and fail every list.
+  ui: { plural: "Cannabis Premises" },
   access: immutableTenantAccess("canManageAuthority"),
   fields: {
     organization: relationship({ ref: "Organization.premises" }),
@@ -47,6 +49,8 @@ export const Premises = list({
 
 export const StorefrontSettings = list({
   graphql: { plural: "CannabisStorefrontSettings" },
+  // As for Premises: the UI plural must map to the GraphQL plural, not to the list key.
+  ui: { plural: "Cannabis Storefront Settings" },
   access: immutablePremisesAccess("canManageAuthority", "authority"),
   db: {
     extendPrismaSchema(schema) {

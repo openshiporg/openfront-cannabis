@@ -3,11 +3,12 @@ import { useState, useTransition } from 'react';
 import { ActionTrack, inputClass, labelClass, PillButton } from '@/features/platform/components/cannabis-ui';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quantity';
+import { formatInstant } from '@/features/platform/lib/time';
 import { getAllocationQuote, type AllocationQuoteReadback } from '../actions/allocationQuote';
 
 export type QuoteProduct = { id: string; name: string; sku: string; form: string; unitOfMeasure: string; unitQuantityMicrounits: number };
 
-export function AllocationQuotePanel({ cartId, products, productsHasMore }: { cartId: string; products: QuoteProduct[]; productsHasMore: boolean }) {
+export function AllocationQuotePanel({ cartId, products, productsHasMore, timezone }: { cartId: string; products: QuoteProduct[]; productsHasMore: boolean; timezone: string | null }) {
   const [quote, setQuote] = useState<AllocationQuoteReadback | null>(null);
   const [message, setMessage] = useState('');
   const [productId, setProductId] = useState(products[0]?.id || '');
@@ -51,7 +52,7 @@ export function AllocationQuotePanel({ cartId, products, productsHasMore }: { ca
         <dt className="text-muted-foreground">Tax</dt><dd className="tabular-nums">{money(quote.taxCents)}</dd>
         <dt className="font-medium">Total</dt><dd className="font-medium tabular-nums">{money(quote.totalCents)}</dd>
       </dl>
-      <p className="text-xs text-muted-foreground">Quoted {new Date(quote.observedAt).toLocaleString()} · cart expires {new Date(quote.cartExpiresAt).toLocaleString()} · cart version {quote.cartVersion}</p>
+      <p className="text-xs text-muted-foreground">Quoted {formatInstant(quote.observedAt, timezone)} · cart expires {formatInstant(quote.cartExpiresAt, timezone)} · cart version {quote.cartVersion}</p>
       <p className="text-muted-foreground">{quote.reservationReadiness}</p>
       {quote.packagesHasMore && <p className="text-xs text-muted-foreground">More packages exist than were checked for this quote.</p>}
       <details className="text-xs text-muted-foreground"><summary>Stored quantity</summary>{quote.quantityMicrounits.toLocaleString()} microunits of {quote.unitOfMeasure}</details>

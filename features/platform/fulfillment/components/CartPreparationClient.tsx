@@ -6,6 +6,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { getCartPreparation, getPreparationOutcome, prepareCart } from '../actions/preparation';
 import type { PreparationDetail } from '../types';
+import { formatInstant } from '@/features/platform/lib/time';
 import { AllocationQuotePanel, type QuoteProduct } from './AllocationQuotePanel';
 import { intentSlot, parsePreparationIntents, preparationIntentForm, preparationKey, PREPARATION_INTENTS_KEY, REASON_CODE_HTML_PATTERN, removePreparationIntent, storePreparationIntent, type PreparationIntent } from '../preparationIntent';
 
@@ -28,8 +29,8 @@ function notify() { window.dispatchEvent(new Event(INTENT_CHANGE)); }
 
 const readable = (value: string | null | undefined) => (value || '').replaceAll('_', ' ');
 
-export function CartPreparationClient({ carts, authorityFingerprint, products, productsHasMore, currencyCode }: {
-  carts: Array<{ id: string; reference: string }>; authorityFingerprint: string; products: QuoteProduct[]; productsHasMore: boolean; currencyCode: string | null;
+export function CartPreparationClient({ carts, authorityFingerprint, products, productsHasMore, currencyCode, timezone }: {
+  carts: Array<{ id: string; reference: string }>; authorityFingerprint: string; products: QuoteProduct[]; productsHasMore: boolean; currencyCode: string | null; timezone: string | null;
 }) {
   const [detail, setDetail] = useState<PreparationDetail | null>(null);
   const [selectedId, setSelectedId] = useState('');
@@ -138,10 +139,10 @@ export function CartPreparationClient({ carts, authorityFingerprint, products, p
         </li>)}</ul>
       </section>}
       {detail && detail.authorityFingerprint === authorityFingerprint && <div className="space-y-4">
-        <AllocationQuotePanel key={`${authorityFingerprint}:${detail.id}`} cartId={detail.id} products={products} productsHasMore={productsHasMore} />
+        <AllocationQuotePanel timezone={timezone} key={`${authorityFingerprint}:${detail.id}`} cartId={detail.id} products={products} productsHasMore={productsHasMore} />
         <div>
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="font-mono text-base font-semibold">{detail.reference}</span><DotLabel tone={statusTone(detail.status)} className="text-xs capitalize text-muted-foreground">{readable(detail.status)}</DotLabel><span className="ml-auto font-mono text-sm">{money(detail.totalCents)}</span></div>
-          <p className="mt-0.5 text-xs text-muted-foreground">v{detail.version} · loaded {new Date(observedAt).toLocaleTimeString()} · reservation expires {new Date(detail.expiresAt).toLocaleString()}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">v{detail.version} · loaded {formatInstant(new Date(observedAt).toISOString(), timezone)} · reservation expires {formatInstant(detail.expiresAt, timezone)}</p>
         </div>
         <ul className="divide-y divide-border overflow-hidden rounded-lg bg-muted/40 ring-1 ring-inset ring-border/60">{detail.lines.map(line => <li key={line.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2.5 text-sm"><div className="min-w-0"><p className="font-medium">{line.titleSnapshot}</p><p className="break-all font-mono text-xs text-muted-foreground">{line.packageUidSnapshot}</p></div><p className="font-mono text-xs">{formatMicrounits(line.quantityMicrounits)} · {money(line.totalCents)}</p></li>)}</ul>
         {detail.linesHasMore && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="warn" />Too many lines to show; preparation steps unavailable.</p>}
@@ -157,11 +158,11 @@ export function CartPreparationClient({ carts, authorityFingerprint, products, p
         </form>)}
         {!actions[detail.status] && <p className="text-sm text-muted-foreground">No preparation step is available for this cart status.</p>}
         <section aria-label="Allocation history"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Allocation history</h3>
-          {detail.allocationHistory.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.allocationHistory.map(event => <li key={event.id} className="text-sm"><p>{event.evidenceState === 'recorded_fields' && event.quantityMicrounits != null && event.totalCents != null ? `${formatMicrounits(event.quantityMicrounits)} · ${money(event.totalCents)}` : 'Older allocation record; details not available'}</p><p className="text-xs text-muted-foreground">{event.actorName} · {new Date(event.occurredAt).toLocaleString()}</p></li>)}</ul> : <p className="text-sm text-muted-foreground">No allocation records for these lines.</p>}
+          {detail.allocationHistory.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.allocationHistory.map(event => <li key={event.id} className="text-sm"><p>{event.evidenceState === 'recorded_fields' && event.quantityMicrounits != null && event.totalCents != null ? `${formatMicrounits(event.quantityMicrounits)} · ${money(event.totalCents)}` : 'Older allocation record; details not available'}</p><p className="text-xs text-muted-foreground">{event.actorName} · {formatInstant(event.occurredAt, timezone)}</p></li>)}</ul> : <p className="text-sm text-muted-foreground">No allocation records for these lines.</p>}
           {detail.allocationHistoryHasMore && <p className="text-xs text-muted-foreground">Showing the latest 20 allocation records.</p>}
         </section>
         <section aria-label="Preparation history"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preparation history</h3>
-          {detail.history.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.history.map(event => <li key={event.id} className="text-sm"><p className="capitalize">{readable(event.beforeStatus)} to {readable(event.status)} · <span className="font-mono normal-case">{event.reasonCode}</span></p><p className="text-xs text-muted-foreground">{event.actorName || 'Staff member'} · {new Date(event.occurredAt).toLocaleString()}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No preparation steps recorded.</p>}
+          {detail.history.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.history.map(event => <li key={event.id} className="text-sm"><p className="capitalize">{readable(event.beforeStatus)} to {readable(event.status)} · <span className="font-mono normal-case">{event.reasonCode}</span></p><p className="text-xs text-muted-foreground">{event.actorName || 'Staff member'} · {formatInstant(event.occurredAt, timezone)}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No preparation steps recorded.</p>}
           {detail.historyHasMore && <p className="mt-2 text-xs text-muted-foreground">Showing the latest 20 steps.</p>}
         </section>
       </div>}

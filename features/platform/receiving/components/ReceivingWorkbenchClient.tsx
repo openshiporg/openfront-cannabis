@@ -70,7 +70,7 @@ export function ReceivingWorkbenchClient({ data, params }: { data: Data; params:
   const manifests = data.manifests.items;
   const [selectedId, setSelectedId] = useState(manifests[0]?.id || '');
   const selected = manifests.find(manifest => manifest.id === selectedId) || manifests[0];
-  return <div className="space-y-8 px-4 pb-10 md:px-6" data-testid="receiving-custody-workbench">
+  return <div className="space-y-8 px-4 pb-28 md:px-6" data-testid="receiving-custody-workbench">
     <section aria-label="Receiving summary"><MetricStrip items={[
       { label: 'Packages in receiving hold', value: data.receivingHoldTotal, tone: data.receivingHoldTotal ? 'warn' : 'muted', href: '/dashboard/platform/inventory?filter=receiving' },
       { label: 'Manifests with discrepancies', value: data.discrepancyTotal, tone: data.discrepancyTotal ? 'danger' : 'muted' },

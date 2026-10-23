@@ -1,20 +1,20 @@
 import type React from 'react';
+import { formatInstant } from '@/features/platform/lib/time';
+import { SetupLauncher } from '@/features/platform/onboarding/components/SetupLauncher';
+export { formatUsableThrough } from '@/features/platform/lib/time';
 import { WORKSPACE_STATE_COPY, type WorkspaceClosedState } from '@/features/platform/workspaces/lib/boundary';
 import { ActionTrack, BandEmpty, Dot, DotLabel, inputClass, MetricStrip, PillAnchor, PillButton, PillLink, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
 
 export const readable = (value: string) => value.replaceAll('_', ' ');
 
+/** Premises-zone date and time with its zone label. */
 export function formatWhen(value: string | null | undefined, timeZone?: string | null) {
-  if (!value) return 'Not recorded';
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return 'Unknown';
-  try { return date.toLocaleString('en-US', { timeZone: timeZone || undefined, dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' }); }
-  catch { return date.toLocaleString('en-US'); }
+  return formatInstant(value, timeZone);
 }
 
 export function WorkspaceStateNotice({ result, retryHref }: { result: WorkspaceClosedState; retryHref: string }) {
   const copy = WORKSPACE_STATE_COPY[result.state];
-  const tone: DotTone = result.state === 'unavailable' || result.state === 'operating_closed' ? 'danger' : 'warn';
+  const tone: DotTone = result.state === 'unavailable' || result.state === 'operating_closed' ? 'danger' : result.state === 'setup_required' ? 'info' : 'warn';
   return <div data-testid={`workspace-${result.state}`} role="status" className="mx-4 rounded-xl bg-muted/40 p-4 ring-1 ring-inset ring-border/60 md:mx-6">
     <p className="flex items-baseline gap-2 text-sm font-medium text-foreground"><Dot tone={tone} />{copy.title}</p>
     <p className="mt-1 pl-4 text-sm text-muted-foreground">{result.state === 'operating_closed' ? result.reason : copy.detail}</p>
@@ -23,11 +23,13 @@ export function WorkspaceStateNotice({ result, retryHref }: { result: WorkspaceC
       {result.state === 'operating_closed' && <ActionTrack><PillAnchor href="/dashboard/platform/authority">Open Authority</PillAnchor></ActionTrack>}
       {result.state === 'signed_out' && <ActionTrack><PillAnchor href="/dashboard/signin" tone="ink">Sign in</PillAnchor></ActionTrack>}
       {result.state === 'unavailable' && <ActionTrack><PillAnchor href={retryHref}>Try again</PillAnchor></ActionTrack>}
+      {result.state === 'setup_required' && <SetupLauncher />}
     </div>
   </div>;
 }
 
-export function Workboard({ children }: { children: React.ReactNode }) { return <div className="space-y-8 px-4 pb-10 md:px-6">{children}</div>; }
+// Bottom padding keeps the last form clear of the shell's floating assistant button.
+export function Workboard({ children }: { children: React.ReactNode }) { return <div className="space-y-8 px-4 pb-28 md:px-6">{children}</div>; }
 
 export function Metric({ label, value, href }: { label: string; value: string | number; href?: string }) {
   return <MetricStrip items={[{ label, value, href }]} />;

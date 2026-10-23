@@ -55,13 +55,12 @@ InfoCardContent.displayName = "InfoCardContent";
 const InfoCardFooter = ({
   children,
   className,
-  isHovered,
-}: CommonCardProps & { isHovered: boolean }) => {
+}: CommonCardProps) => {
   return (
     <div
       className={cn(
-        "flex justify-between text-xs text-muted-foreground mt-2 overflow-hidden transition-all duration-300 ease-spring",
-        isHovered ? "max-h-[60px] opacity-100" : "max-h-0 opacity-0",
+        // Always visible: touch and keyboard users never hover, and this is the only way into setup from the sidebar.
+        "flex justify-between text-xs text-muted-foreground mt-2 overflow-hidden",
         className
       )}
     >
@@ -130,7 +129,6 @@ function OnboardingCard({
   onDismiss?: () => void;
   onOpenDialog?: () => void;
 }) {
-  const [isHovered, setIsHovered] = React.useState(false);
   const [isDismissed, setIsDismissed] = React.useState(false);
 
   const handleDismiss = () => {
@@ -151,8 +149,6 @@ function OnboardingCard({
           "opacity-100 translate-y-0",
           "hover:shadow-sm"
         )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <div className="absolute -top-1 -right-1.5 z-10">
           <div className="h-3 w-3 rounded-full bg-green-700 dark:bg-green-400 border-green-200 dark:border-green-800/50 border-3 animate-pulse" />
@@ -164,7 +160,7 @@ function OnboardingCard({
           </InfoCardContent>
         </div>
 
-        <InfoCardFooter isHovered={isHovered}>
+        <InfoCardFooter>
           <div className="m-2 inline-flex items-center gap-0.5 rounded-full bg-muted p-[3px] shadow-[inset_0_1px_2px_rgb(0_0_0/0.07)]">
             <button type="button" onClick={onOpenDialog} className="inline-flex h-6 items-center rounded-full bg-foreground px-2.5 text-xs font-medium text-background shadow-[0_1px_2px_rgb(0_0_0/0.24)]">
               Get started

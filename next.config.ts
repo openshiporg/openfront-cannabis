@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   // Next 16.3 server-function argument traces can contain credentials.
   logging: { serverFunctions: false },
   serverExternalPackages: ['graphql'],
+  // The old storefront settings path; redirected before the proxy and dashboard render.
+  async redirects() {
+    return [{ source: '/dashboard/platform/storefront', destination: '/dashboard/platform/store-settings', permanent: false }];
+  },
   // Workaround since we diverged from Keystone reltionship and document views
   // typescript: {
   //   ignoreBuildErrors: true,

@@ -9,8 +9,9 @@ import type { WorkspaceData, WorkspaceSection } from '@/features/platform/worksp
 import { CartPreparationClient } from '@/features/platform/fulfillment/components/CartPreparationClient';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
 import { BandRow, ListBand, MetricStrip, Notice, operatingState, PageTitle, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
-import { AsOf, Empty, formatWhen, Pager, readable, SearchForm, Status, Workboard, WorkspaceStateNotice } from '../components/WorkspaceKit';
-import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, ProvisionStaffForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
+import { AsOf, Empty, formatUsableThrough, formatWhen, Pager, readable, SearchForm, Status, Workboard, WorkspaceStateNotice } from '../components/WorkspaceKit';
+import { RulePackForm } from '../components/RulePackForm';
+import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, ProvisionStaffForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 type Params = Record<string, string | undefined>;
@@ -31,7 +32,10 @@ async function frame<S extends WorkspaceSection>(section: S, path: string, title
   const data = result.data;
   const { tone, state } = titleState ? titleState(data) : operatingState(data.operating);
   const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} />{data.jurisdictionCode && <span className="font-mono">{data.jurisdictionCode}</span>}</span>;
-  return <PageContainer header={<PageTitle title={title} tone={tone} state={state} meta={meta} />} breadcrumbs={breadcrumbs}>{render(data)}</PageContainer>;
+  const rulesNotice = data.salesRules.problem && section !== 'authority'
+    ? <div className="mb-6 px-4 md:px-6"><Notice tone="danger" action={<Track><PillLink href="/dashboard/platform/authority#sales-rules" active>Fix sales rules</PillLink></Track>}>Sales rules invalid: {data.salesRules.problem}. Menu and sales unavailable.</Notice></div>
+    : null;
+  return <PageContainer header={<PageTitle title={title} tone={tone} state={state} meta={meta} />} breadcrumbs={breadcrumbs}>{rulesNotice}{render(data)}</PageContainer>;
 }
 
 function OperatingNotice({ operating }: { operating: { open: boolean; reason: string | null } }) {
@@ -39,6 +43,17 @@ function OperatingNotice({ operating }: { operating: { open: boolean; reason: st
   return <Notice tone="danger" action={<Track><PillLink href="/dashboard/platform/authority" active>Open Authority</PillLink></Track>}>Operating authority is not current: {operating.reason}. Read only until renewed.</Notice>;
 }
 
+const minuteLabel = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+const CAPACITY_LABEL: Record<string, string> = { adult_use: 'adult-use', patient: 'patient', caregiver: 'caregiver', all: 'all buyers' };
+function describeLimit(rule: Record<string, unknown>) {
+  const max = typeof rule.maxEquivalencyMicrounits === 'number' ? formatMicrounits(rule.maxEquivalencyMicrounits) : '?';
+  const window = rule.window === 'rolling' ? `${rule.windowDays} days` : String(rule.window ?? '?');
+  return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${max} per ${window}`;
+}
+function describeTax(rule: Record<string, unknown>) {
+  const rate = typeof rule.basisPoints === 'number' ? `${rule.basisPoints / 100}%` : '?';
+  return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${rate}`;
+}
 const INTERVAL_LABEL: Record<string, string> = { current: 'Current', expiring_soon: 'Expires within 30 days', expired: 'Expired', not_yet_effective: 'Not yet effective', inactive: 'Inactive' };
 const NOTIFICATION_LABEL: Record<string, string> = { none: 'No deadline', overdue: 'Notification overdue', due_soon: 'Due within 24 hours', upcoming: 'Upcoming deadline', resolved: 'Resolved', unknown: 'Deadline unknown' };
 const NOTIFICATION_TONE: Record<string, DotTone> = { none: 'muted', overdue: 'danger', due_soon: 'warn', upcoming: 'info', resolved: 'ok', unknown: 'warn' };
@@ -64,7 +79,7 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
       {data.inventory && <section>
         <SectionTitle meta={data.inventory.readyTotal} action={<Track><PillLink href="/dashboard/platform/inventory?filter=ready">All ready</PillLink></Track>}>Ready to sell, soonest expiry</SectionTitle>
         <ListBand>{data.inventory.ready.length ? data.inventory.ready.map(pkg => <Link key={pkg.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(pkg.packageUid)}`} className="block transition-colors hover:bg-background/60">
-          <BandRow title={<span className="font-mono">{pkg.packageUid}</span>} detail={pkg.product?.name || 'Product not recorded'} aside={<span className="text-xs text-muted-foreground">Expires {formatWhen(pkg.expiresAt, data.timezone)}</span>} />
+          <BandRow title={<span className="font-mono">{pkg.packageUid}</span>} detail={pkg.product?.name || 'Product not recorded'} aside={<span className="text-xs text-muted-foreground">Usable through {formatUsableThrough(pkg.expiresAt, data.timezone)}</span>} />
         </Link>) : <Empty>No packages are ready to sell.</Empty>}</ListBand>
       </section>}
       {data.incidents && <section>
@@ -81,16 +96,32 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
 export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('authority', '/dashboard/platform/authority', 'Authority', params, data => {
-    const current = data.credentials.items.filter(credential => ['current', 'expiring_soon'].includes(credential.intervalState)).length;
     const lapsing = data.licenses.items.filter(license => ['expired', 'expiring_soon'].includes(license.intervalState)).length;
+    const rules = data.rules;
     return <Workboard>
       <OperatingNotice operating={data.operating} />
       <MetricStrip items={[
         { label: 'Licenses', value: data.licenses.total },
-        { label: 'Licenses lapsing on this page', value: lapsing, tone: lapsing ? 'warn' : 'muted' },
-        { label: 'Credentials', value: data.credentials.total },
-        { label: 'Current on this page', value: current, tone: 'ok' },
+        { label: 'Licenses expiring or expired', value: lapsing, tone: lapsing ? 'warn' : 'muted' },
+        { label: 'Staff credentials', value: data.credentials.total },
+        { label: 'Your approval limit', value: formatMinorUnits(data.self.approvalLimitCents, data.currencyCode) },
       ]} />
+      <section id="sales-rules" className="scroll-mt-20">
+        <SectionTitle meta={rules?.version} action={rules ? <Status value={data.salesRules.problem ? 'Invalid' : 'In effect'} tone={data.salesRules.problem ? 'danger' : 'ok'} /> : undefined}>Sales rules</SectionTitle>
+        {data.salesRules.problem && <Notice tone="danger" className="mb-3">{data.salesRules.problem}</Notice>}
+        {rules ? <ListBand>
+          <BandRow title="Validity" detail={`${formatWhen(rules.effectiveAt, data.timezone)} – ${formatWhen(rules.expiresAt, data.timezone)}`} />
+          <BandRow title="Hours" detail={<span className="font-mono">{minuteLabel(rules.operatingStartMinute)}–{minuteLabel(rules.operatingEndMinute)}</span>} />
+          <BandRow title="Minimum age" detail={<>Adult-use <span className="font-mono">{rules.adultMinimumAge}</span>{rules.medicalEnabled ? <> · medical <span className="font-mono">{rules.medicalMinimumAge}</span></> : ' · medical sales off'}</>} />
+          <BandRow title="Purchase limits" detail={rules.purchaseLimits.length ? rules.purchaseLimits.map((rule, index) => <span key={index} className="block font-mono">{describeLimit(rule)}</span>) : 'None'} />
+          <BandRow title="Tax rules" detail={rules.taxRules.length ? rules.taxRules.map((rule, index) => <span key={index} className="block font-mono">{describeTax(rule)}</span>) : 'None'} />
+          <BandRow title="Payment types" detail={<span className="capitalize">{rules.allowedTenderTypes.join(', ') || 'None'}</span>} />
+          {data.self.isOwner && <details className="group bg-background/50" open={Boolean(data.salesRules.problem)}>
+            <summary className="flex cursor-pointer list-none items-center px-4 py-3 [&::-webkit-details-marker]:hidden"><Track><span className="inline-flex min-h-8 items-center rounded-full bg-background px-3 text-[13px] font-medium shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:bg-zinc-800">Amend sales rules</span></Track></summary>
+            <div className="px-4 pb-4"><RulePackForm rules={rules} approvalLimitCents={data.self.approvalLimitCents} /></div>
+          </details>}
+        </ListBand> : <ListBand><Empty>No sales rules installed.</Empty></ListBand>}
+      </section>
       <section data-testid="authority-workbench">
         <SectionTitle meta={data.licenses.total}>Licenses</SectionTitle>
         <ListBand>
@@ -104,9 +135,10 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
       <section>
         <SectionTitle meta={data.credentials.total}>Staff credentials</SectionTitle>
         <ListBand>
-          {data.credentials.items.length ? data.credentials.items.map(credential => <BandRow key={credential.id} title={credential.user?.name || 'Unassigned'} tone={statusTone(credential.intervalState === 'current' ? credential.status : credential.intervalState)} state={<span className="capitalize">{readable(credential.status)} · {INTERVAL_LABEL[credential.intervalState]}</span>}
+          {data.credentials.items.length ? data.credentials.items.map(credential => <BandRow key={credential.id} title={<>{credential.user?.name || 'Unassigned'}{credential.id === data.self.credentialId && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</>} tone={statusTone(credential.intervalState === 'current' ? credential.status : credential.intervalState)} state={<span className="capitalize">{readable(credential.status)} · {INTERVAL_LABEL[credential.intervalState]}</span>}
             detail={<>{credential.credentialType} · valid {formatWhen(credential.effectiveAt, data.timezone)} – {formatWhen(credential.expiresAt, data.timezone)} · approval limit <span className="font-mono">{formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</span></>}>
-            {data.operating.open && <RevokeCredentialForm credentialId={credential.id} status={credential.status} />}
+            {data.operating.open && credential.user && <TemporaryPasswordForm userId={credential.user.id} name={credential.user.name} />}
+            {data.operating.open && credential.id !== data.self.credentialId && <RevokeCredentialForm credentialId={credential.id} status={credential.status} name={credential.user?.name || 'this person'} />}
             {['expired', 'expiring_soon', 'inactive'].includes(credential.intervalState) && credential.status !== 'terminated' && <RenewAuthorityForm kind="credential" id={credential.id} />}
           </BandRow>) : <Empty>No staff credentials are recorded.</Empty>}
           <Pager basePath="/dashboard/platform/authority" params={params} nextCursor={data.credentials.nextCursor} shown={data.credentials.items.length} total={data.credentials.total} noun="credentials" />
@@ -161,7 +193,7 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
     return <Workboard>
       <MetricStrip items={[
         { label: 'Active products', value: data.products.total },
-        { label: 'Ready on this page', value: `${ready}/${data.products.items.length}`, tone: ready ? 'ok' : 'muted' },
+        { label: data.products.nextCursor ? `Ready to sell (first ${data.products.items.length})` : 'Ready to sell', value: ready, tone: ready ? 'ok' : 'muted' },
         { label: 'Inactive or draft', value: data.inactiveTotal },
       ]} />
       <section data-testid="menu-workbench">
@@ -178,7 +210,7 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
           <Pager basePath="/dashboard/platform/menu" params={params} nextCursor={data.products.nextCursor} shown={data.products.items.length} total={data.products.total} noun="products" />
         </ListBand>
       </section>
-      <Panel title="Add a product"><NewProductForm /></Panel>
+      <Panel title="Add a product"><NewProductForm limitCategories={data.categories.limit} taxCategories={data.categories.tax} /></Panel>
     </Workboard>;
   });
 }
@@ -194,7 +226,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
         { label: 'Receipts', value: data.sales.total },
       ]} />
       <Notice tone="muted">New carts and sale completion unavailable</Notice>
-      {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} />}
+      {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} timezone={data.timezone} />}
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <div className="space-y-8">
           <section data-testid="pos-fulfillment-workbench">
@@ -214,7 +246,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
             </ListBand>
           </section>
         </div>
-        <CartPreparationClient authorityFingerprint={data.authorityFingerprint} currencyCode={data.currencyCode}
+        <CartPreparationClient timezone={data.timezone} authorityFingerprint={data.authorityFingerprint} currencyCode={data.currencyCode}
           products={data.products.items} productsHasMore={Boolean(data.products.nextCursor)}
           carts={data.carts.items.map(cart => ({ id: cart.id, reference: cart.reference }))} />
       </div>
@@ -230,8 +262,9 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
     return <Workboard>
       <MetricStrip items={[
         { label: 'Shifts', value: data.shifts.total },
-        { label: 'Open on this page', value: open, tone: open ? 'ok' : 'muted' },
+        { label: data.shifts.nextCursor ? `Open (first ${data.shifts.items.length})` : 'Open shifts', value: open, tone: open ? 'ok' : 'muted' },
         { label: 'Variance reviews', value: review, tone: review ? 'warn' : 'muted' },
+        { label: 'Registers', value: data.registers.total },
       ]} />
       <Notice tone="muted">Blind-count shift close unavailable</Notice>
       <section data-testid="cash-workbench">
@@ -320,6 +353,6 @@ export async function IncidentsWorkspacePage({ searchParams }: { searchParams?: 
         <Pager basePath="/dashboard/platform/incidents" params={params} nextCursor={data.incidents.nextCursor} shown={data.incidents.items.length} total={data.incidents.total} noun="incidents" />
       </ListBand>
     </section>
-    {data.operating.open ? <Panel title="Record an incident"><RecordIncidentForm /></Panel> : null}
+    {data.operating.open ? <Panel title="Record an incident"><RecordIncidentForm timezone={data.timezone} /></Panel> : null}
   </Workboard>, data => data.overdueTotal ? { tone: 'danger', state: `${data.overdueTotal} notification${data.overdueTotal === 1 ? '' : 's'} overdue` } : operatingState(data.operating));
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
+import { runCommandRequest } from '@/features/platform/lib/commandClient';
 import { getAuthenticatedUser } from '@/features/dashboard/actions/auth';
 import { notCompletedState, parseAuthorityPack, unknownOutcomeState, type OnboardingState } from '../lib/state';
 
@@ -20,18 +21,14 @@ async function readOnboardingStatus(): Promise<string | null> {
 export async function installCannabisAuthorityPack(_state: OnboardingState, formData: FormData): Promise<OnboardingState> {
   const parsed = parseAuthorityPack(String(formData.get('authorityPack') || ''));
   if (!parsed.success) return parsed.state;
-  let response;
-  try {
-    response = await keystoneClient<{ runCannabisOnboarding: { status: string } }>(
-      'mutation InstallCannabisAuthorityPack($input: JSON!) { runCannabisOnboarding(input: $input) }', { input: parsed.input });
-  } catch {
-    return unknownOutcomeState();
-  }
+  const response = await runCommandRequest<{ runCannabisOnboarding: { status: string } }>(
+    'mutation InstallCannabisAuthorityPack($input: JSON!) { runCannabisOnboarding(input: $input) }', { input: parsed.input });
   if (!response.success || response.data.runCannabisOnboarding?.status !== 'completed') {
     // The server installs everything in one transaction; confirm what actually happened.
     const status = await readOnboardingStatus();
     if (status === 'completed') { revalidatePath('/dashboard', 'layout'); return { status: 'success', message: 'Setup complete.' }; }
-    return status === null ? unknownOutcomeState() : notCompletedState();
+    if (status === null) return unknownOutcomeState();
+    return !response.success && response.message ? { status: 'not_completed', message: `Setup was not completed: ${response.message}` } : notCompletedState();
   }
   revalidatePath('/dashboard', 'layout');
   return { status: 'success', message: 'Setup complete.' };

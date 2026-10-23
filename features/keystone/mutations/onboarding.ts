@@ -6,6 +6,7 @@ import { policyIdentity } from "../domain/policyIdentity";
 import { isValidTimeZone } from "../domain/premisesTime";
 import { isSupportedCurrencyCode } from "../../lib/money";
 import { assertInteger, assertJsonValue, assertText, runControlledOperation, stableHash } from "./workflow";
+import { assertEffectiveRulePack, type EffectiveRulePack } from "../domain/cannabisPolicy";
 
 const REQUIRED_ACTIVITIES = ["authority", "eligibility", "inventory", "sale", "cash", "state_reporting", "incident"];
 const TENDER_TYPES = new Set<TenderConfigurationTypeType>(["cash", "debit", "ach", "wallet", "other"]);
@@ -18,7 +19,7 @@ type AuthorityPackInput = {
   ruleVersion: string; ruleAuthorityCitations: unknown[]; ruleEffectiveAt: string; ruleExpiresAt: string; adultMinimumAge: number; medicalMinimumAge: number;
   medicalEnabled: boolean; operatingStartMinute: number; operatingEndMinute: number; purchaseLimits: unknown[]; taxRules: unknown[]; discountRules: unknown[]; allowedTenderTypes: string[]; labelRequirements: unknown[]; returnRules: object; outagePolicy: object; privacyRules: object; retentionRules: object;
   pickupEnabled: boolean; traceabilityProviderCode: string; traceabilityAuthorityReference: string; tenderConfigurations: Array<{ code: string; type: TenderConfigurationTypeType; displayName: string; authorityReference: string; effectiveAt: string; expiresAt: string }>;
-  idempotencyKey: string;
+  idempotencyKey: string; ownerApprovalLimitCents?: number;
 };
 
 function date(value: string, label: string) {
@@ -46,6 +47,14 @@ function validate(input: AuthorityPackInput) {
     if (!input.allowedTenderTypes.includes(tender.type)) throw new Error("Every tender configuration must be allowed by the rule pack");
     date(tender.effectiveAt, "Tender effective date"); date(tender.expiresAt, "Tender expiry");
   }
+  if (input.allowedTenderTypes.some(type => !TENDER_TYPES.has(type as TenderConfigurationTypeType))) throw new Error("Allowed tender types must be cash, debit, ach, wallet or other");
+  if (typeof input.staffEvidenceHash !== "string" || input.staffEvidenceHash.trim().length < 16) throw new Error("Credential evidence reference must contain at least 16 characters");
+  if (input.ownerApprovalLimitCents !== undefined) assertInteger(input.ownerApprovalLimitCents, "Your approval limit", 0);
+  // Install only a pack the sales path and the public menu will accept: the same check they run.
+  assertEffectiveRulePack({ id: "onboarding", version: String(input.ruleVersion ?? ""), status: "effective", approvedAt: new Date(), jurisdictionCode: String(input.jurisdictionCode ?? ""),
+    effectiveAt: ruleEffectiveAt, expiresAt: ruleExpiresAt, adultMinimumAge: input.adultMinimumAge, medicalMinimumAge: input.medicalMinimumAge, medicalEnabled: input.medicalEnabled === true,
+    operatingStartMinute: input.operatingStartMinute, operatingEndMinute: input.operatingEndMinute, purchaseLimits: input.purchaseLimits as EffectiveRulePack["purchaseLimits"],
+    taxRules: input.taxRules as EffectiveRulePack["taxRules"], allowedTenderTypes: input.allowedTenderTypes, offlineSalesAllowed: false });
   return {
     licenseEffectiveAt, licenseExpiresAt, credentialEffectiveAt, credentialExpiresAt, ruleEffectiveAt, ruleExpiresAt,
     addressSnapshot: assertJsonValue(input.addressSnapshot, "Premises address snapshot"),
@@ -114,7 +123,7 @@ export default async function runCannabisOnboarding(_root: unknown, args: { inpu
     const roleData = Object.fromEntries(permissionNames.map(permission => [permission, true]));
     const ownerRole = await sudo.query.Role.createOne({ data: { organization: { connect: { id: organization.id } }, name: "Owner", ...roleData }, query: "id" });
     await sudo.query.CannabisLicense.createOne({ data: { organization: { connect: { id: organization.id } }, premises: { connect: { id: premises.id } }, licenseNumber: assertText(input.licenseNumber, "License number"), licenseType: assertText(input.licenseType, "License type"), regulatorName: assertText(input.regulatorName, "Regulator"), authorityReference: assertText(input.authorityReference, "License authority reference"), authorizedActivities: input.authorizedActivities, status: "active", effectiveAt: dates.licenseEffectiveAt, expiresAt: dates.licenseExpiresAt, verifiedAt: null }, query: "id" });
-    const credential = await sudo.query.StaffCredential.createOne({ data: { organization: { connect: { id: organization.id } }, premises: { connect: { id: premises.id } }, user: { connect: { id: current.id } }, credentialType: assertText(input.credentialType, "Credential type"), credentialReference: assertText(input.credentialReference, "Credential reference"), allowedActivities: input.staffAllowedActivities, status: "active", effectiveAt: dates.credentialEffectiveAt, expiresAt: dates.credentialExpiresAt, trainingVerifiedAt: null, authorityVerifiedAt: null, evidenceHash: assertText(input.staffEvidenceHash, "Credential evidence hash", 16, 500) }, query: "id" });
+    const credential = await sudo.query.StaffCredential.createOne({ data: { organization: { connect: { id: organization.id } }, premises: { connect: { id: premises.id } }, user: { connect: { id: current.id } }, credentialType: assertText(input.credentialType, "Credential type"), credentialReference: assertText(input.credentialReference, "Credential reference"), allowedActivities: input.staffAllowedActivities, approvalLimitCents: input.ownerApprovalLimitCents ?? 0, status: "active", effectiveAt: dates.credentialEffectiveAt, expiresAt: dates.credentialExpiresAt, trainingVerifiedAt: null, authorityVerifiedAt: null, evidenceHash: assertText(input.staffEvidenceHash, "Credential evidence hash", 16, 500) }, query: "id" });
     const policyHash = stableHash(policyIdentity({ ...input, deliveryEnabled: false, offlineSalesAllowed: false }));
     const rule = await sudo.query.JurisdictionRulePack.createOne({ data: { organization: { connect: { id: organization.id } }, premises: { connect: { id: premises.id } }, version: assertText(input.ruleVersion, "Rule version"), jurisdictionCode: input.jurisdictionCode, authorityCitations: dates.ruleAuthorityCitations, policyHash, status: "effective", effectiveAt: dates.ruleEffectiveAt, expiresAt: dates.ruleExpiresAt, approvedAt: new Date(), approvedBy: { connect: { id: current.id } }, adultMinimumAge: input.adultMinimumAge, medicalMinimumAge: input.medicalMinimumAge, operatingStartMinute: input.operatingStartMinute, operatingEndMinute: input.operatingEndMinute, purchaseLimits: dates.purchaseLimits, taxRules: dates.taxRules, discountRules: dates.discountRules, allowedTenderTypes: dates.allowedTenderTypes, labelRequirements: dates.labelRequirements, returnRules: dates.returnRules, outagePolicy: dates.outagePolicy, privacyRules: dates.privacyRules, retentionRules: dates.retentionRules, medicalEnabled: input.medicalEnabled, pickupEnabled: input.pickupEnabled, deliveryEnabled: false, offlineSalesAllowed: false }, query: "id" });
     for (const tender of input.tenderConfigurations) await sudo.query.TenderConfiguration.createOne({ data: { organization: { connect: { id: organization.id } }, premises: { connect: { id: premises.id } }, code: tender.code, type: tender.type, displayName: tender.displayName, enabled: true, authorityReference: tender.authorityReference, effectiveAt: date(tender.effectiveAt, "Tender effective date"), expiresAt: date(tender.expiresAt, "Tender expiry") }, query: "id" });

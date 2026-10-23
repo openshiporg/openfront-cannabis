@@ -2,6 +2,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { Dot, DotLabel, Panel, PillLink, statusTone, Track } from '@/features/platform/components/cannabis-ui';
 import { getSaleReceipt } from '../actions/receipt';
+import { formatInstant } from '@/features/platform/lib/time';
 
 const readable = (value: string | null | undefined) => (value || '').replaceAll('_', ' ');
 
@@ -9,7 +10,7 @@ const readable = (value: string | null | undefined) => (value || '').replaceAll(
  * Read-only receipt. Amounts use the currency recorded on the sale itself;
  * `currencyCode` (the premises' current currency) is never applied to history.
  */
-export async function SaleReceiptDetail({ saleId }: { saleId: string; currencyCode?: string | null }) {
+export async function SaleReceiptDetail({ saleId, timezone }: { saleId: string; currencyCode?: string | null; timezone?: string | null }) {
   const result = await getSaleReceipt(saleId);
   const close = <Track><PillLink href="/dashboard/platform/pos">Close receipt</PillLink></Track>;
   if (result.state !== 'ok') {
@@ -23,7 +24,7 @@ export async function SaleReceiptDetail({ saleId }: { saleId: string; currencyCo
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="font-mono text-base font-semibold">{sale.receiptNumber}</h2><DotLabel tone={statusTone(sale.status)} className="text-xs capitalize text-muted-foreground">{readable(sale.status)}</DotLabel></div>
-        <p className="mt-0.5 text-xs text-muted-foreground">Finalized {new Date(sale.finalizedAt).toLocaleString()} · <span className="capitalize">{readable(sale.customerCapacitySnapshot)}</span> · policy <span className="font-mono">{sale.rulePackVersion}</span>{!sale.currencyCode && ' · currency not recorded'}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">Finalized {formatInstant(sale.finalizedAt, timezone)} · <span className="capitalize">{readable(sale.customerCapacitySnapshot)}</span> · policy <span className="font-mono">{sale.rulePackVersion}</span>{!sale.currencyCode && ' · currency not recorded'}</p>
       </div>
       {close}
     </div>
@@ -43,7 +44,7 @@ export async function SaleReceiptDetail({ saleId }: { saleId: string; currencyCo
           {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(tender.status)} className="capitalize">{readable(tender.typeSnapshot)} · {readable(tender.status)}</DotLabel><span className="font-mono">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
         </section>
         <section aria-label="Refunds"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refunds</h3>
-          {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{new Date(refund.occurredAt).toLocaleString()} · <span className="font-mono">{refund.reasonCode}</span> · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
+          {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · <span className="font-mono">{refund.reasonCode}</span> · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
         </section>
       </div>
     </div>

@@ -18,7 +18,7 @@ const same = (left: StoreSettingsValues, right: StoreSettingsValues) => (Object.
 type Status =
   | { kind: 'idle' } | { kind: 'saved'; recovered?: boolean } | { kind: 'invalid' } | { kind: 'conflict' } | { kind: 'rejected' } | { kind: 'unknown' };
 
-export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup }) {
+export function StorefrontSettingsForm({ setup, previewItems = [] }: { setup: StoreSettingsSetup; previewItems?: Array<{ form: string; name: string }> }) {
   const router = useRouter();
   const [baseline, setBaseline] = useState<StoreSettingsValues>(() => initial(setup.values));
   const [values, setValues] = useState<StoreSettingsValues>(() => initial(setup.values));
@@ -74,7 +74,7 @@ export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup })
     window.location.reload();
   }
 
-  const statusLabel = published ? 'Published' : setup.values ? 'Draft' : 'Not set up';
+  const statusLabel = published ? 'Saved and published' : setup.values ? 'Draft' : 'Not set up';
   const accent = (lightness: number, saturation = 38) => `hsl(${values.brandHue} ${saturation}% ${lightness}%)`;
   return <form onSubmit={submit} className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]" data-testid="storefront-settings-form" noValidate>
     <div className="min-w-0 space-y-6">
@@ -88,7 +88,7 @@ export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup })
         <Panel title="Business">
           <div className="grid gap-4">
             <label className={labelClass} htmlFor="field-businessName">Business name
-              <input {...fieldProps('businessName', fieldErrors)} maxLength={120} value={values.businessName} onChange={event => update('businessName', event.target.value)} autoComplete="organization" className={inputClass} />
+              <input {...fieldProps('businessName', fieldErrors)} required aria-required="true" maxLength={120} value={values.businessName} onChange={event => update('businessName', event.target.value)} autoComplete="organization" className={inputClass} />
               <FieldError name="businessName" errors={fieldErrors} />
             </label>
             <label className={labelClass} htmlFor="field-tagline">Tagline <span className="font-normal text-muted-foreground">(optional)</span>
@@ -108,9 +108,11 @@ export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup })
             <LogoPicker value={values.logoIcon} hue={values.logoColor} onChange={svg => update('logoIcon', svg)} onDraftPendingChange={setLogoDraftPending} />
             <FieldError name="logoIcon" errors={fieldErrors} />
             <div>
-              <label className={labelClass} htmlFor="field-logoColor">Logo colour</label>
+              <span className={labelClass}>Logo colour</span>
               <div className="mt-1.5 flex items-center gap-3">
-                <input aria-label="Logo colour slider" type="range" min="0" max="359" step="1" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className="h-2 w-full cursor-pointer accent-foreground" />
+                <label htmlFor="logo-colour-range" className="sr-only">Logo colour (slider)</label>
+                <input id="logo-colour-range" type="range" min="0" max="359" step="1" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className="h-2 w-full cursor-pointer accent-foreground" />
+                <label htmlFor="field-logoColor" className="sr-only">Logo colour (degrees)</label>
                 <input {...fieldProps('logoColor', fieldErrors)} type="number" min="0" max="359" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className={`${inputClass} mt-0 w-24 font-mono`} />
               </div>
               <FieldError name="logoColor" errors={fieldErrors} />
@@ -120,8 +122,10 @@ export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup })
 
         <Panel title="Storefront accent">
           <div className="flex items-center gap-3">
-            <input aria-label="Accent hue slider" type="range" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className="h-2 w-full cursor-pointer" style={{ accentColor: accent(34) }} />
-            <input {...fieldProps('brandHue', fieldErrors)} aria-label="Accent hue" type="number" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className={`${inputClass} mt-0 w-24 font-mono`} />
+            <label htmlFor="accent-hue-range" className="sr-only">Accent hue (slider)</label>
+            <input id="accent-hue-range" type="range" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className="h-2 w-full cursor-pointer" style={{ accentColor: accent(34) }} />
+            <label htmlFor="field-brandHue" className="sr-only">Accent hue (degrees)</label>
+            <input {...fieldProps('brandHue', fieldErrors)} type="number" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className={`${inputClass} mt-0 w-24 font-mono`} />
             <span className="size-9 shrink-0 rounded-full ring-1 ring-inset ring-black/10" aria-hidden="true" style={{ backgroundColor: accent(28) }} />
           </div>
           <FieldError name="brandHue" errors={fieldErrors} />
@@ -155,12 +159,12 @@ export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup })
           </div>
           {values.tagline && <p className="break-words font-[family-name:var(--font-cn-display)] text-[17px] leading-6">{values.tagline}</p>}
           {values.description && <p className="break-words text-[13px] leading-5 text-[#545b53]">{values.description}</p>}
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            {['Flower', 'Edible'].map(form => <div key={form} className="flex aspect-[4/5] flex-col justify-between rounded-[14px] p-3" style={{ backgroundColor: accent(88, 28), color: accent(28) }}>
-              <span className="font-mono text-[9px] uppercase tracking-[0.14em]">{form}</span>
-              <span className="font-[family-name:var(--font-cn-display)] text-[56px] leading-none">{form.charAt(0)}</span>
+          {previewItems.length > 0 && <div className="grid grid-cols-2 gap-2 pt-2">
+            {previewItems.map(item => <div key={item.name} className="flex aspect-[4/5] min-w-0 flex-col justify-between rounded-[14px] p-3" style={{ backgroundColor: accent(88, 28), color: accent(28) }}>
+              <span className="truncate font-mono text-[9px] uppercase tracking-[0.14em]">{item.form}</span>
+              <span className="font-[family-name:var(--font-cn-display)] text-[56px] leading-none">{item.name.charAt(0).toUpperCase()}</span>
             </div>)}
-          </div>
+          </div>}
         </div>
       </div>
     </aside>

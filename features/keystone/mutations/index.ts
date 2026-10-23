@@ -10,6 +10,8 @@ import { configureCannabisProduct, configureRegister, openRegisterShift, closeRe
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
 import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings } from "./storefrontSettings";
+import { amendCannabisRulePack } from "./rulePack";
+import { setStaffTemporaryPassword } from "./staffAccess";
 
 const graphql = String.raw;
 
@@ -36,6 +38,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         revokeStaffCredential(input: JSON!): JSON!
         amendRegister(input: JSON!): JSON!
         renewCannabisAuthority(input: JSON!): JSON!
+        amendCannabisRulePack(input: JSON!): JSON!
+        setStaffTemporaryPassword(input: JSON!): JSON!
         configureCannabisStorefrontSettings(input: JSON!): JSON!
         provisionStaffAuthority(input: JSON!): JSON!
         submitCannabisCustomerIntake(input: JSON!): JSON!
@@ -73,6 +77,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         revokeStaffCredential,
         amendRegister,
         renewCannabisAuthority,
+        amendCannabisRulePack,
+        setStaffTemporaryPassword,
         configureCannabisStorefrontSettings,
         provisionStaffAuthority,
         submitCannabisCustomerIntake,

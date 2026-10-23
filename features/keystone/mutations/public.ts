@@ -7,19 +7,41 @@ import { assertText, requireRulePack, runControlledOperation, stableHash } from 
 
 const proofHash = (value: string) => createHash("sha256").update(value).digest("hex");
 
+class PublicScopeMissing extends Error {}
+
+/** The single active organization and premises; no rule-pack check, so identity can show even while sales rules are invalid. */
+async function publicScope(context: Context) {
+  const organizations = await context.sudo().query.Organization.findMany({ where: { status: { equals: "active" } }, take: 2, query: "id jurisdictionCode premises(where: { status: { equals: active } }, take: 2) { id timezone currencyCode addressSnapshot }" });
+  if (organizations.length !== 1 || organizations[0].premises?.length !== 1) throw new PublicScopeMissing("Public service is unavailable until exactly one authority scope is active");
+  return { organization: organizations[0], premises: organizations[0].premises[0] };
+}
+
 async function publicAuthority(context: Context) {
-  const organizations = await context.sudo().query.Organization.findMany({ where: { status: { equals: "active" } }, take: 2, query: "id jurisdictionCode premises(where: { status: { equals: active } }, take: 2) { id timezone currencyCode }" });
-  if (organizations.length !== 1 || organizations[0].premises?.length !== 1) throw new Error("Public service is unavailable until exactly one authority scope is active");
-  const organization = organizations[0]; const premises = organization.premises[0];
+  const { organization, premises } = await publicScope(context);
   const pack = await requireRulePack(context, organization.id, premises.id);
   assertEffectiveRulePack(pack as any);
   return { organization, premises, pack };
 }
 
+/** Public visit details: address, today's hours from the rule pack, accepted payment types. */
+async function publicVisit(context: Context, scope: Awaited<ReturnType<typeof publicScope>>) {
+  const address = scope.premises.addressSnapshot && typeof scope.premises.addressSnapshot === "object" && !Array.isArray(scope.premises.addressSnapshot) ? scope.premises.addressSnapshot as Record<string, unknown> : {};
+  const pick = (key: string) => typeof address[key] === "string" && (address[key] as string).trim() ? (address[key] as string).trim().slice(0, 200) : null;
+  let hours: { opensMinute: number; closesMinute: number } | null = null; let tenders: string[] = []; let minimumAge: number | null = null; let medicalMinimumAge: number | null = null;
+  try {
+    const pack = await requireRulePack(context, scope.organization.id, scope.premises.id);
+    assertEffectiveRulePack(pack as any);
+    hours = { opensMinute: pack.operatingStartMinute, closesMinute: pack.operatingEndMinute };
+    tenders = Array.isArray(pack.allowedTenderTypes) ? (pack.allowedTenderTypes as unknown[]).filter((type): type is string => typeof type === "string").slice(0, 10) : [];
+    minimumAge = pack.adultMinimumAge; medicalMinimumAge = pack.medicalEnabled ? pack.medicalMinimumAge : null;
+  } catch { /* Sales rules unavailable: show only the address. */ }
+  return { address: { line1: pick("line1"), city: pick("city"), region: pick("region"), postalCode: pick("postalCode"), country: pick("country") }, phone: pick("phone"), timezone: scope.premises.timezone ?? null, hours, tenders, minimumAge, medicalMinimumAge };
+}
+
 export async function publicCannabisStorefrontSettings(_root: unknown, _args: unknown, context: Context) {
-  let authority: Awaited<ReturnType<typeof publicAuthority>>;
+  let authority: Awaited<ReturnType<typeof publicScope>>;
   // No single active premises means the store is not set up yet, not that settings failed to load.
-  try { authority = await publicAuthority(context); } catch { return { ...NEUTRAL_STOREFRONT_SETTINGS }; }
+  try { authority = await publicScope(context); } catch (error) { return error instanceof PublicScopeMissing ? { ...NEUTRAL_STOREFRONT_SETTINGS } : { ...NEUTRAL_STOREFRONT_SETTINGS, unavailable: true }; }
   try {
     // Published merchant identity is shown whether or not online ordering is available.
     const settings = await context.sudo().query.StorefrontSettings.findMany({
@@ -34,7 +56,8 @@ export async function publicCannabisStorefrontSettings(_root: unknown, _args: un
     });
     if (settings.length > 1) return { ...NEUTRAL_STOREFRONT_SETTINGS, unavailable: true };
     if (settings.length !== 1) return { ...NEUTRAL_STOREFRONT_SETTINGS };
-    return projectPublicStorefrontSettings(settings[0]);
+    const projected = projectPublicStorefrontSettings(settings[0]);
+    return projected.isConfigured ? { ...projected, visit: await publicVisit(context, authority) } : projected;
   } catch {
     return { ...NEUTRAL_STOREFRONT_SETTINGS, unavailable: true };
   }
@@ -43,7 +66,7 @@ export async function publicCannabisStorefrontSettings(_root: unknown, _args: un
 export async function publicCannabisMenu(_root: unknown, _args: unknown, context: Context) {
   let authority: Awaited<ReturnType<typeof publicAuthority>>;
   try { authority = await publicAuthority(context); }
-  catch { return { unavailable: true, products: [], demoProducts: [] }; }
+  catch (error) { return { unavailable: true, reason: error instanceof PublicScopeMissing ? "not_set_up" : "sales_rules", products: [], demoProducts: [] }; }
   if (!isRuntimeCapabilityEnabled("storefront.public-live-menu")) {
     const demoSettings = await context.sudo().query.StorefrontSettings.findMany({
       where: {

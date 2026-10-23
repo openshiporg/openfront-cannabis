@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { formatMicrounits } from '@/features/lib/quantity';
 import type { WorkspaceData } from '@/features/platform/workspaces/lib/contract';
-import { formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
+import { formatUsableThrough, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { Count, Dot, DotLabel, ListBand, MetricStrip, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
 import { hasDiscrepancy, readable, readinessReasons, type CustodyPackage } from '../lib/custody';
 
@@ -33,7 +33,7 @@ function PackageDetail({ pkg, release, timezone }: { pkg: CustodyPackage; releas
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-muted/40 p-3 text-sm ring-1 ring-inset ring-border/60">
       <div className="col-span-2"><dt className="text-xs text-muted-foreground">Quantity</dt><dd className="mt-0.5"><Quantity pkg={pkg} /></dd></div>
       <div><dt className="text-xs text-muted-foreground">Lab result</dt><dd className="mt-0.5"><DotLabel tone={statusTone(pkg.testStatus)} className="capitalize">{readable(pkg.testStatus)}</DotLabel></dd></div>
-      <div><dt className="text-xs text-muted-foreground">Expires</dt><dd className="mt-0.5">{formatWhen(pkg.expiresAt, timezone)}</dd></div>
+      <div><dt className="text-xs text-muted-foreground">Usable through</dt><dd className="mt-0.5">{formatUsableThrough(pkg.expiresAt, timezone)}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Batch</dt><dd className="mt-0.5 break-all font-mono text-xs">{pkg.productionBatchNumber}</dd></div>
       <div><dt className="text-xs text-muted-foreground">COA reference</dt><dd className="mt-0.5 break-all font-mono text-xs">{pkg.coaReference || 'Not recorded'}</dd></div>
       <div className="col-span-2"><dt className="text-xs text-muted-foreground">Source package</dt><dd className="mt-0.5 break-all font-mono text-xs">{pkg.sourcePackageUid || 'Not recorded'}</dd></div>
@@ -64,14 +64,14 @@ export function InventoryWorkbenchClient({ data, params }: Props) {
   const [selectedId, setSelectedId] = useState(packages[0]?.id || '');
   const selected = packages.find(pkg => pkg.id === selectedId) ?? packages[0];
   const filterHref = (id: string) => { const query = new URLSearchParams(); if (id !== 'all') query.set('filter', id); if (params.search) query.set('search', params.search); const text = query.toString(); return `/dashboard/platform/inventory${text ? `?${text}` : ''}`; };
-  return <div className="space-y-8 px-4 pb-10 md:px-6" data-testid="inventory-custody-workbench">
+  return <div className="space-y-8 px-4 pb-28 md:px-6" data-testid="inventory-custody-workbench">
     <MetricStrip items={[
       { label: 'Ready to sell', value: data.counts.ready, href: filterHref('ready'), tone: 'ok' },
       { label: 'Receiving hold', value: data.counts.receiving, href: filterHref('receiving'), tone: data.counts.receiving ? 'warn' : 'muted' },
       { label: 'Held or recalled', value: data.counts.held, href: filterHref('held'), tone: data.counts.held ? 'danger' : 'muted' },
     ]} />
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <nav aria-label="Package filters"><Track>{FILTERS.map(item => <PillLink key={item.id} href={filterHref(item.id)} active={data.filter === item.id}>{item.tone && <Dot tone={item.tone} className="translate-y-0" />}{item.label} <Count>{data.counts[item.id]}</Count></PillLink>)}</Track></nav>
+      <nav aria-label="Package filters"><Track className="max-sm:flex-wrap max-sm:rounded-2xl">{FILTERS.map(item => <PillLink key={item.id} href={filterHref(item.id)} active={data.filter === item.id}>{item.tone && <Dot tone={item.tone} className="translate-y-0" />}{item.label} <Count>{data.counts[item.id]}</Count></PillLink>)}</Track></nav>
       <SearchForm basePath="/dashboard/platform/inventory" params={params} label="Search packages" placeholder="Package UID, lot or product" />
     </div>
     <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">

@@ -10,6 +10,7 @@ export type PublicLiveMenuItem = {
 
 export type PublicCannabisMenu = {
   unavailable?: boolean;
+  reason?: 'not_set_up' | 'sales_rules';
   jurisdictionCode?: string;
   rulePackVersion?: string;
   currencyCode?: string | null;
@@ -25,7 +26,13 @@ export async function getPublicCannabisMenu(): Promise<PublicCannabisMenu> {
   return response.data.publicCannabisMenu;
 }
 
-export type PublicStorefrontSettingsResult = PublicStorefrontSettings & { unavailable?: boolean };
+export type PublicVisit = {
+  address: { line1: string | null; city: string | null; region: string | null; postalCode: string | null; country: string | null };
+  phone: string | null; timezone: string | null; hours: { opensMinute: number; closesMinute: number } | null; tenders: string[];
+  minimumAge: number | null; medicalMinimumAge: number | null;
+};
+
+export type PublicStorefrontSettingsResult = PublicStorefrontSettings & { unavailable?: boolean; visit?: PublicVisit };
 
 export async function getPublicCannabisStorefrontSettings(): Promise<PublicStorefrontSettingsResult> {
   const response = await keystoneClient<{ publicCannabisStorefrontSettings: PublicStorefrontSettingsResult }>(

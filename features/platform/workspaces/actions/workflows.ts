@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
+import { runCommandRequest } from '@/features/platform/lib/commandClient';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
 import type { FieldErrors, FormState } from '@/features/platform/lib/formErrors';
 
@@ -26,7 +27,7 @@ async function commandReceipt(scope: string, idempotencyKey: string) {
  * apart from "outcome unknown".
  */
 async function runCommand(mutation: string, scope: string, input: Record<string, unknown>, success: string): Promise<CommandState> {
-  const response = await keystoneClient<Record<string, Record<string, unknown>>>(`mutation ControlledCannabisCommand($input: JSON!) { ${mutation}(input: $input) }`, { input });
+  const response = await runCommandRequest<Record<string, Record<string, unknown>>>(`mutation ControlledCannabisCommand($input: JSON!) { ${mutation}(input: $input) }`, { input });
   if (response.success) {
     revalidatePath('/dashboard/platform', 'layout');
     const result = response.data[mutation];
@@ -37,7 +38,7 @@ async function runCommand(mutation: string, scope: string, input: Record<string,
     revalidatePath('/dashboard/platform', 'layout');
     return { success: `${success} (already recorded)`, result: receipt.result ?? undefined };
   }
-  if (receipt?.state === 'not_found') return { error: 'Not recorded. Check the details and current authority, then try again.' };
+  if (receipt?.state === 'not_found') return { error: response.message ? `Not recorded: ${response.message}` : 'Not recorded. Check the details and current authority, then try again.' };
   return { error: 'The outcome could not be confirmed. Try again: the same command will not be applied twice.', outcome: 'unknown' };
 }
 
@@ -228,4 +229,22 @@ export async function renewAuthorityFromDesk(_state: CommandState, formData: For
     idempotencyKey, kind: text(formData, 'kind'), id: text(formData, 'id'), reference: text(formData, 'reference'),
     effectiveAt: new Date(`${text(formData, 'effectiveAt')}T00:00:00Z`).toISOString(), expiresAt: new Date(`${text(formData, 'expiresAt')}T00:00:00Z`).toISOString(),
   }, 'Renewed.');
+}
+
+/** Owner amendment of the sales rules; the form sends the rows it built as JSON, the server re-validates everything. */
+export async function amendRulePackFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const idempotencyKey = commandKey(formData);
+  let payload: Record<string, unknown> | null = null;
+  try { const value = JSON.parse(text(formData, 'payload')); payload = value && typeof value === 'object' && !Array.isArray(value) ? value : null; } catch { payload = null; }
+  if (!payload || !idempotencyKey) return { error: 'Correct the highlighted fields.' };
+  if (!text(formData, 'version')) return invalid({ version: 'Enter a new rule version' });
+  return runCommand('amendCannabisRulePack', 'amendCannabisRulePack', { ...payload, version: text(formData, 'version'), idempotencyKey }, 'Sales rules updated.');
+}
+
+export async function setTemporaryPasswordFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const password = String(formData.get('temporaryPassword') ?? '');
+  if (password.length < 10) return invalid({ temporaryPassword: 'At least 10 characters' });
+  const idempotencyKey = commandKey(formData);
+  if (!idempotencyKey) return invalid({});
+  return runCommand('setStaffTemporaryPassword', 'setStaffTemporaryPassword', { idempotencyKey, userId: text(formData, 'userId'), temporaryPassword: password }, 'Temporary password set. Share it in person.');
 }

@@ -1,1 +1,1 @@
-export const AGE_COOKIE = 'cn_age_21';
+export const AGE_COOKIE = 'cn_age_ok';

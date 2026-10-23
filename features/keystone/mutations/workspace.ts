@@ -3,6 +3,7 @@ import type { CannabisPermission } from "../access";
 import { packageReadiness } from "../domain/packageReadiness";
 import { isRuntimeCapabilityEnabled } from "../domain/runtimeCapabilities";
 import { requireOperationalAuthority, requireReadAuthority, stableHash } from "./workflow";
+import { latestRulePack, rulePackProblem } from "./rulePack";
 
 export const WORKSPACE_PAGE_SIZE = 50;
 const DAY_MS = 86_400_000;
@@ -101,7 +102,11 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     jurisdictionCode: authority.actor.organization?.jurisdictionCode ?? null, premisesId: authority.premisesId,
     timezone: authority.actor.premises?.timezone ?? null, currencyCode: authority.actor.premises?.currencyCode ?? null,
     operating: { open: !operatingClosedReason, reason: operatingClosedReason },
+    salesRules: { version: null as string | null, problem: null as string | null },
   };
+  // The same check sales and the public menu run, so a broken pack is visible on every workspace.
+  const { pack: rulePack } = await latestRulePack(context, authority.organizationId, authority.premisesId);
+  base.salesRules = { version: rulePack?.version ?? null, problem: rulePackProblem(rulePack) };
 
   if (section === "overview") {
     const role = (await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: "role { canManageInventory canManageCompliance canManageAuthority }" }))?.role;
@@ -127,8 +132,18 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const licenses = await page(context, "CannabisLicense", { where: scope, orderBy: [{ expiresAt: "asc" }], query: "id licenseNumber licenseType status effectiveAt expiresAt regulatorName" });
     const credentials = await page(context, "StaffCredential", { where: scope, orderBy: [{ expiresAt: "asc" }], cursor: options.cursor, query: "id credentialType status effectiveAt expiresAt approvalLimitCents user { id name }" });
     const states = credentials.items.map(credential => intervalState(credential as any, nowMs));
+    const self = await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: "role { canManageOnboarding } staffCredential { id approvalLimitCents }" });
     return {
       ...base,
+      self: { credentialId: self?.staffCredential?.id ?? null, isOwner: self?.role?.canManageOnboarding === true, approvalLimitCents: self?.staffCredential?.approvalLimitCents ?? 0 },
+      rules: rulePack ? {
+        id: rulePack.id, version: rulePack.version, effectiveAt: new Date(rulePack.effectiveAt).toISOString(), expiresAt: new Date(rulePack.expiresAt).toISOString(),
+        adultMinimumAge: rulePack.adultMinimumAge, medicalMinimumAge: rulePack.medicalMinimumAge, medicalEnabled: rulePack.medicalEnabled === true,
+        operatingStartMinute: rulePack.operatingStartMinute, operatingEndMinute: rulePack.operatingEndMinute,
+        purchaseLimits: Array.isArray(rulePack.purchaseLimits) ? rulePack.purchaseLimits.slice(0, 50) : [], taxRules: Array.isArray(rulePack.taxRules) ? rulePack.taxRules.slice(0, 50) : [],
+        discountRuleCount: Array.isArray(rulePack.discountRules) ? rulePack.discountRules.length : 0,
+        allowedTenderTypes: Array.isArray(rulePack.allowedTenderTypes) ? rulePack.allowedTenderTypes.filter((type: unknown) => typeof type === "string").slice(0, 10) : [],
+      } : null,
       licenses: { ...licenses, items: licenses.items.map(license => ({ ...license, intervalState: intervalState(license as any, nowMs) })) },
       credentials: { ...credentials, items: credentials.items.map((credential, index) => ({ ...credential, intervalState: states[index] })) },
     };
@@ -183,7 +198,8 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
       return { ...rest, readyPackageCount: ready.length, readyCountComplete: candidates.length < 20, availableMicrounits };
     });
     const inactiveTotal = await sudo.query.Product.count({ where: { ...scope, status: { in: ["draft", "inactive"] } } });
-    return { ...base, search: options.search, products: { ...products, items }, inactiveTotal };
+    const categories = { limit: [...new Set((Array.isArray(rulePack?.purchaseLimits) ? rulePack!.purchaseLimits : []).map((rule: any) => rule?.categoryCode).filter((code: unknown): code is string => typeof code === "string" && code.trim() !== ""))].slice(0, 50), tax: [...new Set((Array.isArray(rulePack?.taxRules) ? rulePack!.taxRules : []).map((rule: any) => rule?.categoryCode).filter((code: unknown): code is string => typeof code === "string" && code.trim() !== ""))].slice(0, 50) };
+    return { ...base, search: options.search, products: { ...products, items }, inactiveTotal, categories };
   }
 
   if (section === "pos") {
