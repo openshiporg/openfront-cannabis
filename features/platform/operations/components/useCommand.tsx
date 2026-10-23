@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react';
 import type { CommandState } from '@/features/platform/workspaces/actions/workflows';
 import { useFocusFirstError } from '@/features/platform/lib/formErrors';
 import { useUnsavedChangesGuard } from '@/features/platform/lib/useUnsavedChangesGuard';
+import { Dot } from '@/features/platform/components/cannabis-ui';
 
 type Action = (state: CommandState, formData: FormData) => Promise<CommandState>;
 
@@ -26,7 +27,7 @@ export function useCommand(action: Action) {
 }
 
 export function CommandStatus({ state, summary }: { state: CommandState; summary: React.RefObject<HTMLParagraphElement | null> }) {
-  if (state.error) return <p ref={summary} tabIndex={-1} role="alert" className="text-sm text-destructive">{state.error}</p>;
-  if (state.success) return <p role="status" className="text-sm text-muted-foreground">{state.success}</p>;
+  if (state.error) return <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />{state.error}</p>;
+  if (state.success) return <p role="status" className="flex items-baseline gap-2 text-sm text-foreground"><Dot tone="ok" />{state.success}</p>;
   return null;
 }

@@ -3,11 +3,12 @@
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
 import { NEUTRAL_STOREFRONT_SETTINGS, type PublicDemoCatalogItem, type PublicStorefrontSettings } from '@/features/keystone/domain/storefrontSettings';
 
-type PublicLiveMenuItem = {
-  id: string; name: string; form: string; categoryCode: string; priceCents: number; description?: string | null;
+export type PublicLiveMenuItem = {
+  id: string; name: string; sku?: string; form: string; categoryCode: string; priceCents: number; description?: string | null;
+  imageUrl?: string | null; adultUseEligible?: boolean; medicalEligible?: boolean;
 };
 
-type PublicCannabisMenu = {
+export type PublicCannabisMenu = {
   unavailable?: boolean;
   jurisdictionCode?: string;
   rulePackVersion?: string;

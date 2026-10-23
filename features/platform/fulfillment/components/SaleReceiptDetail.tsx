@@ -1,8 +1,6 @@
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
+import { Dot, DotLabel, Panel, PillLink, statusTone, Track } from '@/features/platform/components/cannabis-ui';
 import { getSaleReceipt } from '../actions/receipt';
 
 const readable = (value: string | null | undefined) => (value || '').replaceAll('_', ' ');
@@ -13,40 +11,41 @@ const readable = (value: string | null | undefined) => (value || '').replaceAll(
  */
 export async function SaleReceiptDetail({ saleId }: { saleId: string; currencyCode?: string | null }) {
   const result = await getSaleReceipt(saleId);
-  const close = <Link href="/dashboard/platform/pos" className="text-sm underline underline-offset-4">Close receipt</Link>;
+  const close = <Track><PillLink href="/dashboard/platform/pos">Close receipt</PillLink></Track>;
   if (result.state !== 'ok') {
     const text = result.state === 'forbidden' ? 'You do not have access to sales receipts.' : result.state === 'not_found' ? 'Receipt not found.' : 'Receipt is unavailable right now.';
-    return <Card data-testid="sale-receipt-detail"><CardContent className="flex items-center justify-between gap-3 p-4"><p role="status" className="text-sm">{text}</p>{close}</CardContent></Card>;
+    return <Panel data-testid="sale-receipt-detail"><div className="flex flex-wrap items-center justify-between gap-3"><p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone={result.state === 'unavailable' ? 'danger' : 'warn'} />{text}</p>{close}</div></Panel>;
   }
   const sale = result.sale;
   const money = (cents: number) => sale.currencyCode ? formatMinorUnits(cents, sale.currencyCode) : `${(cents / 100).toFixed(2)}`;
-  return <Card data-testid="sale-receipt-detail">
-    <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-      <div><CardTitle className="font-mono">{sale.receiptNumber}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Finalized {new Date(sale.finalizedAt).toLocaleString()} · {readable(sale.customerCapacitySnapshot)} · policy {sale.rulePackVersion}</p>{!sale.currencyCode && <p className="mt-1 text-xs text-muted-foreground">Currency not recorded</p>}</div>
-      <div className="flex items-center gap-3"><Badge variant="outline" className="capitalize">{readable(sale.status)}</Badge>{close}</div>
-    </CardHeader>
-    <CardContent className="space-y-4 text-sm">
-      <section aria-label="Lines"><h3 className="font-medium">Lines</h3>
-        <ul className="mt-2 divide-y rounded-md border">{sale.lines.map(line => <li key={line.id} className="grid gap-1 p-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="min-w-0"><p className="font-medium">{line.titleSnapshot}</p><p className="break-all text-xs text-muted-foreground">{line.skuSnapshot} · package {line.packageUidSnapshot} · batch {line.batchSnapshot}</p>
-            <p className="text-xs text-muted-foreground">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)} · unit price {money(line.unitPriceCents)} · discount {money(line.discountCents)} · tax {money(line.taxCents)}</p></div>
-          <p className="tabular-nums sm:text-right">{money(line.totalCents)}</p>
+  const totals: Array<[string, number, boolean?]> = [['Subtotal', sale.subtotalCents], ['Discount', sale.discountCents], ['Tax', sale.taxCents], ['Total', sale.totalCents, true], ['Refunded', sale.refundedCents]];
+  return <Panel data-testid="sale-receipt-detail">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="font-mono text-base font-semibold">{sale.receiptNumber}</h2><DotLabel tone={statusTone(sale.status)} className="text-xs capitalize text-muted-foreground">{readable(sale.status)}</DotLabel></div>
+        <p className="mt-0.5 text-xs text-muted-foreground">Finalized {new Date(sale.finalizedAt).toLocaleString()} · <span className="capitalize">{readable(sale.customerCapacitySnapshot)}</span> · policy <span className="font-mono">{sale.rulePackVersion}</span>{!sale.currencyCode && ' · currency not recorded'}</p>
+      </div>
+      {close}
+    </div>
+    <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <section aria-label="Lines">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Lines</h3>
+        <ul className="mt-2 divide-y divide-border overflow-hidden rounded-lg bg-muted/40 ring-1 ring-inset ring-border/60">{sale.lines.map(line => <li key={line.id} className="grid gap-1 px-3 py-2.5 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline">
+          <div className="min-w-0"><p className="font-medium">{line.titleSnapshot}</p><p className="break-all font-mono text-xs text-muted-foreground">{line.skuSnapshot} · {line.packageUidSnapshot} · {line.batchSnapshot}</p>
+            <p className="text-xs text-muted-foreground"><span className="font-mono">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)}</span> · unit <span className="font-mono">{money(line.unitPriceCents)}</span> · discount <span className="font-mono">{money(line.discountCents)}</span> · tax <span className="font-mono">{money(line.taxCents)}</span></p></div>
+          <p className="font-mono sm:text-right">{money(line.totalCents)}</p>
         </li>)}</ul>
-        {sale.linesHasMore && <p className="mt-1 text-xs text-muted-foreground">Showing the first 100 lines.</p>}
+        {sale.linesHasMore && <p className="mt-1 text-xs text-muted-foreground">First 100 lines shown</p>}
       </section>
-      <dl className="grid grid-cols-2 gap-1 sm:max-w-sm">
-        <dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{money(sale.subtotalCents)}</dd>
-        <dt className="text-muted-foreground">Discount</dt><dd className="tabular-nums">{money(sale.discountCents)}</dd>
-        <dt className="text-muted-foreground">Tax</dt><dd className="tabular-nums">{money(sale.taxCents)}</dd>
-        <dt className="font-medium">Total</dt><dd className="font-medium tabular-nums">{money(sale.totalCents)}</dd>
-        <dt className="text-muted-foreground">Refunded</dt><dd className="tabular-nums">{money(sale.refundedCents)}</dd>
-      </dl>
-      <section aria-label="Tenders"><h3 className="font-medium">Tenders</h3>
-        {sale.tenders.length ? <ul className="mt-2 space-y-1">{sale.tenders.map(tender => <li key={tender.id} className="flex justify-between gap-3"><span className="capitalize">{readable(tender.typeSnapshot)} · {readable(tender.status)}</span><span className="tabular-nums">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-muted-foreground">No tenders recorded.</p>}
-      </section>
-      <section aria-label="Refunds"><h3 className="font-medium">Refunds</h3>
-        {sale.refunds.length ? <ul className="mt-2 space-y-1">{sale.refunds.map(refund => <li key={refund.id} className="flex justify-between gap-3"><span>{new Date(refund.occurredAt).toLocaleString()} · {refund.reasonCode} · {readable(refund.status)}</span><span className="tabular-nums">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-muted-foreground">No refunds.</p>}
-      </section>
-    </CardContent>
-  </Card>;
+      <div className="space-y-5">
+        <dl className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm ring-1 ring-inset ring-border/60">{totals.map(([term, cents, strong]) => <div key={term} className={`flex items-baseline justify-between gap-4 ${strong ? 'border-y border-border py-1.5 font-semibold' : ''}`}><dt className={strong ? '' : 'text-muted-foreground'}>{term}</dt><dd className="font-mono">{money(cents)}</dd></div>)}</dl>
+        <section aria-label="Tenders"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Tenders</h3>
+          {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(tender.status)} className="capitalize">{readable(tender.typeSnapshot)} · {readable(tender.status)}</DotLabel><span className="font-mono">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
+        </section>
+        <section aria-label="Refunds"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refunds</h3>
+          {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{new Date(refund.occurredAt).toLocaleString()} · <span className="font-mono">{refund.reasonCode}</span> · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
+        </section>
+      </div>
+    </div>
+  </Panel>;
 }

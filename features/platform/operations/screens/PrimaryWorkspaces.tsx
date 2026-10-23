@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import type React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
@@ -9,55 +8,73 @@ import type { CannabisWorkspaceResult } from '@/features/platform/workspaces/lib
 import type { WorkspaceData, WorkspaceSection } from '@/features/platform/workspaces/lib/contract';
 import { CartPreparationClient } from '@/features/platform/fulfillment/components/CartPreparationClient';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
-import { AsOf, Empty, formatWhen, Metric, Pager, readable, SearchForm, Status, Workboard, WorkspaceStateNotice } from '../components/WorkspaceKit';
+import { BandRow, ListBand, MetricStrip, Notice, operatingState, PageTitle, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
+import { AsOf, Empty, formatWhen, Pager, readable, SearchForm, Status, Workboard, WorkspaceStateNotice } from '../components/WorkspaceKit';
 import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, ProvisionStaffForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 type Params = Record<string, string | undefined>;
+type TitleState = { tone: DotTone; state: string };
 
 async function readParams(searchParams?: SearchParams): Promise<Params> {
   const raw = (await searchParams) || {};
   return Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 }
 
-async function frame<S extends WorkspaceSection>(section: S, path: string, title: string, params: Params, render: (data: WorkspaceData<S>) => React.ReactNode) {
+async function frame<S extends WorkspaceSection>(section: S, path: string, title: string, params: Params, render: (data: WorkspaceData<S>) => React.ReactNode, titleState?: (data: WorkspaceData<S>) => TitleState) {
   const options: WorkspaceOptions = { cursor: params.cursor, search: params.search, filter: params.filter, productSearch: params.productSearch };
   const result: CannabisWorkspaceResult<WorkspaceData<S>> = await getCannabisWorkspace(section, options);
-  const header = <h1 className="text-xl font-semibold">{title}</h1>;
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'page' as const, label: title }];
-  return <PageContainer header={header} breadcrumbs={breadcrumbs}>{result.state === 'ok' ? render(result.data) : <WorkspaceStateNotice result={result} retryHref={path} />}</PageContainer>;
+  if (result.state !== 'ok') {
+    return <PageContainer header={<PageTitle title={title} />} breadcrumbs={breadcrumbs}><WorkspaceStateNotice result={result} retryHref={path} /></PageContainer>;
+  }
+  const data = result.data;
+  const { tone, state } = titleState ? titleState(data) : operatingState(data.operating);
+  const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} />{data.jurisdictionCode && <span className="font-mono">{data.jurisdictionCode}</span>}</span>;
+  return <PageContainer header={<PageTitle title={title} tone={tone} state={state} meta={meta} />} breadcrumbs={breadcrumbs}>{render(data)}</PageContainer>;
 }
 
 function OperatingNotice({ operating }: { operating: { open: boolean; reason: string | null } }) {
   if (operating.open) return null;
-  return <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">Operating authority is not current: {operating.reason}. Records are shown for review; changes are unavailable until it is renewed.</p>;
+  return <Notice tone="danger" action={<Track><PillLink href="/dashboard/platform/authority" active>Open Authority</PillLink></Track>}>Operating authority is not current: {operating.reason}. Read only until renewed.</Notice>;
 }
 
 const INTERVAL_LABEL: Record<string, string> = { current: 'Current', expiring_soon: 'Expires within 30 days', expired: 'Expired', not_yet_effective: 'Not yet effective', inactive: 'Inactive' };
 const NOTIFICATION_LABEL: Record<string, string> = { none: 'No deadline', overdue: 'Notification overdue', due_soon: 'Due within 24 hours', upcoming: 'Upcoming deadline', resolved: 'Resolved', unknown: 'Deadline unknown' };
+const NOTIFICATION_TONE: Record<string, DotTone> = { none: 'muted', overdue: 'danger', due_soon: 'warn', upcoming: 'info', resolved: 'ok', unknown: 'warn' };
+const SEVERITY_TONE: Record<string, DotTone> = { low: 'info', medium: 'warn', high: 'danger', critical: 'danger' };
 
 export async function ControlRoomPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('overview', '/dashboard/platform', 'Control room', params, data => <Workboard>
-    <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
     <OperatingNotice operating={data.operating} />
-    <div className="grid gap-3 sm:grid-cols-3">
-      {data.inventory && <Metric label="Packages ready to sell" value={data.inventory.readyTotal} href="/dashboard/platform/inventory?filter=ready" />}
-      {data.inventory && <Metric label="Packages on hold" value={data.inventory.heldTotal} href="/dashboard/platform/inventory?filter=held" />}
-      {data.incidents && <Metric label="Open incidents" value={data.incidents.openTotal} href="/dashboard/platform/incidents" />}
-      {data.incidents && <Metric label="Notifications overdue" value={data.incidents.overdueTotal} href="/dashboard/platform/incidents" />}
-      {data.inventory && <Metric label="Packages in receiving hold" value={data.inventory.receivingTotal} href="/dashboard/platform/inventory?filter=receiving" />}
-      <Metric label="Jurisdiction" value={data.jurisdictionCode || 'Not set'} />
+    <MetricStrip items={[
+      ...(data.inventory ? [
+        { label: 'Ready to sell', value: data.inventory.readyTotal, href: '/dashboard/platform/inventory?filter=ready', tone: 'ok' as const },
+        { label: 'On hold', value: data.inventory.heldTotal, href: '/dashboard/platform/inventory?filter=held', tone: data.inventory.heldTotal ? 'danger' as const : 'muted' as const },
+        { label: 'In receiving hold', value: data.inventory.receivingTotal, href: '/dashboard/platform/inventory?filter=receiving', tone: data.inventory.receivingTotal ? 'warn' as const : 'muted' as const },
+      ] : []),
+      ...(data.incidents ? [
+        { label: 'Open incidents', value: data.incidents.openTotal, href: '/dashboard/platform/incidents', tone: data.incidents.openTotal ? 'warn' as const : 'muted' as const },
+        { label: 'Notifications overdue', value: data.incidents.overdueTotal, href: '/dashboard/platform/incidents', tone: data.incidents.overdueTotal ? 'danger' as const : 'muted' as const },
+      ] : []),
+      { label: 'Jurisdiction', value: data.jurisdictionCode || 'Not set' },
+    ]} />
+    <div className="grid gap-8 lg:grid-cols-2">
+      {data.inventory && <section>
+        <SectionTitle meta={data.inventory.readyTotal} action={<Track><PillLink href="/dashboard/platform/inventory?filter=ready">All ready</PillLink></Track>}>Ready to sell, soonest expiry</SectionTitle>
+        <ListBand>{data.inventory.ready.length ? data.inventory.ready.map(pkg => <Link key={pkg.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(pkg.packageUid)}`} className="block transition-colors hover:bg-background/60">
+          <BandRow title={<span className="font-mono">{pkg.packageUid}</span>} detail={pkg.product?.name || 'Product not recorded'} aside={<span className="text-xs text-muted-foreground">Expires {formatWhen(pkg.expiresAt, data.timezone)}</span>} />
+        </Link>) : <Empty>No packages are ready to sell.</Empty>}</ListBand>
+      </section>}
+      {data.incidents && <section>
+        <SectionTitle meta={data.incidents.openTotal} action={<Track><PillLink href="/dashboard/platform/incidents">All incidents</PillLink></Track>}>Open incidents</SectionTitle>
+        <ListBand>{data.incidents.open.length ? data.incidents.open.map(incident => <Link key={incident.id} href={`/dashboard/platform/incidents#incident-${incident.id}`} className="block transition-colors hover:bg-background/60">
+          <BandRow title={<span className="font-mono">{incident.reference}</span>} tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'} state={NOTIFICATION_LABEL[incident.notificationState] || readable(incident.notificationState)} detail={<span className="capitalize">{readable(incident.type)} · {readable(incident.severity)}</span>} />
+        </Link>) : <Empty>No open incidents.</Empty>}</ListBand>
+      </section>}
     </div>
-    <div className="grid gap-4 lg:grid-cols-2">
-      {data.inventory && <Card><CardHeader><CardTitle className="text-base">Ready to sell, soonest expiry</CardTitle></CardHeader><CardContent className="space-y-1">
-        {data.inventory.ready.length ? data.inventory.ready.map(pkg => <Link key={pkg.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(pkg.packageUid)}`} className="flex justify-between gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"><span className="min-w-0 truncate"><span className="font-mono">{pkg.packageUid}</span> · {pkg.product?.name || 'Product not recorded'}</span><span className="shrink-0 text-muted-foreground">expires {formatWhen(pkg.expiresAt, data.timezone)}</span></Link>) : <Empty>No packages are ready to sell.</Empty>}
-      </CardContent></Card>}
-      {data.incidents && <Card><CardHeader><CardTitle className="text-base">Open incidents</CardTitle></CardHeader><CardContent className="space-y-1">
-        {data.incidents.open.length ? data.incidents.open.map(incident => <Link key={incident.id} href={`/dashboard/platform/incidents#incident-${incident.id}`} className="flex justify-between gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"><span className="min-w-0 truncate"><span className="font-mono">{incident.reference}</span> · {readable(incident.type)}</span><span className="shrink-0 text-muted-foreground">{NOTIFICATION_LABEL[incident.notificationState] || readable(incident.notificationState)}</span></Link>) : <Empty>No open incidents.</Empty>}
-      </CardContent></Card>}
-    </div>
-    {!data.inventory && !data.incidents && <Empty>Your role has no inventory or compliance access. Use the pages available to you in the sidebar.</Empty>}
+    {!data.inventory && !data.incidents && <ListBand><Empty>Your role has no inventory or compliance access.</Empty></ListBand>}
   </Workboard>);
 }
 
@@ -65,23 +82,37 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
   const params = await readParams(searchParams);
   return frame('authority', '/dashboard/platform/authority', 'Authority', params, data => {
     const current = data.credentials.items.filter(credential => ['current', 'expiring_soon'].includes(credential.intervalState)).length;
+    const lapsing = data.licenses.items.filter(license => ['expired', 'expiring_soon'].includes(license.intervalState)).length;
     return <Workboard>
-      <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
       <OperatingNotice operating={data.operating} />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Licenses" value={data.licenses.total} />
-        <Metric label="Credentials (all)" value={data.credentials.total} />
-        <Metric label="Current credentials on this page" value={current} />
-      </div>
-      <Card data-testid="authority-workbench"><CardHeader><CardTitle className="text-base">Licenses</CardTitle></CardHeader><CardContent className="space-y-2">
-        {data.licenses.items.length ? data.licenses.items.map(license => <div key={license.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm"><div><p className="font-mono font-medium">{license.licenseNumber}</p><p className="text-xs text-muted-foreground">{license.licenseType} · {license.regulatorName} · {formatWhen(license.effectiveAt, data.timezone)} – {formatWhen(license.expiresAt, data.timezone)}</p></div><div className="flex gap-2"><Status value={license.status} /><span className="text-xs text-muted-foreground">{INTERVAL_LABEL[license.intervalState]}</span></div>{['expired', 'expiring_soon'].includes(license.intervalState) && <div className="w-full"><RenewAuthorityForm kind="license" id={license.id} /></div>}</div>) : <Empty>No licenses are recorded.</Empty>}
-        {data.licenses.nextCursor && <p className="text-xs text-muted-foreground">Showing the first {data.licenses.items.length} of {data.licenses.total} licenses.</p>}
-      </CardContent></Card>
-      <Card><CardHeader><CardTitle className="text-base">Staff credentials</CardTitle></CardHeader><CardContent className="space-y-2 p-0">
-        <div className="space-y-2 px-6">{data.credentials.items.length ? data.credentials.items.map(credential => <div key={credential.id} className="rounded-lg border p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-medium">{credential.user?.name || 'Unassigned'}</p><p className="text-xs text-muted-foreground">{credential.credentialType} · valid {formatWhen(credential.effectiveAt, data.timezone)} – {formatWhen(credential.expiresAt, data.timezone)} · approval limit {formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</p></div><div className="flex gap-2"><Status value={credential.status} /><span className="text-xs text-muted-foreground">{INTERVAL_LABEL[credential.intervalState]}</span></div></div>{data.operating.open && <RevokeCredentialForm credentialId={credential.id} status={credential.status} />}{['expired', 'expiring_soon', 'inactive'].includes(credential.intervalState) && credential.status !== 'terminated' && <RenewAuthorityForm kind="credential" id={credential.id} />}</div>) : <Empty>No staff credentials are recorded.</Empty>}</div>
-        <Pager basePath="/dashboard/platform/authority" params={params} nextCursor={data.credentials.nextCursor} shown={data.credentials.items.length} total={data.credentials.total} noun="credentials" />
-      </CardContent></Card>
-      {data.operating.open && <Card><CardHeader><CardTitle className="text-base">Add a staff member</CardTitle></CardHeader><CardContent><ProvisionStaffForm /></CardContent></Card>}
+      <MetricStrip items={[
+        { label: 'Licenses', value: data.licenses.total },
+        { label: 'Licenses lapsing on this page', value: lapsing, tone: lapsing ? 'warn' : 'muted' },
+        { label: 'Credentials', value: data.credentials.total },
+        { label: 'Current on this page', value: current, tone: 'ok' },
+      ]} />
+      <section data-testid="authority-workbench">
+        <SectionTitle meta={data.licenses.total}>Licenses</SectionTitle>
+        <ListBand>
+          {data.licenses.items.length ? data.licenses.items.map(license => <BandRow key={license.id} title={<span className="font-mono">{license.licenseNumber}</span>} tone={statusTone(license.intervalState === 'current' ? license.status : license.intervalState)} state={<span className="capitalize">{readable(license.status)} · {INTERVAL_LABEL[license.intervalState]}</span>}
+            detail={`${license.licenseType} · ${license.regulatorName} · ${formatWhen(license.effectiveAt, data.timezone)} – ${formatWhen(license.expiresAt, data.timezone)}`}>
+            {['expired', 'expiring_soon'].includes(license.intervalState) && <RenewAuthorityForm kind="license" id={license.id} />}
+          </BandRow>) : <Empty>No licenses are recorded.</Empty>}
+          {data.licenses.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">First {data.licenses.items.length} of {data.licenses.total} licenses</p>}
+        </ListBand>
+      </section>
+      <section>
+        <SectionTitle meta={data.credentials.total}>Staff credentials</SectionTitle>
+        <ListBand>
+          {data.credentials.items.length ? data.credentials.items.map(credential => <BandRow key={credential.id} title={credential.user?.name || 'Unassigned'} tone={statusTone(credential.intervalState === 'current' ? credential.status : credential.intervalState)} state={<span className="capitalize">{readable(credential.status)} · {INTERVAL_LABEL[credential.intervalState]}</span>}
+            detail={<>{credential.credentialType} · valid {formatWhen(credential.effectiveAt, data.timezone)} – {formatWhen(credential.expiresAt, data.timezone)} · approval limit <span className="font-mono">{formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</span></>}>
+            {data.operating.open && <RevokeCredentialForm credentialId={credential.id} status={credential.status} />}
+            {['expired', 'expiring_soon', 'inactive'].includes(credential.intervalState) && credential.status !== 'terminated' && <RenewAuthorityForm kind="credential" id={credential.id} />}
+          </BandRow>) : <Empty>No staff credentials are recorded.</Empty>}
+          <Pager basePath="/dashboard/platform/authority" params={params} nextCursor={data.credentials.nextCursor} shown={data.credentials.items.length} total={data.credentials.total} noun="credentials" />
+        </ListBand>
+      </section>
+      {data.operating.open && <Panel title="Add a staff member"><ProvisionStaffForm /></Panel>}
     </Workboard>;
   });
 }
@@ -89,25 +120,37 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
 export async function ComplianceWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('compliance', '/dashboard/platform/compliance', 'Compliance', params, data => <Workboard>
-    <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Metric label="Customers awaiting verification" value={data.pendingCustomers.total} />
-      <Metric label="Active package holds" value={data.holds.total} />
-      <Metric label="Recall cases" value={data.recalls.total} />
+    <MetricStrip items={[
+      { label: 'Awaiting verification', value: data.pendingCustomers.total, tone: data.pendingCustomers.total ? 'warn' : 'muted' },
+      { label: 'Active package holds', value: data.holds.total, tone: data.holds.total ? 'danger' : 'muted', href: '/dashboard/platform/inventory?filter=held' },
+      { label: 'Recall cases', value: data.recalls.total, tone: data.recalls.total ? 'danger' : 'muted' },
+    ]} />
+    <Notice tone="muted">Eligibility decisions and hold releases unavailable</Notice>
+    <section data-testid="compliance-workbench">
+      <SectionTitle meta={data.holds.total}>Active package holds</SectionTitle>
+      <ListBand>
+        {data.holds.items.length ? data.holds.items.map(hold => <Link key={hold.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(hold.package?.packageUid || '')}`} className="block transition-colors hover:bg-background/60">
+          <BandRow title={<span className="capitalize">{readable(hold.type)} hold</span>} tone="danger" state={<span className="font-mono">{hold.reasonCode}</span>} detail={<>Package <span className="font-mono">{hold.package?.packageUid || 'not recorded'}</span> · placed {formatWhen(hold.placedAt, data.timezone)}</>} />
+        </Link>) : <Empty>No active package holds.</Empty>}
+        {data.holds.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.holds.items.length} of {data.holds.total} holds</p>}
+      </ListBand>
+    </section>
+    <div className="grid gap-8 lg:grid-cols-2">
+      <section>
+        <SectionTitle meta={data.pendingCustomers.total}>Customers awaiting verification</SectionTitle>
+        <ListBand>
+          {data.pendingCustomers.items.length ? data.pendingCustomers.items.map(customer => <BandRow key={`${customer.kind}:${customer.id}`} title={<span className="font-mono">{customer.reference}</span>} tone={statusTone(customer.status)} state={<span className="capitalize">{readable(customer.status)}</span>} detail={<span className="capitalize">{readable(customer.capacity)} · since {formatWhen(customer.createdAt, data.timezone)}</span>} />) : <Empty>No customers are awaiting verification.</Empty>}
+          <Pager basePath="/dashboard/platform/compliance" params={params} nextCursor={data.pendingCustomers.nextCursor} shown={data.pendingCustomers.items.length} total={data.pendingCustomers.total} noun="customers" />
+        </ListBand>
+      </section>
+      <section>
+        <SectionTitle meta={data.recalls.total}>Recall cases</SectionTitle>
+        <ListBand>
+          {data.recalls.items.length ? data.recalls.items.map(recall => <BandRow key={`${recall.kind}:${recall.id}`} title={<span className="font-mono">{recall.reference}</span>} tone={statusTone(recall.status)} state={<span className="capitalize">{readable(recall.status)}</span>} detail={`${recall.reason} · opened ${formatWhen(recall.openedAt, data.timezone)}`} />) : <Empty>No recall cases.</Empty>}
+          {data.recalls.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Latest {data.recalls.items.length} of {data.recalls.total} recalls</p>}
+        </ListBand>
+      </section>
     </div>
-    <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">Recording eligibility decisions and releasing holds are not available yet.</p>
-    <Card data-testid="compliance-workbench"><CardHeader><CardTitle className="text-base">Active package holds</CardTitle></CardHeader><CardContent className="space-y-2">
-      {data.holds.items.length ? data.holds.items.map(hold => <Link key={hold.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(hold.package?.packageUid || '')}`} className="block rounded-lg border p-3 text-sm hover:bg-muted"><p className="font-medium capitalize">{readable(hold.type)} hold · {hold.reasonCode}</p><p className="text-xs text-muted-foreground">Package {hold.package?.packageUid || 'not recorded'} · placed {formatWhen(hold.placedAt, data.timezone)}</p></Link>) : <Empty>No active package holds.</Empty>}
-      {data.holds.nextCursor && <p className="text-xs text-muted-foreground">Showing the oldest {data.holds.items.length} of {data.holds.total} holds.</p>}
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle className="text-base">Customers awaiting verification</CardTitle></CardHeader><CardContent className="space-y-2 p-0">
-      <div className="space-y-2 px-6">{data.pendingCustomers.items.length ? data.pendingCustomers.items.map(customer => <div key={`${customer.kind}:${customer.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"><div><p className="font-mono font-medium">{customer.reference}</p><p className="text-xs text-muted-foreground">Eligibility review · {readable(customer.capacity)} · since {formatWhen(customer.createdAt, data.timezone)}</p></div><Status value={customer.status} /></div>) : <Empty>No customers are awaiting verification.</Empty>}</div>
-      <Pager basePath="/dashboard/platform/compliance" params={params} nextCursor={data.pendingCustomers.nextCursor} shown={data.pendingCustomers.items.length} total={data.pendingCustomers.total} noun="customers" />
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle className="text-base">Recall cases</CardTitle></CardHeader><CardContent className="space-y-2">
-      {data.recalls.items.length ? data.recalls.items.map(recall => <div key={`${recall.kind}:${recall.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"><div><p className="font-mono font-medium">{recall.reference}</p><p className="text-xs text-muted-foreground">Recall · {recall.reason} · opened {formatWhen(recall.openedAt, data.timezone)}</p></div><Status value={recall.status} /></div>) : <Empty>No recall cases.</Empty>}
-      {data.recalls.nextCursor && <p className="text-xs text-muted-foreground">Showing the latest {data.recalls.items.length} of {data.recalls.total} recalls.</p>}
-    </CardContent></Card>
   </Workboard>);
 }
 
@@ -116,120 +159,167 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
   return frame('menu', '/dashboard/platform/menu', 'Menu', params, data => {
     const ready = data.products.items.filter(product => product.readyPackageCount > 0).length;
     return <Workboard>
-      <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Active products" value={data.products.total} />
-        <Metric label="Ready to sell on this page" value={`${ready} of ${data.products.items.length}`} />
-        <Metric label="Inactive or draft products" value={data.inactiveTotal} />
-      </div>
-      <SearchForm basePath="/dashboard/platform/menu" params={params} label="Search products" placeholder="Name or SKU" />
-      <Card data-testid="menu-workbench"><CardHeader><CardTitle className="text-base">Products</CardTitle><p className="text-sm text-muted-foreground">A product is ready to sell when it has a released, lab-passed, unexpired package with no hold and free quantity.</p></CardHeader><CardContent className="space-y-2 p-0">
-        <div className="space-y-2 px-6">{data.products.items.length ? data.products.items.map(product => <details key={product.id} className="rounded-lg border p-3">
-          <summary className="grid cursor-pointer gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"><div className="min-w-0"><p className="font-medium">{product.name}</p><p className="text-xs text-muted-foreground">{product.sku} · {product.form} · {product.categoryCode} · {formatMinorUnits(product.priceCents, data.currencyCode)} per increment</p></div><Status value={product.status} /><p className="text-sm tabular-nums">{product.readyPackageCount > 0 ? `${product.readyPackageCount}${product.readyCountComplete ? '' : '+'} ready · ${formatMicrounits(product.availableMicrounits, product.unitOfMeasure)} free` : 'Not ready to sell'}</p></summary>
-          {data.operating.open && <div className="mt-3 border-t pt-3"><AmendProductForm product={product} /></div>}
-        </details>) : <Empty>{params.search ? 'No products match this search.' : 'No active products yet. Add one below.'}</Empty>}</div>
-        <Pager basePath="/dashboard/platform/menu" params={params} nextCursor={data.products.nextCursor} shown={data.products.items.length} total={data.products.total} noun="products" />
-      </CardContent></Card>
-      <Card><CardHeader><CardTitle className="text-base">Add a product</CardTitle></CardHeader><CardContent><NewProductForm /></CardContent></Card>
+      <MetricStrip items={[
+        { label: 'Active products', value: data.products.total },
+        { label: 'Ready on this page', value: `${ready}/${data.products.items.length}`, tone: ready ? 'ok' : 'muted' },
+        { label: 'Inactive or draft', value: data.inactiveTotal },
+      ]} />
+      <section data-testid="menu-workbench">
+        <SectionTitle meta={data.products.total} action={<SearchForm basePath="/dashboard/platform/menu" params={params} label="Search products" placeholder="Name or SKU" />}>Products</SectionTitle>
+        <ListBand>
+          {data.products.items.length ? data.products.items.map(product => <details key={product.id} className="group">
+            <summary className="cursor-pointer list-none transition-colors hover:bg-background/60 [&::-webkit-details-marker]:hidden">
+              <BandRow title={product.name} tone={product.readyPackageCount > 0 ? 'ok' : product.status === 'active' ? 'warn' : 'muted'} state={product.readyPackageCount > 0 ? 'Ready to sell' : product.status === 'active' ? 'Not ready' : <span className="capitalize">{readable(product.status)}</span>}
+                detail={<><span className="font-mono">{product.sku}</span> · {product.form} · {product.categoryCode}{product.adultUseEligible ? ' · adult-use' : ''}{product.medicalEligible ? ' · medical' : ''}</>}
+                aside={<span className="flex flex-col items-start gap-0.5 sm:items-end"><span className="font-mono">{formatMinorUnits(product.priceCents, data.currencyCode)}</span><span className="text-xs text-muted-foreground">{product.readyPackageCount > 0 ? <>{product.readyPackageCount}{product.readyCountComplete ? '' : '+'} pkg · <span className="font-mono">{formatMicrounits(product.availableMicrounits, product.unitOfMeasure)}</span> free</> : 'No saleable package'}</span></span>} />
+            </summary>
+            {data.operating.open && <div className="border-t border-border/70 bg-background/50 px-4 py-4"><AmendProductForm product={product} /></div>}
+          </details>) : <Empty>{params.search ? 'No products match this search.' : 'No active products yet.'}</Empty>}
+          <Pager basePath="/dashboard/platform/menu" params={params} nextCursor={data.products.nextCursor} shown={data.products.items.length} total={data.products.total} noun="products" />
+        </ListBand>
+      </section>
+      <Panel title="Add a product"><NewProductForm /></Panel>
     </Workboard>;
   });
 }
 
 export async function PosFulfillmentWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
-  return frame('pos', '/dashboard/platform/pos', 'POS', params, data => <Workboard>
-    <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Metric label="Open carts" value={data.carts.total} />
-      <Metric label="Carts in final verification on this page" value={data.carts.items.filter(cart => cart.status === 'final_verification').length} />
-      <Metric label="Receipts" value={data.sales.total} />
-    </div>
-    <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">Creating carts and completing sales are not available yet. Existing carts can be prepared below.</p>
-    {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} />}
-    <CartPreparationClient authorityFingerprint={data.authorityFingerprint} currencyCode={data.currencyCode}
-      products={data.products.items} productsHasMore={Boolean(data.products.nextCursor)}
-      carts={data.carts.items.map(cart => ({ id: cart.id, reference: cart.reference }))} />
-    <Card data-testid="pos-fulfillment-workbench"><CardHeader><CardTitle className="text-base">Open carts</CardTitle></CardHeader><CardContent className="space-y-2 p-0">
-      <div className="space-y-2 px-6">{data.carts.items.length ? data.carts.items.map(cart => <div key={cart.id} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]"><div><p className="font-mono text-sm font-medium">{cart.reference}</p><p className="text-xs text-muted-foreground">Expires {formatWhen(cart.expiresAt, data.timezone)} · customer {cart.customer?.reference || 'not recorded'}</p></div><Status value={cart.status} /><p className="text-sm tabular-nums">{formatMinorUnits(cart.totalCents, data.currencyCode)}</p></div>) : <Empty>No open carts.</Empty>}</div>
-      <Pager basePath="/dashboard/platform/pos" params={params} nextCursor={data.carts.nextCursor} shown={data.carts.items.length} total={data.carts.total} noun="carts" />
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle className="text-base">Recent receipts</CardTitle></CardHeader><CardContent className="space-y-2">
-      {data.sales.items.length ? data.sales.items.map(sale => <Link key={sale.id} href={`/dashboard/platform/pos?sale=${encodeURIComponent(sale.id)}`} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm hover:bg-muted"><div><p className="font-mono font-medium">{sale.receiptNumber}</p><p className="text-xs text-muted-foreground">Finalized {formatWhen(sale.finalizedAt, data.timezone)}</p></div><Status value={sale.status} /></Link>) : <Empty>No receipts yet.</Empty>}
-      {data.sales.nextCursor && <p className="text-xs text-muted-foreground">Showing the latest {data.sales.items.length} of {data.sales.total} receipts.</p>}
-    </CardContent></Card>
-  </Workboard>);
+  return frame('pos', '/dashboard/platform/pos', 'POS', params, data => {
+    const finalVerification = data.carts.items.filter(cart => cart.status === 'final_verification').length;
+    return <Workboard>
+      <MetricStrip items={[
+        { label: 'Open carts', value: data.carts.total, tone: data.carts.total ? 'warn' : 'muted' },
+        { label: 'In final verification', value: finalVerification },
+        { label: 'Receipts', value: data.sales.total },
+      ]} />
+      <Notice tone="muted">New carts and sale completion unavailable</Notice>
+      {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} />}
+      <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="space-y-8">
+          <section data-testid="pos-fulfillment-workbench">
+            <SectionTitle meta={data.carts.total}>Open carts</SectionTitle>
+            <ListBand>
+              {data.carts.items.length ? data.carts.items.map(cart => <BandRow key={cart.id} title={<span className="font-mono">{cart.reference}</span>} tone={statusTone(cart.status)} state={<span className="capitalize">{readable(cart.status)}</span>} detail={<>Expires {formatWhen(cart.expiresAt, data.timezone)} · customer <span className="font-mono">{cart.customer?.reference || 'not recorded'}</span></>} aside={<span className="font-mono">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>} />) : <Empty>No open carts.</Empty>}
+              <Pager basePath="/dashboard/platform/pos" params={params} nextCursor={data.carts.nextCursor} shown={data.carts.items.length} total={data.carts.total} noun="carts" />
+            </ListBand>
+          </section>
+          <section>
+            <SectionTitle meta={data.sales.total}>Recent receipts</SectionTitle>
+            <ListBand>
+              {data.sales.items.length ? data.sales.items.map(sale => <Link key={sale.id} href={`/dashboard/platform/pos?sale=${encodeURIComponent(sale.id)}`} aria-current={params.sale === sale.id ? 'page' : undefined} className="block transition-colors hover:bg-background/60 aria-[current=page]:bg-background/80">
+                <BandRow title={<span className="font-mono">{sale.receiptNumber}</span>} tone={statusTone(sale.status)} state={<span className="capitalize">{readable(sale.status)}</span>} detail={`Finalized ${formatWhen(sale.finalizedAt, data.timezone)}`} aside={<span className="font-mono">{formatMinorUnits(sale.totalCents, data.currencyCode)}</span>} />
+              </Link>) : <Empty>No receipts yet.</Empty>}
+              {data.sales.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Latest {data.sales.items.length} of {data.sales.total} receipts</p>}
+            </ListBand>
+          </section>
+        </div>
+        <CartPreparationClient authorityFingerprint={data.authorityFingerprint} currencyCode={data.currencyCode}
+          products={data.products.items} productsHasMore={Boolean(data.products.nextCursor)}
+          carts={data.carts.items.map(cart => ({ id: cart.id, reference: cart.reference }))} />
+      </div>
+    </Workboard>;
+  });
 }
 
 export async function CashWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
-  return frame('cash', '/dashboard/platform/cash', 'Cash', params, data => <Workboard>
-    <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Metric label="Shifts" value={data.shifts.total} />
-      <Metric label="Open shifts on this page" value={data.shifts.items.filter(shift => shift.status === 'open').length} />
-      <Metric label="Variance reviews on this page" value={data.shifts.items.filter(shift => shift.status === 'variance_review').length} />
-    </div>
-    <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">Closing a shift with a blind count is not available yet.</p>
-    <Card data-testid="cash-workbench"><CardHeader><CardTitle className="text-base">Shifts</CardTitle></CardHeader><CardContent className="space-y-2 p-0">
-      <div className="space-y-2 px-6">{data.shifts.items.length ? data.shifts.items.map(shift => <div key={shift.id} className="rounded-lg border p-3 text-sm"><div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"><div><p className="font-medium">{shift.register?.name || 'Register not recorded'}</p><p className="text-xs text-muted-foreground">Opened {formatWhen(shift.openedAt, data.timezone)} · {shift.operator?.name || 'Operator not recorded'} · float {formatMinorUnits(shift.openingFloatCents, data.currencyCode)}</p></div><Status value={shift.status} /><p className="tabular-nums">{shift.varianceCents == null ? 'No count yet' : `Variance ${formatMinorUnits(shift.varianceCents, data.currencyCode)}`}</p></div>{shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}</div>) : <Empty>No shifts yet.</Empty>}</div>
-      <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
-    </CardContent></Card>
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card><CardHeader><CardTitle className="text-base">Open a shift</CardTitle></CardHeader><CardContent><OpenShiftForm registers={data.registers.items} /></CardContent></Card>
-      <Card><CardHeader><CardTitle className="text-base">Registers</CardTitle></CardHeader><CardContent className="space-y-3">
-        {data.registers.items.length ? <ul className="space-y-1 text-sm">{data.registers.items.map(register => <li key={register.id} className="flex flex-wrap items-center justify-between gap-3"><span>{register.name} · {register.code}</span><RegisterStatusForm register={register} /></li>)}</ul> : <Empty>No registers yet.</Empty>}
-        <RegisterForm />
-      </CardContent></Card>
-    </div>
-  </Workboard>);
+  return frame('cash', '/dashboard/platform/cash', 'Cash', params, data => {
+    const open = data.shifts.items.filter(shift => shift.status === 'open').length;
+    const review = data.shifts.items.filter(shift => shift.status === 'variance_review').length;
+    return <Workboard>
+      <MetricStrip items={[
+        { label: 'Shifts', value: data.shifts.total },
+        { label: 'Open on this page', value: open, tone: open ? 'ok' : 'muted' },
+        { label: 'Variance reviews', value: review, tone: review ? 'warn' : 'muted' },
+      ]} />
+      <Notice tone="muted">Blind-count shift close unavailable</Notice>
+      <section data-testid="cash-workbench">
+        <SectionTitle meta={data.shifts.total}>Shifts</SectionTitle>
+        <ListBand>
+          {data.shifts.items.length ? data.shifts.items.map(shift => <BandRow key={shift.id} title={shift.register?.name || 'Register not recorded'} tone={statusTone(shift.status)} state={<span className="capitalize">{readable(shift.status)}</span>}
+            detail={<>Opened {formatWhen(shift.openedAt, data.timezone)} · {shift.operator?.name || 'Operator not recorded'} · float <span className="font-mono">{formatMinorUnits(shift.openingFloatCents, data.currencyCode)}</span></>}
+            aside={shift.varianceCents == null ? <span className="text-xs text-muted-foreground">No count yet</span> : <span className={shift.varianceCents === 0 ? 'font-mono' : 'font-mono text-amber-700 dark:text-amber-400'}>{shift.varianceCents > 0 ? '+' : ''}{formatMinorUnits(shift.varianceCents, data.currencyCode)}</span>}>
+            {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
+          </BandRow>) : <Empty>No shifts yet.</Empty>}
+          <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
+        </ListBand>
+      </section>
+      <div className="grid items-start gap-8 lg:grid-cols-2">
+        <Panel title="Open a shift"><OpenShiftForm registers={data.registers.items} /></Panel>
+        <section>
+          <SectionTitle meta={data.registers.total}>Registers</SectionTitle>
+          <ListBand>
+            {data.registers.items.length ? data.registers.items.map(register => <BandRow key={register.id} title={register.name} tone={statusTone(register.status)} state={<span className="capitalize">{readable(register.status)}</span>} detail={<span className="font-mono">{register.code}</span>} aside={<RegisterStatusForm register={register} />} />) : <Empty>No registers yet.</Empty>}
+            <div className="bg-background/50 px-4 py-4"><RegisterForm /></div>
+          </ListBand>
+        </section>
+      </div>
+    </Workboard>;
+  });
 }
 
 export async function ReconciliationWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('reconciliation', '/dashboard/platform/reconciliation', 'Reconciliation', params, data => <Workboard>
-    <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Metric label="Waiting to send" value={data.pending.total} />
-      <Metric label="Failed or rejected" value={data.exceptions.total} />
-      <Metric label="Reconciliation runs" value={data.runs.total} />
+    <MetricStrip items={[
+      { label: 'Waiting to send', value: data.pending.total, tone: data.pending.total ? 'warn' : 'muted' },
+      { label: 'Failed or rejected', value: data.exceptions.total, tone: data.exceptions.total ? 'danger' : 'muted' },
+      { label: 'Reconciliation runs', value: data.runs.total },
+    ]} />
+    {!data.delivery.workerAvailable && <Notice tone="warn">State reporting not connected. Report through the state system directly.</Notice>}
+    <section>
+      <SectionTitle meta={data.exceptions.total}>Failed or rejected reports</SectionTitle>
+      <ListBand>
+        {data.exceptions.items.length ? data.exceptions.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.topic}</span>} tone="danger" state={<span className="capitalize">{readable(event.status)}</span>} detail={<>Attempts <span className="font-mono">{event.attempts}</span> · last {formatWhen(event.lastAttemptAt, data.timezone)} · <span className="font-mono">{event.lastErrorCode || 'no error code'}</span></>} aside={data.operating.open ? <RetryOutboxButton eventId={event.id} /> : undefined} />) : <Empty>No failed or rejected reports.</Empty>}
+        {data.exceptions.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.exceptions.items.length} of {data.exceptions.total}</p>}
+      </ListBand>
+    </section>
+    <div className="grid gap-8 lg:grid-cols-2">
+      <section>
+        <SectionTitle meta={data.pending.total}>Waiting to send</SectionTitle>
+        <ListBand>
+          {data.pending.items.length ? data.pending.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.topic}</span>} tone={statusTone(event.status)} state={<span className="capitalize">{readable(event.status)}</span>} detail={`Queued since ${formatWhen(event.availableAt, data.timezone)}`} />) : <Empty>Nothing is waiting to send.</Empty>}
+          {data.pending.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.pending.items.length} of {data.pending.total}</p>}
+        </ListBand>
+      </section>
+      <section data-testid="reconciliation-workbench">
+        <SectionTitle meta={data.runs.total}>Reconciliation runs</SectionTitle>
+        <ListBand>
+          {data.runs.items.length ? data.runs.items.map(run => <BandRow key={run.id} title={<span className="capitalize">{readable(run.type)}</span>} tone={run.discrepancyCount ? 'warn' : statusTone(run.status)} state={<span className="capitalize">{readable(run.status)}</span>} detail={`Started ${formatWhen(run.startedAt, data.timezone)}`} aside={<span className="font-mono text-xs">{run.discrepancyCount} discrepancies</span>} />) : <Empty>No reconciliation runs.</Empty>}
+          <Pager basePath="/dashboard/platform/reconciliation" params={params} nextCursor={data.runs.nextCursor} shown={data.runs.items.length} total={data.runs.total} noun="runs" />
+        </ListBand>
+      </section>
     </div>
-    {!data.delivery.workerAvailable && <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">State reporting is not connected. Queued events are not being sent to the regulator; report through the state system directly.</p>}
-    <Card><CardHeader><CardTitle className="text-base">Failed or rejected reports</CardTitle></CardHeader><CardContent className="space-y-2">
-      {data.exceptions.items.length ? data.exceptions.items.map(event => <div key={event.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm"><div><p className="font-medium">{event.topic}</p><p className="text-xs text-muted-foreground">Delivery attempts {event.attempts} · last {formatWhen(event.lastAttemptAt, data.timezone)} · {event.lastErrorCode || 'no error code'}</p></div><div className="flex items-center gap-2"><Status value={event.status} />{data.operating.open && <RetryOutboxButton eventId={event.id} />}</div></div>) : <Empty>No failed or rejected reports.</Empty>}
-      {data.exceptions.nextCursor && <p className="text-xs text-muted-foreground">Showing the oldest {data.exceptions.items.length} of {data.exceptions.total}.</p>}
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle className="text-base">Waiting to send</CardTitle></CardHeader><CardContent className="space-y-2">
-      {data.pending.items.length ? data.pending.items.map(event => <div key={event.id} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"><div><p className="font-medium">{event.topic}</p><p className="text-xs text-muted-foreground">Queued since {formatWhen(event.availableAt, data.timezone)}</p></div><Status value={event.status} /></div>) : <Empty>Nothing is waiting to send.</Empty>}
-      {data.pending.nextCursor && <p className="text-xs text-muted-foreground">Showing the oldest {data.pending.items.length} of {data.pending.total}.</p>}
-    </CardContent></Card>
-    <Card data-testid="reconciliation-workbench"><CardHeader><CardTitle className="text-base">Reconciliation runs</CardTitle></CardHeader><CardContent className="space-y-2 p-0">
-      <div className="space-y-2 px-6">{data.runs.items.length ? data.runs.items.map(run => <div key={run.id} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]"><div><p className="font-medium capitalize">{readable(run.type)}</p><p className="text-xs text-muted-foreground">Started {formatWhen(run.startedAt, data.timezone)}</p></div><Status value={run.status} /><p className="text-sm tabular-nums">{run.discrepancyCount} discrepancies</p></div>) : <Empty>No reconciliation runs.</Empty>}</div>
-      <Pager basePath="/dashboard/platform/reconciliation" params={params} nextCursor={data.runs.nextCursor} shown={data.runs.items.length} total={data.runs.total} noun="runs" />
-    </CardContent></Card>
   </Workboard>);
 }
 
 export async function IncidentsWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('incidents', '/dashboard/platform/incidents', 'Incidents', params, data => <Workboard>
-    <AsOf generatedAt={data.generatedAt} timezone={data.timezone} />
     <OperatingNotice operating={data.operating} />
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Metric label="Open incidents" value={data.openTotal} />
-      <Metric label="Notifications overdue" value={data.overdueTotal} />
-      <Metric label="Open high or critical" value={data.highTotal} />
-    </div>
-    <nav aria-label="Incident filter" className="flex gap-2 text-sm">
-      <Link href="/dashboard/platform/incidents" aria-current={data.filter === 'open' ? 'page' : undefined} className={`rounded-full border px-3 py-1 ${data.filter === 'open' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>Open</Link>
-      <Link href="/dashboard/platform/incidents?filter=all" aria-current={data.filter === 'all' ? 'page' : undefined} className={`rounded-full border px-3 py-1 ${data.filter === 'all' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>All</Link>
-    </nav>
-    <Card data-testid="incident-workbench"><CardHeader><CardTitle className="text-base">Incidents</CardTitle></CardHeader><CardContent className="space-y-2 p-0">
-      <div className="space-y-2 px-6">{data.incidents.items.length ? data.incidents.items.map(incident => <div id={`incident-${incident.id}`} key={incident.id} className="rounded-lg border p-3 text-sm">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"><div className="min-w-0"><p className="font-mono font-medium">{incident.reference}</p><p className="text-xs text-muted-foreground">{readable(incident.type)} · occurred {formatWhen(incident.occurredAt, data.timezone)} · {NOTIFICATION_LABEL[incident.notificationState] || readable(incident.notificationState)}{incident.notificationDueAt ? ` (${formatWhen(incident.notificationDueAt, data.timezone)})` : ''}</p><p className="mt-1 break-words">{incident.description}</p></div><Status value={incident.severity} /><Status value={incident.status} /></div>
-        {data.operating.open && <IncidentTransitionForm incident={incident} />}
-      </div>) : <Empty>{data.filter === 'open' ? 'No open incidents.' : 'No incidents recorded.'}</Empty>}</div>
-      <Pager basePath="/dashboard/platform/incidents" params={params} nextCursor={data.incidents.nextCursor} shown={data.incidents.items.length} total={data.incidents.total} noun="incidents" />
-    </CardContent></Card>
-    {data.operating.open ? <Card><CardHeader><CardTitle className="text-base">Record an incident</CardTitle></CardHeader><CardContent><RecordIncidentForm /></CardContent></Card> : null}
-  </Workboard>);
+    <MetricStrip items={[
+      { label: 'Open incidents', value: data.openTotal, tone: data.openTotal ? 'warn' : 'muted' },
+      { label: 'Notifications overdue', value: data.overdueTotal, tone: data.overdueTotal ? 'danger' : 'muted' },
+      { label: 'Open high or critical', value: data.highTotal, tone: data.highTotal ? 'danger' : 'muted' },
+    ]} />
+    <section data-testid="incident-workbench">
+      <SectionTitle meta={data.incidents.total} action={<nav aria-label="Incident filter"><Track>
+        <PillLink href="/dashboard/platform/incidents" active={data.filter === 'open'}>Open</PillLink>
+        <PillLink href="/dashboard/platform/incidents?filter=all" active={data.filter === 'all'}>All</PillLink>
+      </Track></nav>}>Incidents</SectionTitle>
+      <ListBand>
+        {data.incidents.items.length ? data.incidents.items.map(incident => <BandRow id={`incident-${incident.id}`} key={incident.id} className="scroll-mt-20 target:bg-background/70"
+          title={<span className="font-mono">{incident.reference}</span>} tone={SEVERITY_TONE[incident.severity] || 'muted'} state={<span className="capitalize">{readable(incident.severity)} · {readable(incident.status)}</span>}
+          detail={<><span className="capitalize">{readable(incident.type)}</span> · occurred {formatWhen(incident.occurredAt, data.timezone)}</>}
+          aside={<Status value={NOTIFICATION_LABEL[incident.notificationState] || readable(incident.notificationState)} tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'} />}>
+          {incident.notificationDueAt && <p className="mt-1 text-xs text-muted-foreground">Notify by {formatWhen(incident.notificationDueAt, data.timezone)}</p>}
+          <p className="mt-2 max-w-3xl whitespace-pre-line break-words text-sm text-foreground">{incident.description}</p>
+          {data.operating.open && <IncidentTransitionForm incident={incident} />}
+        </BandRow>) : <Empty>{data.filter === 'open' ? 'No open incidents.' : 'No incidents recorded.'}</Empty>}
+        <Pager basePath="/dashboard/platform/incidents" params={params} nextCursor={data.incidents.nextCursor} shown={data.incidents.items.length} total={data.incidents.total} noun="incidents" />
+      </ListBand>
+    </section>
+    {data.operating.open ? <Panel title="Record an incident"><RecordIncidentForm /></Panel> : null}
+  </Workboard>, data => data.overdueTotal ? { tone: 'danger', state: `${data.overdueTotal} notification${data.overdueTotal === 1 ? '' : 's'} overdue` } : operatingState(data.operating));
 }

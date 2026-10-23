@@ -121,21 +121,106 @@
   }
 }
 
+/* Cannabis storefront: "cure label" tokens. See docs/design/cannabis-redesign-2026-10-23.md.
+   --cn-h is set per store from the saved accent hue on the .storefront-theme wrapper. */
+@theme inline {
+  --color-cn-bg: #f3f0e8;
+  --color-cn-surface: #fcfbf7;
+  --color-cn-well: #e6e2d6;
+  --color-cn-ink: #18201b;
+  --color-cn-ink-2: #545b53;
+  --color-cn-ink-3: #8a8f86;
+  --color-cn-line: #d9d4c6;
+  --color-cn-accent: hsl(var(--cn-h, 152) 38% 28%);
+  --color-cn-tint: hsl(var(--cn-h, 152) 28% 88%);
+  --color-cn-ok: #2f6b45;
+  --color-cn-warn: #a2620f;
+  --color-cn-danger: #a3282b;
+}
+
+/* On body, where next/font sets the font variables, so these resolve. */
+body {
+  --font-cn-display: var(--font-cn-fraunces), ui-serif, Georgia, serif;
+  --font-cn-sans: var(--font-cn-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-cn-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
 .storefront-theme {
-  --storefront-hue: 215;
-  --storefront-accent: hsl(var(--storefront-hue) 58% 34%);
+  --cn-h: 152;
+  background-color: #f3f0e8;
+  color: #18201b;
+  font-family: var(--font-cn-sans);
 }
 
-.storefront-accent-text {
-  color: var(--storefront-accent);
+.storefront-theme .cn-num {
+  font-family: var(--font-cn-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
-.storefront-accent-bg {
-  background-color: var(--storefront-accent);
+.storefront-theme .cn-display {
+  font-family: var(--font-cn-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
 }
 
-.storefront-accent-border {
-  border-color: var(--storefront-accent);
+@layer components {
+  /* Raised pill in a recessed track */
+  .cn-track {
+    display: inline-flex;
+    max-width: 100%;
+    gap: 2px;
+    padding: 3px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-radius: 999px;
+    background: #e6e2d6;
+    box-shadow: inset 0 1px 2px rgb(24 32 27 / 0.09);
+  }
+  .cn-track::-webkit-scrollbar { display: none; }
+  .cn-pill {
+    display: inline-flex;
+    min-height: 36px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #545b53;
+    white-space: nowrap;
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  }
+  .cn-pill:hover { color: #18201b; }
+  .cn-pill[data-active="true"], .cn-pill[aria-current="page"] {
+    background: #fcfbf7;
+    color: #18201b;
+    box-shadow: 0 1px 2px rgb(24 32 27 / 0.14), 0 0 0 0.5px rgb(24 32 27 / 0.08);
+  }
+  .cn-pill[data-tone="ink"] {
+    background: #18201b;
+    color: #f6f4ee;
+    box-shadow: 0 1px 2px rgb(24 32 27 / 0.24);
+  }
+  .cn-pill:focus-visible { outline: 2px solid hsl(var(--cn-h, 152) 38% 28%); outline-offset: 1px; }
+  .cn-band {
+    border-radius: 20px;
+    background: #e6e2d6;
+    box-shadow: inset 0 1px 2px rgb(24 32 27 / 0.07);
+  }
+  .cn-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 999px;
+    transform: translateY(-0.1em);
+  }
+  @media (max-width: 639px) {
+    .cn-pill { min-height: 44px; padding: 0 16px; }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

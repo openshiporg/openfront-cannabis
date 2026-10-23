@@ -155,7 +155,7 @@ function OnboardingCard({
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="absolute -top-1 -right-1.5 z-10">
-          <div className="h-3 w-3 rounded-full bg-blue-700 dark:bg-blue-400 border-blue-200 dark:border-blue-800/50 border-3 animate-pulse" />
+          <div className="h-3 w-3 rounded-full bg-green-700 dark:bg-green-400 border-green-200 dark:border-green-800/50 border-3 animate-pulse" />
         </div>
         <div className="flex items-start">
           <InfoCardContent className="pt-2 px-2">
@@ -165,18 +165,13 @@ function OnboardingCard({
         </div>
 
         <InfoCardFooter isHovered={isHovered}>
-          <div className="m-2 space-x-2">
-            <Button size="sm" onClick={onOpenDialog} className="text-xs h-6">
+          <div className="m-2 inline-flex items-center gap-0.5 rounded-full bg-muted p-[3px] shadow-[inset_0_1px_2px_rgb(0_0_0/0.07)]">
+            <button type="button" onClick={onOpenDialog} className="inline-flex h-6 items-center rounded-full bg-foreground px-2.5 text-xs font-medium text-background shadow-[0_1px_2px_rgb(0_0_0/0.24)]">
               Get started
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDismiss}
-              className="text-xs h-6"
-            >
+            </button>
+            <button type="button" onClick={handleDismiss} className="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground">
               Skip for now
-            </Button>
+            </button>
           </div>
         </InfoCardFooter>
       </div>
@@ -189,7 +184,7 @@ function OnboardingCard({
         )}
       >
         <div className="absolute -top-1 -right-1.5 z-10">
-          <div className="h-3 w-3 rounded-full bg-blue-700 dark:bg-blue-400 border-blue-200 dark:border-blue-800/50 border-3 animate-pulse" />
+          <div className="h-3 w-3 rounded-full bg-green-700 dark:bg-green-400 border-green-200 dark:border-green-800/50 border-3 animate-pulse" />
         </div>
         <Button
           variant="outline"

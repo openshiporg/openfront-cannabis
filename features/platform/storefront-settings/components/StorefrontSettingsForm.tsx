@@ -2,19 +2,17 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Palette, Save } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { DEFAULT_STORE_LOGO_ICON } from '@/features/lib/store-logo';
+import { ActionTrack, Dot, DotLabel, inputClass, labelClass, Panel, PillButton, textareaClass } from '@/features/platform/components/cannabis-ui';
+import { StoreLogo } from '@/features/storefront/components/StoreLogo';
+import { CANNABIS_ACCENT_HUE, CANNABIS_LOGO_COLOR, CANNABIS_LOGO_ICON, isDefaultMark } from '@/features/storefront/lib/brand';
 import { FieldError, fieldProps, useFocusFirstError, type FieldErrors, type FormState } from '@/features/platform/lib/formErrors';
 import { useUnsavedChangesGuard } from '@/features/platform/lib/useUnsavedChangesGuard';
 import { checkStoreSettingsSave, saveStoreSettings, type SaveStoreSettingsInput, type SaveStoreSettingsResult, type StoreSettingsSetup, type StoreSettingsValues } from '../actions/settings';
 import { LogoPicker } from './LogoPicker';
 
-const EMPTY: StoreSettingsValues = { businessName: '', tagline: '', description: '', brandHue: 215, logoIcon: DEFAULT_STORE_LOGO_ICON, logoColor: '0' };
+const EMPTY: StoreSettingsValues = { businessName: '', tagline: '', description: '', brandHue: CANNABIS_ACCENT_HUE, logoIcon: CANNABIS_LOGO_ICON, logoColor: CANNABIS_LOGO_COLOR };
+// A row still on the family's stored default mark opens on the Cannabis default instead.
+const initial = (values: StoreSettingsValues | null) => values ? (isDefaultMark(values.logoIcon) ? { ...values, logoIcon: CANNABIS_LOGO_ICON, logoColor: CANNABIS_LOGO_COLOR } : values) : EMPTY;
 const same = (left: StoreSettingsValues, right: StoreSettingsValues) => (Object.keys(left) as Array<keyof StoreSettingsValues>).every(key => left[key] === right[key]);
 
 type Status =
@@ -22,8 +20,8 @@ type Status =
 
 export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup }) {
   const router = useRouter();
-  const [baseline, setBaseline] = useState<StoreSettingsValues>(setup.values ?? EMPTY);
-  const [values, setValues] = useState<StoreSettingsValues>(setup.values ?? EMPTY);
+  const [baseline, setBaseline] = useState<StoreSettingsValues>(() => initial(setup.values));
+  const [values, setValues] = useState<StoreSettingsValues>(() => initial(setup.values));
   const [revision, setRevision] = useState(setup.revision);
   const [published, setPublished] = useState(setup.publicationStatus === 'published');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors | undefined>();
@@ -76,67 +74,95 @@ export function StorefrontSettingsForm({ setup }: { setup: StoreSettingsSetup })
     window.location.reload();
   }
 
-  return <form onSubmit={submit} className="max-w-2xl space-y-6" data-testid="storefront-settings-form" noValidate>
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-muted-foreground">Status</span>
-      <Badge variant="outline">{published ? 'Published' : setup.values ? 'Draft' : 'Not set up'}</Badge>
-      {dirty && <Badge variant="secondary">Unsaved changes</Badge>}
+  const statusLabel = published ? 'Published' : setup.values ? 'Draft' : 'Not set up';
+  const accent = (lightness: number, saturation = 38) => `hsl(${values.brandHue} ${saturation}% ${lightness}%)`;
+  return <form onSubmit={submit} className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]" data-testid="storefront-settings-form" noValidate>
+    <div className="min-w-0 space-y-6">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+        <DotLabel tone={published ? 'ok' : setup.values ? 'warn' : 'muted'}>{statusLabel}</DotLabel>
+        {dirty && <DotLabel tone="info" className="text-muted-foreground">Unsaved changes</DotLabel>}
+      </div>
+      {!setup.canSave && <p role="status" className="flex items-baseline gap-2 rounded-xl bg-muted/40 px-4 py-3 text-sm ring-1 ring-inset ring-border/60"><Dot tone="danger" />Saving unavailable until the premises license and your staff credential are current.</p>}
+
+      <fieldset disabled={!setup.canSave || status.kind === 'unknown'} className="space-y-6">
+        <Panel title="Business">
+          <div className="grid gap-4">
+            <label className={labelClass} htmlFor="field-businessName">Business name
+              <input {...fieldProps('businessName', fieldErrors)} maxLength={120} value={values.businessName} onChange={event => update('businessName', event.target.value)} autoComplete="organization" className={inputClass} />
+              <FieldError name="businessName" errors={fieldErrors} />
+            </label>
+            <label className={labelClass} htmlFor="field-tagline">Tagline <span className="font-normal text-muted-foreground">(optional)</span>
+              <input {...fieldProps('tagline', fieldErrors)} maxLength={180} value={values.tagline} onChange={event => update('tagline', event.target.value)} className={inputClass} />
+              <FieldError name="tagline" errors={fieldErrors} />
+            </label>
+            <label className={labelClass} htmlFor="field-description">Description <span className="font-normal text-muted-foreground">(optional)</span>
+              <textarea {...fieldProps('description', fieldErrors)} maxLength={240} rows={3} value={values.description} onChange={event => update('description', event.target.value)} className={textareaClass} />
+              <span className="mt-1 block text-right font-mono font-normal text-muted-foreground">{values.description.length}/240</span>
+              <FieldError name="description" errors={fieldErrors} />
+            </label>
+          </div>
+        </Panel>
+
+        <Panel title="Logo">
+          <div className="space-y-5">
+            <LogoPicker value={values.logoIcon} hue={values.logoColor} onChange={svg => update('logoIcon', svg)} onDraftPendingChange={setLogoDraftPending} />
+            <FieldError name="logoIcon" errors={fieldErrors} />
+            <div>
+              <label className={labelClass} htmlFor="field-logoColor">Logo colour</label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <input aria-label="Logo colour slider" type="range" min="0" max="359" step="1" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className="h-2 w-full cursor-pointer accent-foreground" />
+                <input {...fieldProps('logoColor', fieldErrors)} type="number" min="0" max="359" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className={`${inputClass} mt-0 w-24 font-mono`} />
+              </div>
+              <FieldError name="logoColor" errors={fieldErrors} />
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Storefront accent">
+          <div className="flex items-center gap-3">
+            <input aria-label="Accent hue slider" type="range" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className="h-2 w-full cursor-pointer" style={{ accentColor: accent(34) }} />
+            <input {...fieldProps('brandHue', fieldErrors)} aria-label="Accent hue" type="number" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className={`${inputClass} mt-0 w-24 font-mono`} />
+            <span className="size-9 shrink-0 rounded-full ring-1 ring-inset ring-black/10" aria-hidden="true" style={{ backgroundColor: accent(28) }} />
+          </div>
+          <FieldError name="brandHue" errors={fieldErrors} />
+        </Panel>
+      </fieldset>
+
+      <div aria-live="polite" className="space-y-2">
+        {status.kind === 'saved' && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="ok" />{status.recovered ? 'Your earlier save was recorded. Store Settings are published.' : 'Saved and published.'}</p>}
+        {status.kind === 'invalid' && <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />Fix the highlighted fields.</p>}
+        {status.kind === 'rejected' && <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />Store Settings could not be saved. Check your access and try again.</p>}
+        {status.kind === 'conflict' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2 text-destructive"><Dot tone="danger" />Store Settings changed since you opened them. Your changes are still shown; reload to see the latest version.</p><ActionTrack><PillButton onClick={reload}>Reload</PillButton></ActionTrack></div>}
+        {status.kind === 'unknown' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2"><Dot tone="warn" />We couldn&apos;t confirm whether your save went through.</p><ActionTrack>
+          <PillButton disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, checkStoreSettingsSave)}>Check save status</PillButton>
+          <PillButton tone="ink" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, saveStoreSettings)}>Retry same save</PillButton>
+        </ActionTrack></div>}
+        {logoDraftPending && <p role="status" className="flex items-baseline gap-2 text-sm text-muted-foreground"><Dot tone="warn" />Apply or discard the custom logo before saving.</p>}
+      </div>
+
+      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending || !setup.canSave || logoDraftPending || status.kind === 'unknown' || (!dirty && Boolean(setup.values) && published)}>{pending ? 'Saving…' : 'Save and publish'}</PillButton></ActionTrack>
     </div>
-    {!setup.canSave && <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">Saving is unavailable until the premises license and your staff credential are current.</p>}
 
-    <fieldset disabled={!setup.canSave || status.kind === 'unknown'} className="space-y-6">
-      <section className="space-y-4 rounded-xl border bg-card p-5">
-        <h2 className="font-semibold">Business details</h2>
-        <div className="space-y-1.5">
-          <Label htmlFor="field-businessName">Business name</Label>
-          <Input {...fieldProps('businessName', fieldErrors)} maxLength={120} value={values.businessName} onChange={event => update('businessName', event.target.value)} autoComplete="organization" />
-          <FieldError name="businessName" errors={fieldErrors} />
+    <aside aria-label="Storefront preview" className="xl:sticky xl:top-4">
+      <p className="mb-2.5 text-sm font-semibold">Preview</p>
+      <div className="overflow-hidden rounded-xl text-[#18201b] shadow-sm ring-1 ring-black/10" style={{ backgroundColor: '#f3f0e8' }}>
+        <div className="flex items-center justify-between bg-[#18201b] px-4 py-1.5 font-mono text-[10px] tracking-[0.12em] text-[#f6f4ee]"><span>21+ ONLY</span><span className="font-sans tracking-normal opacity-75">In-store purchase only</span></div>
+        <div className="border-b border-[#d9d4c6] px-4 py-2"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
+        <div className="space-y-3 px-4 pb-5 pt-6">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="min-w-0 break-words font-[family-name:var(--font-cn-display)] text-[30px] leading-[32px] tracking-[-0.02em]">{values.businessName || 'Business name'}</p>
+            <span className="inline-flex items-baseline gap-1.5 text-xs text-[#545b53]"><span className="inline-block size-2 translate-y-[-0.1em] rounded-full" style={{ backgroundColor: accent(28) }} />In-store only</span>
+          </div>
+          {values.tagline && <p className="break-words font-[family-name:var(--font-cn-display)] text-[17px] leading-6">{values.tagline}</p>}
+          {values.description && <p className="break-words text-[13px] leading-5 text-[#545b53]">{values.description}</p>}
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            {['Flower', 'Edible'].map(form => <div key={form} className="flex aspect-[4/5] flex-col justify-between rounded-[14px] p-3" style={{ backgroundColor: accent(88, 28), color: accent(28) }}>
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em]">{form}</span>
+              <span className="font-[family-name:var(--font-cn-display)] text-[56px] leading-none">{form.charAt(0)}</span>
+            </div>)}
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="field-tagline">Tagline <span className="font-normal text-muted-foreground">(optional)</span></Label>
-          <Input {...fieldProps('tagline', fieldErrors)} maxLength={180} value={values.tagline} onChange={event => update('tagline', event.target.value)} />
-          <FieldError name="tagline" errors={fieldErrors} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="field-description">Description <span className="font-normal text-muted-foreground">(optional)</span></Label>
-          <Textarea {...fieldProps('description', fieldErrors)} maxLength={240} rows={3} value={values.description} onChange={event => update('description', event.target.value)} />
-          <FieldError name="description" errors={fieldErrors} />
-        </div>
-      </section>
-
-      <section className="space-y-4 rounded-xl border bg-card p-5">
-        <LogoPicker value={values.logoIcon} hue={values.logoColor} onChange={svg => update('logoIcon', svg)} onDraftPendingChange={setLogoDraftPending} />
-        <FieldError name="logoIcon" errors={fieldErrors} />
-        <div className="space-y-1.5">
-          <Label htmlFor="field-logoColor">Logo colour</Label>
-          <Input {...fieldProps('logoColor', fieldErrors)} type="number" min="0" max="359" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className="w-28" />
-          <FieldError name="logoColor" errors={fieldErrors} />
-        </div>
-      </section>
-
-      <section className="space-y-4 rounded-xl border bg-card p-5">
-        <div className="flex items-center gap-2"><Palette className="size-5" aria-hidden="true" /><h2 className="font-semibold">Accent hue</h2></div>
-        <div className="flex items-center gap-3">
-          <input aria-label="Accent hue slider" type="range" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className="w-full" />
-          <Input {...fieldProps('brandHue', fieldErrors)} aria-label="Accent hue" type="number" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className="w-28" />
-          <span className="size-8 shrink-0 rounded-full border" aria-hidden="true" style={{ backgroundColor: `hsl(${values.brandHue} 58% 40%)` }} />
-        </div>
-        <FieldError name="brandHue" errors={fieldErrors} />
-      </section>
-    </fieldset>
-
-    <div aria-live="polite">
-      {status.kind === 'saved' && <p role="status" className="text-sm">{status.recovered ? 'Your earlier save was recorded. Store Settings are published.' : 'Store Settings saved and published.'}</p>}
-      {status.kind === 'invalid' && <p ref={summary} tabIndex={-1} role="alert" className="text-sm text-destructive">Fix the highlighted fields.</p>}
-      {status.kind === 'rejected' && <p ref={summary} tabIndex={-1} role="alert" className="text-sm text-destructive">Store Settings could not be saved. Check your access and try again.</p>}
-      {status.kind === 'conflict' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="text-destructive">Store settings changed since you opened them. Your changes are still shown here; reload to see the latest version.</p><Button type="button" size="sm" variant="outline" onClick={reload}>Reload</Button></div>}
-      {status.kind === 'unknown' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p>We couldn't confirm whether your save went through.</p><div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="outline" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, checkStoreSettingsSave)}>Check save status</Button>
-        <Button type="button" size="sm" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, saveStoreSettings)}>Retry same save</Button>
-      </div></div>}
-      {logoDraftPending && <p role="status" className="text-sm text-muted-foreground">Apply or discard the custom logo before saving.</p>}
-    </div>
-
-    <Button type="submit" disabled={pending || !setup.canSave || logoDraftPending || status.kind === 'unknown' || (!dirty && Boolean(setup.values) && published)}>{pending ? 'Saving…' : 'Save Store Settings'}<Save className="size-4" /></Button>
+      </div>
+    </aside>
   </form>;
 }

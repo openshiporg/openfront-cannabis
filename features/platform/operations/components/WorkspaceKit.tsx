@@ -1,9 +1,6 @@
-import Link from 'next/link';
 import type React from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { WORKSPACE_STATE_COPY, type WorkspaceClosedState } from '@/features/platform/workspaces/lib/boundary';
+import { ActionTrack, BandEmpty, Dot, DotLabel, inputClass, MetricStrip, PillAnchor, PillButton, PillLink, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
 
 export const readable = (value: string) => value.replaceAll('_', ' ');
 
@@ -17,31 +14,34 @@ export function formatWhen(value: string | null | undefined, timeZone?: string |
 
 export function WorkspaceStateNotice({ result, retryHref }: { result: WorkspaceClosedState; retryHref: string }) {
   const copy = WORKSPACE_STATE_COPY[result.state];
-  return <div data-testid={`workspace-${result.state}`} role="status" className="m-4 flex gap-3 rounded-lg border bg-muted/40 p-4 md:m-6">
-    <AlertTriangle className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-    <div className="space-y-1">
-      <p className="font-medium">{copy.title}</p>
-      <p className="text-sm text-muted-foreground">{result.state === 'operating_closed' ? result.reason : copy.detail}</p>
-      {result.state === 'operating_closed' && <p className="text-sm text-muted-foreground">{copy.detail} <Link className="underline" href="/dashboard/platform/authority">Open Authority</Link></p>}
-      {result.state === 'signed_out' && <Link className="text-sm underline" href="/dashboard/signin">Sign in</Link>}
-      {result.state === 'unavailable' && <Link className="text-sm underline" href={retryHref}>Try again</Link>}
+  const tone: DotTone = result.state === 'unavailable' || result.state === 'operating_closed' ? 'danger' : 'warn';
+  return <div data-testid={`workspace-${result.state}`} role="status" className="mx-4 rounded-xl bg-muted/40 p-4 ring-1 ring-inset ring-border/60 md:mx-6">
+    <p className="flex items-baseline gap-2 text-sm font-medium text-foreground"><Dot tone={tone} />{copy.title}</p>
+    <p className="mt-1 pl-4 text-sm text-muted-foreground">{result.state === 'operating_closed' ? result.reason : copy.detail}</p>
+    {result.state === 'operating_closed' && <p className="mt-1 pl-4 text-sm text-muted-foreground">{copy.detail}</p>}
+    <div className="mt-3 pl-4">
+      {result.state === 'operating_closed' && <ActionTrack><PillAnchor href="/dashboard/platform/authority">Open Authority</PillAnchor></ActionTrack>}
+      {result.state === 'signed_out' && <ActionTrack><PillAnchor href="/dashboard/signin" tone="ink">Sign in</PillAnchor></ActionTrack>}
+      {result.state === 'unavailable' && <ActionTrack><PillAnchor href={retryHref}>Try again</PillAnchor></ActionTrack>}
     </div>
   </div>;
 }
 
-export function Workboard({ children }: { children: React.ReactNode }) { return <div className="space-y-4 p-4 md:p-6">{children}</div>; }
+export function Workboard({ children }: { children: React.ReactNode }) { return <div className="space-y-8 px-4 pb-10 md:px-6">{children}</div>; }
 
 export function Metric({ label, value, href }: { label: string; value: string | number; href?: string }) {
-  const body = <Card><CardContent className="p-4"><p className="text-2xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-xs text-muted-foreground">{label}</p></CardContent></Card>;
-  return href ? <Link href={href} className="block rounded-xl focus-visible:outline-2">{body}</Link> : body;
+  return <MetricStrip items={[{ label, value, href }]} />;
 }
 
-export function Status({ value }: { value: string }) { return <Badge variant="outline" className="capitalize">{readable(value)}</Badge>; }
+/** A record status as a dot and its label. */
+export function Status({ value, tone }: { value: string; tone?: DotTone }) {
+  return <DotLabel tone={tone ?? statusTone(value)} className="text-xs capitalize text-muted-foreground">{readable(value)}</DotLabel>;
+}
 
-export function Empty({ children }: { children: React.ReactNode }) { return <p className="p-4 text-sm text-muted-foreground">{children}</p>; }
+export function Empty({ children }: { children: React.ReactNode }) { return <BandEmpty>{children}</BandEmpty>; }
 
 export function AsOf({ generatedAt, timezone }: { generatedAt: string; timezone: string | null }) {
-  return <p className="text-xs text-muted-foreground">As of {formatWhen(generatedAt, timezone)}</p>;
+  return <span>As of {formatWhen(generatedAt, timezone)}</span>;
 }
 
 /** Continuation for one cursor-paged collection; other query parameters are kept. */
@@ -51,19 +51,21 @@ export function Pager({ basePath, params, nextCursor, shown, total, noun }: { ba
     const text = query.toString();
     return text ? `${basePath}?${text}` : basePath;
   };
-  return <nav aria-label={`${noun} pages`} className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
-    <span className="text-muted-foreground">Showing {shown} of {total} {noun}</span>
-    <span className="flex gap-3">
-      {params.cursor && <Link className="underline" href={href()}>First page</Link>}
-      {nextCursor && <Link className="underline" href={href(nextCursor)}>Next page</Link>}
-    </span>
+  return <nav aria-label={`${noun} pages`} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-xs">
+    <span className="font-mono tabular-nums text-muted-foreground">{shown} of {total} {noun}</span>
+    {(params.cursor || nextCursor) && <Track label="Pages">
+      {params.cursor && <PillLink href={href()}>First page</PillLink>}
+      {nextCursor && <PillLink href={href(nextCursor)} active>Next page</PillLink>}
+    </Track>}
   </nav>;
 }
 
 export function SearchForm({ basePath, params, name = 'search', label, placeholder }: { basePath: string; params: Record<string, string | undefined>; name?: string; label: string; placeholder?: string }) {
-  return <form action={basePath} className="flex flex-wrap items-end gap-2" role="search">
-    {Object.entries(params).filter(([key, value]) => value && key !== name && key !== 'cursor').map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
-    <label className="text-sm">{label}<input name={name} defaultValue={params[name] || ''} maxLength={100} placeholder={placeholder} className="mt-1 block h-9 w-64 max-w-full rounded-md border bg-background px-2 text-sm" /></label>
-    <button className="h-9 rounded-md border px-3 text-sm hover:bg-muted" type="submit">Search</button>
+  const kept = Object.entries(params).filter(([key, value]) => value && key !== name && key !== 'cursor') as Array<[string, string]>;
+  const clearQuery = new URLSearchParams(kept).toString();
+  return <form action={basePath} className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-auto" role="search">
+    {kept.map(([key, value]) => <input key={key} type="hidden" name={key} value={value} />)}
+    <label className="min-w-0 flex-1 text-xs font-medium sm:flex-none"><span className="sr-only">{label}</span><input aria-label={label} name={name} defaultValue={params[name] || ''} maxLength={100} placeholder={placeholder} className={`${inputClass} mt-0 h-9 rounded-full px-4 sm:w-64`} /></label>
+    <ActionTrack><PillButton type="submit">Search</PillButton>{params[name] && <PillAnchor href={clearQuery ? `${basePath}?${clearQuery}` : basePath}>Clear</PillAnchor>}</ActionTrack>
   </form>;
 }

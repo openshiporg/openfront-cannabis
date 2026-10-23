@@ -7,7 +7,7 @@ export const MALFORMED_PACK_MESSAGE = 'The setup details are incomplete. Every r
 export const NOT_COMPLETED_MESSAGE = 'Setup was not completed. Check the details (dates, activities, currency, time zone) and try again.';
 export const UNKNOWN_OUTCOME_MESSAGE = "We couldn't confirm whether setup finished. Check setup status before trying again.";
 
-const REQUIRED_AUTHORITY_FIELDS = [
+export const REQUIRED_AUTHORITY_FIELDS = [
   'organizationName', 'legalName', 'jurisdictionCode',
   'premisesName', 'premisesCode', 'addressSnapshot', 'timezone', 'currencyCode',
   'licenseNumber', 'licenseType', 'regulatorName', 'authorityReference', 'licenseEffectiveAt', 'licenseExpiresAt', 'authorizedActivities',
