@@ -249,6 +249,9 @@ export async function amendCannabisProduct(_root: unknown, args: { input: any },
   return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", emitStateEvent: false, lockKeys: [productId] }, async (tx, authority) => {
     const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription categoryCode taxCategoryCode updatedAt organization { id } premises { id }" });
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) throw new Error("Product is outside this premises");
+    // The form sends every field; only real differences count as an amendment.
+    for (const [field, value] of Object.entries(data)) if ((product as Record<string, unknown>)[field] === value || (field === "publicDescription" && !value && !product.publicDescription)) delete data[field];
+    if (!Object.keys(data).length) throw new Error("No changes to save");
     if (data.categoryCode != null || data.taxCategoryCode != null) {
       const { pack } = await latestRulePack(tx, authority.organizationId, authority.premisesId);
       const limits = Array.isArray(pack?.purchaseLimits) ? pack!.purchaseLimits as Array<{ categoryCode?: unknown }> : [];

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
-import { ActionTrack, Dot, DotLabel, inputClass, labelClass, Panel, PillButton, statusTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
+import { ActionTrack, Dot, DotLabel, inputClass, labelClass, Panel, PillButton, statusTone, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { getCartPreparation, getPreparationOutcome, prepareCart } from '../actions/preparation';
@@ -162,7 +162,7 @@ export function CartPreparationClient({ carts, authorityFingerprint, products, p
           {detail.allocationHistoryHasMore && <p className="text-xs text-muted-foreground">Showing the latest 20 allocation records.</p>}
         </section>
         <section aria-label="Preparation history"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preparation history</h3>
-          {detail.history.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.history.map(event => <li key={event.id} className="text-sm"><p >{sentenceCase(event.beforeStatus)} to {sentenceCase(event.status)} · <span className="font-mono normal-case">{event.reasonCode}</span></p><p className="text-xs text-muted-foreground">{event.actorName || 'Staff member'} · {formatInstant(event.occurredAt, timezone)}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No preparation steps recorded.</p>}
+          {detail.history.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.history.map(event => <li key={event.id} className="text-sm"><p >{sentenceCase(event.beforeStatus)} to {sentenceCase(event.status)} · {codeLabel(event.reasonCode)}</p><p className="text-xs text-muted-foreground">{event.actorName || 'Staff member'} · {formatInstant(event.occurredAt, timezone)}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No preparation steps recorded.</p>}
           {detail.historyHasMore && <p className="mt-2 text-xs text-muted-foreground">Showing the latest 20 steps.</p>}
         </section>
       </div>}

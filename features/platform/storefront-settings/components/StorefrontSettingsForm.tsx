@@ -18,7 +18,7 @@ const same = (left: StoreSettingsValues, right: StoreSettingsValues) => (Object.
 type Status =
   | { kind: 'idle' } | { kind: 'saved'; recovered?: boolean } | { kind: 'invalid' } | { kind: 'conflict' } | { kind: 'rejected' } | { kind: 'unknown' };
 
-export function StorefrontSettingsForm({ setup, previewItems = [] }: { setup: StoreSettingsSetup; previewItems?: Array<{ form: string; name: string }> }) {
+export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip }: { setup: StoreSettingsSetup; previewItems?: Array<{ form: string; name: string }>; previewStrip?: { age: string; hours: string } }) {
   const router = useRouter();
   const [baseline, setBaseline] = useState<StoreSettingsValues>(() => initial(setup.values));
   const [values, setValues] = useState<StoreSettingsValues>(() => initial(setup.values));
@@ -150,7 +150,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [] }: { setup: St
     <aside aria-label="Storefront preview" className="xl:sticky xl:top-4">
       <p className="mb-2.5 text-sm font-semibold">Preview</p>
       <div className="overflow-hidden rounded-xl text-[#18201b] shadow-sm ring-1 ring-black/10" style={{ backgroundColor: '#f3f0e8' }}>
-        <div className="flex items-center justify-between bg-[#18201b] px-4 py-1.5 font-mono text-[10px] tracking-[0.12em] text-[#f6f4ee]"><span>21+ ONLY</span><span className="font-sans tracking-normal opacity-75">In-store purchase only</span></div>
+        <div className="flex items-center justify-between bg-[#18201b] px-4 py-1.5 font-mono text-[10px] tracking-[0.12em] text-[#f6f4ee]"><span>{previewStrip?.age ?? '21+ ONLY'}</span><span className="font-sans tracking-normal opacity-75">{previewStrip?.hours ?? 'In-store purchase only'}</span></div>
         <div className="border-b border-[#d9d4c6] px-4 py-2"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
         <div className="space-y-3 px-4 pb-5 pt-6">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

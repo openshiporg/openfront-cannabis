@@ -13,6 +13,16 @@ export function sentenceCase(value: string | null | undefined) {
   return text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : '';
 }
 
+const ACRONYMS = new Set(['qa', 'id', 'ach', 'pos', 'uid', 'sku', 'pin']);
+
+/** A reason or event code as words, keeping acronyms: "qa_test" → "QA test", "recall_notice" → "Recall notice". */
+export function codeLabel(value: string | null | undefined) {
+  return sentenceCase(value).split(' ').map(word => ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word).join(' ');
+}
+
+/** A license or credential's place in its effective interval, as shown everywhere. */
+export const INTERVAL_LABEL: Record<string, string> = { current: 'Current', expiring_soon: 'Expires within 30 days', expired: 'Expired', not_yet_effective: 'Not yet effective', inactive: 'Inactive' };
+
 export const DOT_TONES = {
   ok: 'bg-emerald-600 dark:bg-emerald-400',
   warn: 'bg-amber-500 dark:bg-amber-400',

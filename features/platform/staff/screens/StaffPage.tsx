@@ -1,5 +1,5 @@
 import { formatMinorUnits } from '@/features/lib/money';
-import { BandRow, ListBand, MetricStrip, Panel, SectionTitle, sentenceCase, statusTone } from '@/features/platform/components/cannabis-ui';
+import { BandRow, ListBand, MetricStrip, Panel, SectionTitle, INTERVAL_LABEL, sentenceCase, statusTone } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { ProvisionStaffForm, RevokeCredentialForm, TemporaryPasswordForm } from '@/features/platform/operations/components/OperatorForms';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
@@ -30,12 +30,12 @@ export async function StaffPage({ searchParams }: { searchParams?: SearchParams 
             return <BandRow key={person.id} id={`person-${person.id}`}
               title={<>{person.name}{person.id === data.selfId && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</>}
               tone={person.status !== 'active' ? 'muted' : credential ? statusTone(credential.intervalState === 'current' ? credential.status : credential.intervalState) : 'warn'}
-              state={person.status !== 'active' ? sentenceCase(person.status) : credential ? `${sentenceCase(credential.status)} · ${credential.intervalState === 'current' ? 'current' : sentenceCase(credential.intervalState).toLowerCase()}` : 'No credential'}
-              detail={<>{person.email} · {person.role?.name ?? 'No role'}{credential && <> · {credential.credentialType} <span className="font-mono">{credential.credentialReference}</span> · until {formatWhen(credential.expiresAt, data.timezone)}</>}</>}
+              state={person.status !== 'active' ? sentenceCase(person.status) : credential ? `${sentenceCase(credential.status)} · ${INTERVAL_LABEL[credential.intervalState] ?? sentenceCase(credential.intervalState)}` : 'No credential'}
+              detail={<>{person.email} · {person.role?.name ?? 'No role'}{credential && <> · {credential.credentialType.toLowerCase() !== person.role?.name?.toLowerCase() && <>{sentenceCase(credential.credentialType)} </>}<span className="font-mono">{credential.credentialReference}</span> · until {formatWhen(credential.expiresAt, data.timezone)}</>}</>}
               aside={credential ? <span className="font-mono text-xs">limit {formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</span> : undefined}>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {grants.map(label => <span key={label} className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium shadow-[0_0_0_0.5px_rgb(0_0_0/0.12)] dark:bg-zinc-800">{label}</span>)}
-                {credential?.allowedActivities.map(activity => <span key={activity} className="rounded-full px-2 py-0.5 font-mono text-[11px] text-muted-foreground ring-1 ring-inset ring-border">{activity}</span>)}
+                {credential?.allowedActivities.map(activity => <span key={activity} className="rounded-full px-2 py-0.5 text-[11px] text-muted-foreground ring-1 ring-inset ring-border">{sentenceCase(activity)}</span>)}
               </div>
               {data.operating.open && <TemporaryPasswordForm userId={person.id} name={person.name} />}
               {data.operating.open && credential && person.id !== data.selfId && <RevokeCredentialForm credentialId={credential.id} status={credential.status} name={person.name} />}

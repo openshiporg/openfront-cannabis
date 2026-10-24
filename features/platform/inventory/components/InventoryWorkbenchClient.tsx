@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { formatMicrounits } from '@/features/lib/quantity';
 import type { WorkspaceData } from '@/features/platform/workspaces/lib/contract';
 import { formatUsableThrough, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
-import { Count, Dot, DotLabel, ListBand, MetricStrip, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
+import { Count, Dot, DotLabel, ListBand, MetricStrip, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { PlaceHoldForm } from './PlaceHoldForm';
 import { hasDiscrepancy, readable, readinessReasons, type CustodyPackage } from '../lib/custody';
 
@@ -47,7 +47,7 @@ function PackageDetail({ pkg, release, timezone }: { pkg: CustodyPackage; releas
     </section>
     <section>
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Active holds {pkg.holdsCount > pkg.holds.length && <span className="font-mono normal-case tracking-normal">· latest {pkg.holds.length} of {pkg.holdsCount}</span>}</h3>
-      {pkg.holds.length ? <ul className="mt-1.5 space-y-2">{pkg.holds.map(hold => <li key={hold.id} className="text-sm"><DotLabel tone="danger" >{sentenceCase(hold.type)} · <span className="font-mono normal-case">{hold.reasonCode}</span></DotLabel>{hold.reason && <p className="mt-0.5 pl-3.5 text-xs text-muted-foreground">{hold.reason}</p>}</li>)}</ul> : <p className="mt-1.5 text-sm text-muted-foreground">No active holds.</p>}
+      {pkg.holds.length ? <ul className="mt-1.5 space-y-2">{pkg.holds.map(hold => <li key={hold.id} className="text-sm"><DotLabel tone="danger" >{sentenceCase(hold.type)} · {codeLabel(hold.reasonCode)}</DotLabel>{hold.reason && <p className="mt-0.5 pl-3.5 text-xs text-muted-foreground">{hold.reason}</p>}</li>)}</ul> : <p className="mt-1.5 text-sm text-muted-foreground">No active holds.</p>}
     </section>
     {!['depleted', 'destroyed'].includes(pkg.status) && <PlaceHoldForm key={pkg.id} packageId={pkg.id} packageUid={pkg.packageUid} />}
     <section>

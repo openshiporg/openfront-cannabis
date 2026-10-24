@@ -13,8 +13,8 @@ export function OpenRecallForm() {
     <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
       <label className={labelClass}>Recall notice reference<input {...fieldProps('authorityReference', errors)} required className={inputClass} /><FieldError name="authorityReference" errors={errors} /></label>
       <label className={labelClass}>Reason<input {...fieldProps('reason', errors)} required minLength={4} className={inputClass} /><FieldError name="reason" errors={errors} /></label>
-      <label className={labelClass}>Package UIDs (one per line)<textarea {...fieldProps('packageUids', errors)} rows={3} className={`${textareaClass} font-mono`} /><FieldError name="packageUids" errors={errors} /></label>
-      <label className={labelClass}>Production batches (one per line)<textarea {...fieldProps('batchNumbers', errors)} rows={3} className={`${textareaClass} font-mono`} /></label>
+      <label className={labelClass}>Package UIDs (one per line)<textarea {...fieldProps('packageUids', errors)} rows={3} placeholder="1A4060300002EE1000012345" className={`${textareaClass} font-mono`} /><FieldError name="packageUids" errors={errors} /></label>
+      <label className={labelClass}>Production batches (one per line)<textarea {...fieldProps('batchNumbers', errors)} rows={3} placeholder="BATCH-2026-114" className={`${textareaClass} font-mono`} /><FieldError name="batchNumbers" errors={errors} /></label>
     </fieldset>
     <ActionTrack><PillButton type="submit" tone="danger" disabled={pending}>{pending ? 'Opening…' : 'Open recall and hold packages'}</PillButton></ActionTrack>
     <CommandStatus state={state} summary={summary} />

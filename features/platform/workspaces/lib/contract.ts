@@ -138,11 +138,11 @@ const sections = {
     saleLines: arr(obj({ id: str, quantityMicrounits: int, totalCents: int, packageUidSnapshot: str, createdAt: date, sale: nullable(obj({ id: str, receiptNumber: str, status: str, finalizedAt: date })) }), 20),
     categories: obj({ limit: arr(str, 50), tax: arr(str, 50) }),
   }),
-  recalls: obj({ ...base, filter: str, openTotal: count, closedTotal: count,
+  recalls: obj({ ...base, filter: str, openTotal: count, closedTotal: count, heldTotal: count,
     recalls: page(obj({ id: str, reference: str, status: str, authorityReference: str, packageUids: arr(str, 50), batchNumbers: arr(str, 50), reason: str, openedAt: date, closedAt: optDate, activeHolds: count })),
   }),
   audit: obj({ ...base, filter: optStr, search: optStr,
-    events: page(obj({ id: str, action: str, resourceType: str, resourceId: str, reasonCode: str, correlationId: str, occurredAt: date, actor: nullable(named) })),
+    events: page(obj({ id: str, action: str, resourceType: str, resourceId: str, resourceLabel: optStr, reasonCode: str, correlationId: str, occurredAt: date, actor: nullable(named) })),
   }),
 };
 

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { formatMinorUnits } from '@/features/lib/money';
-import { BandRow, Count, Dot, ListBand, MetricStrip, Notice, PillLink, SectionTitle, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
+import { BandRow, Count, Dot, ListBand, MetricStrip, Notice, PillLink, SectionTitle, codeLabel, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type Params, type SearchParams } from '@/features/platform/operations/lib/frame';
 
@@ -43,7 +43,7 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
   const { id } = await routeParams;
   const params: Params = { ...(await readParams(searchParams)), id: decodeURIComponent(id) };
   return frame('customer', `/dashboard/platform/customers/${encodeURIComponent(id)}`, 'Customer', params, data => {
-    if (!data.customer) return <div className="px-4 md:px-6"><Notice tone="warn" action={<Track><PillLink href="/dashboard/platform/customers" active>All customers</PillLink></Track>}>Customer not found at this premises</Notice></div>;
+    if (!data.customer) return null;
     const customer = data.customer;
     return <div className="space-y-8 px-4 pb-28 md:px-6">
       <ListBand>
@@ -55,7 +55,7 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
       <section>
         <SectionTitle meta={data.evidence.length}>Eligibility evidence</SectionTitle>
         <ListBand>{data.evidence.length ? data.evidence.map(record => <BandRow key={record.id} title={record.identityMethod} tone={statusTone(record.result)} state={sentenceCase(record.result)}
-          detail={<>{sentenceCase(record.capacity)} · ID valid until {formatWhen(record.identityExpiresAt, data.timezone)}{record.registryName ? ` · ${record.registryName}${record.registryExpiresAt ? ` until ${formatWhen(record.registryExpiresAt, data.timezone)}` : ''}` : ''} · {record.verifiedAt ? `verified ${formatWhen(record.verifiedAt, data.timezone)}` : 'not verified'}{record.reasonCodes.length ? <> · <span className="font-mono">{record.reasonCodes.join(', ')}</span></> : null}</>} />) : <Empty>No eligibility evidence.</Empty>}</ListBand>
+          detail={<>{sentenceCase(record.capacity)} · ID valid until {formatWhen(record.identityExpiresAt, data.timezone)}{record.registryName ? ` · ${record.registryName}${record.registryExpiresAt ? ` until ${formatWhen(record.registryExpiresAt, data.timezone)}` : ''}` : ''} · {record.verifiedAt ? `verified ${formatWhen(record.verifiedAt, data.timezone)}` : 'not verified'}{record.reasonCodes.length ? <> · {record.reasonCodes.map(codeLabel).join(', ')}</> : null}</>} />) : <Empty>No eligibility evidence.</Empty>}</ListBand>
       </section>
       <div className="grid gap-8 lg:grid-cols-2">
         <section>
@@ -68,6 +68,6 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
         </section>
       </div>
     </div>;
-  }, data => data.customer ? { tone: statusTone(data.customer.status), state: sentenceCase(data.customer.status) } : { tone: 'muted', state: 'Not found' },
-  { crumbs: [{ label: 'Customers', href: '/dashboard/platform/customers' }, { label: 'Customer' }], heading: data => data.customer?.reference ?? 'Customer' });
+  }, data => data.customer ? { tone: statusTone(data.customer.status), state: sentenceCase(data.customer.status) } : { tone: 'muted', state: '' },
+  { crumbs: [{ label: 'Customers', href: '/dashboard/platform/customers' }, { label: 'Customer' }], heading: data => data.customer?.reference ?? 'Customer', missing: data => !data.customer });
 }

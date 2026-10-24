@@ -3,7 +3,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { CartPreparationClient } from '@/features/platform/fulfillment/components/CartPreparationClient';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
-import { BandRow, ListBand, MetricStrip, Notice, operatingState, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
+import { BandRow, ListBand, MetricStrip, Notice, operatingState, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, codeLabel, INTERVAL_LABEL, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatUsableThrough, formatWhen, Pager, readable, SearchForm, Status, Workboard } from '../components/WorkspaceKit';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
 import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
@@ -45,7 +45,6 @@ const WORKSPACES: Array<{ title: string; detail: string; href: string; access: '
   { title: 'Audit log', detail: 'Who did what, and when', href: '/dashboard/platform/audit', access: 'reports' },
 ];
 
-const INTERVAL_LABEL: Record<string, string> = { current: 'Current', expiring_soon: 'Expires within 30 days', expired: 'Expired', not_yet_effective: 'Not yet effective', inactive: 'Inactive' };
 const NOTIFICATION_LABEL: Record<string, string> = { none: 'No deadline', overdue: 'Notification overdue', due_soon: 'Due within 24 hours', upcoming: 'Upcoming deadline', resolved: 'Resolved', unknown: 'Deadline unknown' };
 const NOTIFICATION_TONE: Record<string, DotTone> = { none: 'muted', overdue: 'danger', due_soon: 'warn', upcoming: 'info', resolved: 'ok', unknown: 'warn' };
 const SEVERITY_TONE: Record<string, DotTone> = { low: 'info', medium: 'warn', high: 'danger', critical: 'danger' };
@@ -166,7 +165,7 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
       <SectionTitle meta={data.holds.total}>Active package holds</SectionTitle>
       <ListBand>
         {data.holds.items.length ? data.holds.items.map(hold => <Link key={hold.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(hold.package?.packageUid || '')}`} className="block transition-colors hover:bg-background/60">
-          <BandRow title={<span >{sentenceCase(hold.type)} hold</span>} tone="danger" state={<span className="font-mono">{hold.reasonCode}</span>} detail={<>Package <span className="font-mono">{hold.package?.packageUid || 'not recorded'}</span> · placed {formatWhen(hold.placedAt, data.timezone)}</>} />
+          <BandRow title={<span >{sentenceCase(hold.type)} hold</span>} tone="danger" state={codeLabel(hold.reasonCode)} detail={<>Package <span className="font-mono">{hold.package?.packageUid || 'not recorded'}</span> · placed {formatWhen(hold.placedAt, data.timezone)}</>} />
         </Link>) : <Empty>No active package holds.</Empty>}
         {data.holds.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.holds.items.length} of {data.holds.total} holds</p>}
       </ListBand>
@@ -285,7 +284,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             aside={shift.varianceCents == null ? <span className="text-xs text-muted-foreground">No count yet</span> : <span className={shift.varianceCents === 0 ? 'font-mono' : 'font-mono text-amber-700 dark:text-amber-400'}>{shift.varianceCents > 0 ? '+' : ''}{formatMinorUnits(shift.varianceCents, data.currencyCode)}</span>}>
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
             {shift.cashEvents.length > 0 && <details className="mt-2"><summary className="inline-flex cursor-pointer list-none text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Drawer ledger ({shift.cashEvents.length})</summary>
-              <ul className="mt-2 space-y-1 border-l border-border pl-3 text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3"><span>{sentenceCase(event.type)} · <span className="font-mono">{event.reasonCode}</span> · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="font-mono">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
+              <ul className="mt-2 space-y-1 border-l border-border pl-3 text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3"><span>{sentenceCase(event.type)} · {codeLabel(event.reasonCode)} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="font-mono">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
             </details>}
           </BandRow>) : <Empty>No shifts yet.</Empty>}
           <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
@@ -302,7 +301,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
         </section>
         <section className="lg:col-span-2">
           <SectionTitle meta={data.tenders.filter(tender => tender.enabled).length} action={<Track><PillLink href="/dashboard/platform/authority#sales-rules">Change payment types</PillLink></Track>}>Payment types</SectionTitle>
-          <ListBand>{data.tenders.length ? data.tenders.map(tender => <BandRow key={tender.id} title={tender.displayName} tone={tender.enabled ? 'ok' : 'muted'} state={tender.enabled ? 'Accepted' : 'Off'} detail={<><span className="font-mono">{tender.code}</span> · {tender.authorityReference} · until {formatWhen(tender.expiresAt, data.timezone)}</>} />) : <Empty>No payment types configured.</Empty>}</ListBand>
+          <ListBand>{data.tenders.length ? data.tenders.map(tender => <BandRow key={tender.id} title={tender.displayName} tone={tender.enabled ? 'ok' : 'muted'} state={tender.enabled ? 'Accepted' : 'Off'} detail={<>{tender.authorityReference} · until {formatWhen(tender.expiresAt, data.timezone)}</>} />) : <Empty>No payment types configured.</Empty>}</ListBand>
         </section>
       </div>
     </Workboard>;

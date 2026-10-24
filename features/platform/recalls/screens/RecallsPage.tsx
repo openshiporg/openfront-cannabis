@@ -11,7 +11,7 @@ export async function RecallsPage({ searchParams }: { searchParams?: SearchParam
     <MetricStrip items={[
       { label: 'Open recalls', value: data.openTotal, tone: data.openTotal ? 'danger' : 'muted', href: href('open') },
       { label: 'Closed by regulator', value: data.closedTotal, href: href('closed') },
-      { label: 'Packages held on this page', value: data.recalls.items.reduce((sum, recall) => sum + recall.activeHolds, 0) },
+      { label: 'Packages on recall hold', value: data.heldTotal },
     ]} />
     <section>
       <SectionTitle meta={data.recalls.total} action={<nav aria-label="Recall status"><Track>

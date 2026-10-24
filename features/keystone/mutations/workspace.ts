@@ -40,6 +40,12 @@ function readOptions(raw: unknown): Options {
 }
 
 /** One stable, id-tiebroken page plus the total for the same predicate. */
+const AUDIT_RESOURCE_LABELS: Record<string, string> = {
+  Product: "name", InventoryPackage: "packageUid", PackageHold: "package { packageUid }", RecallCase: "reference", StaffCredential: "credentialReference",
+  CannabisLicense: "licenseNumber", JurisdictionRulePack: "version", Premises: "name", Register: "name", ComplianceIncident: "reference", User: "name",
+  StorefrontSettings: "businessName", Customer: "reference", Sale: "receiptNumber", RegulatedManifest: "manifestNumber",
+};
+
 async function page(context: Context, list: keyof Context["query"] & string, args: { where: Record<string, unknown>; orderBy: Array<Record<string, "asc" | "desc">>; query: string; cursor?: string | null; take?: number }) {
   const take = args.take ?? WORKSPACE_PAGE_SIZE;
   const api = context.sudo().query[list] as any;
@@ -300,18 +306,27 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const where = filter === "all" ? scope : filter === "closed" ? { ...scope, status: { equals: "regulator_closed" } } : { ...scope, status: { in: statuses.filter(status => status !== "regulator_closed") } };
     const recalls = await page(context, "RecallCase", { where, orderBy: [{ openedAt: "desc" }], cursor: options.cursor, query: "id reference status authorityReference packageUids batchNumbers reason openedAt closedAt" });
     const heldCounts = await Promise.all(recalls.items.map(recall => sudo.query.PackageHold.count({ where: { ...scope, type: { equals: "recall" }, status: { equals: "active" }, reason: { startsWith: `${recall.reference}:` } } })));
-    const [openTotal, closedTotal] = await Promise.all([
+    const [openTotal, closedTotal, heldTotal] = await Promise.all([
       sudo.query.RecallCase.count({ where: { ...scope, status: { not: { equals: "regulator_closed" } } } }),
       sudo.query.RecallCase.count({ where: { ...scope, status: { equals: "regulator_closed" } } }),
+      sudo.query.PackageHold.count({ where: { ...scope, type: { equals: "recall" }, status: { equals: "active" } } }),
     ]);
-    return { ...base, filter, recalls: { ...recalls, items: recalls.items.map((recall, index) => ({ ...recall, packageUids: Array.isArray(recall.packageUids) ? recall.packageUids.slice(0, 50) : [], batchNumbers: Array.isArray(recall.batchNumbers) ? recall.batchNumbers.slice(0, 50) : [], activeHolds: heldCounts[index] })) }, openTotal, closedTotal };
+    return { ...base, filter, recalls: { ...recalls, items: recalls.items.map((recall, index) => ({ ...recall, packageUids: Array.isArray(recall.packageUids) ? recall.packageUids.slice(0, 50) : [], batchNumbers: Array.isArray(recall.batchNumbers) ? recall.batchNumbers.slice(0, 50) : [], activeHolds: heldCounts[index] })) }, openTotal, closedTotal, heldTotal };
   }
 
   if (section === "audit") {
     const resourceType = options.filter && /^[A-Za-z]{2,60}$/.test(options.filter) ? options.filter : null;
     const search = options.search ? { action: { contains: options.search, mode: "insensitive" } } : {};
     const events = await page(context, "AuditEvent", { where: { AND: [scope, resourceType ? { resourceType: { equals: resourceType } } : {}, search] }, orderBy: [{ occurredAt: "desc" }], cursor: options.cursor, query: "id action resourceType resourceId reasonCode correlationId occurredAt actor { name }" });
-    return { ...base, filter: resourceType, search: options.search, events };
+    // Name each record so the log reads "QA Blue Dream 3.5g", not a cuid.
+    const labelled = await Promise.all(Object.entries(AUDIT_RESOURCE_LABELS).map(async ([list, field]) => {
+      const ids = [...new Set(events.items.filter(event => event.resourceType === list).map(event => String(event.resourceId)))];
+      if (!ids.length) return [];
+      const rows = await (sudo.query as any)[list].findMany({ where: { id: { in: ids } }, query: `id ${field}` });
+      return rows.map((row: any) => [`${list}:${row.id}`, field.includes("{") ? row.package?.packageUid : row[field]] as const);
+    }));
+    const labels = new Map(labelled.flat().filter(([, label]) => label));
+    return { ...base, filter: resourceType, search: options.search, events: { ...events, items: events.items.map(event => ({ ...event, resourceLabel: labels.get(`${event.resourceType}:${event.resourceId}`) ?? null })) } };
   }
 
   // incidents

@@ -5,7 +5,7 @@ import { ArrowUpRight } from 'lucide-react';
 import type { PublicStorefrontSettingsResult } from '../lib/data/menu';
 import { AGE_COOKIE } from '../lib/age';
 import { storeBrand } from '../lib/brand';
-import { addressLines, ageRule, directionsHref, openState, tenderLabels } from '../lib/visit';
+import { addressLines, ageRule, ageStripLabel, directionsHref, openState, tenderLabels } from '../lib/visit';
 import { AgeGate } from './AgeGate';
 import { PhoneMenu } from './PhoneMenu';
 import { StoreLogo } from './StoreLogo';
@@ -30,7 +30,7 @@ export async function StorefrontShell({ settings, forms = [], children }: { sett
   const address = addressLines(visit);
   const directions = directionsHref(visit);
   const tenders = tenderLabels(visit);
-  const ageLabel = ages.medical != null ? `${ages.adult}+ · PATIENTS ${ages.medical}+` : `${ages.adult}+ ONLY`;
+  const ageLabel = ageStripLabel(visit);
   return <div className="storefront-theme flex min-h-screen flex-col overflow-x-clip" style={theme}>
     <AgeGate storeName={name} confirmed={confirmed} adultAge={ages.adult} medicalAge={ages.medical} />
     <div className="bg-cn-ink text-[#f6f4ee]">

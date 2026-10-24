@@ -1,6 +1,6 @@
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
-import { Dot, DotLabel, Panel, PillLink, statusTone, Track, sentenceCase } from '@/features/platform/components/cannabis-ui';
+import { Dot, DotLabel, Panel, PillLink, statusTone, Track, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { getSaleReceipt } from '../actions/receipt';
 import { formatInstant } from '@/features/platform/lib/time';
 
@@ -44,7 +44,7 @@ export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashbo
           {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(tender.status)} >{sentenceCase(tender.typeSnapshot)} · {sentenceCase(tender.status)}</DotLabel><span className="font-mono">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
         </section>
         <section aria-label="Refunds"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refunds</h3>
-          {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · <span className="font-mono">{refund.reasonCode}</span> · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
+          {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · {codeLabel(refund.reasonCode)} · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
         </section>
       </div>
     </div>

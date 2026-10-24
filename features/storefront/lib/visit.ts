@@ -39,3 +39,9 @@ export function ageRule(visit: PublicVisit | undefined) {
   const medical = Number.isInteger(visit?.medicalMinimumAge) && visit!.medicalMinimumAge! < adult ? visit!.medicalMinimumAge! : null;
   return { adult, medical };
 }
+
+/** The age strip text: "21+ ONLY", or "21+ · PATIENTS 18+" when medical sales take a lower age. */
+export function ageStripLabel(visit: PublicVisit | undefined) {
+  const ages = ageRule(visit);
+  return ages.medical != null ? `${ages.adult}+ · PATIENTS ${ages.medical}+` : `${ages.adult}+ ONLY`;
+}

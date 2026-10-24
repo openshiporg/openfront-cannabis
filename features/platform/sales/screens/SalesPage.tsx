@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { formatMinorUnits } from '@/features/lib/money';
-import { BandRow, Count, ListBand, MetricStrip, Notice, PageTitle, PillLink, SectionTitle, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
-import { Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
+import { BandRow, Count, ListBand, MetricStrip, Notice, PageTitle, PillLink, SectionTitle, codeLabel, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
+import { AsOf, Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
+import { getSaleReceipt } from '@/features/platform/fulfillment/actions/receipt';
 import { getCannabisWorkspace } from '@/features/platform/workspaces/actions/workspaces';
 
 const FILTERS = [
@@ -43,7 +45,7 @@ export async function SalesPage({ searchParams }: { searchParams?: SearchParams 
     <section>
       <SectionTitle meta={data.refunds.total}>Recent refunds</SectionTitle>
       <ListBand>{data.refunds.items.length ? data.refunds.items.map(refund => <BandRow key={refund.id} title={<span className="font-mono">{refund.sale?.receiptNumber ?? 'Receipt not recorded'}</span>} tone={statusTone(refund.status)} state={sentenceCase(refund.status)}
-        detail={<><span className="font-mono">{refund.reasonCode}</span> · inventory {sentenceCase(refund.inventoryDisposition).toLowerCase()} · {formatWhen(refund.occurredAt, data.timezone)}</>} aside={<span className="font-mono">{formatMinorUnits(refund.amountCents, data.currencyCode)}</span>} />) : <Empty>No refunds.</Empty>}</ListBand>
+        detail={<>{codeLabel(refund.reasonCode)} · inventory {sentenceCase(refund.inventoryDisposition).toLowerCase()} · {formatWhen(refund.occurredAt, data.timezone)}</>} aside={<span className="font-mono">{formatMinorUnits(refund.amountCents, data.currencyCode)}</span>} />) : <Empty>No refunds.</Empty>}</ListBand>
     </section>
   </div>);
 }
@@ -53,9 +55,11 @@ export async function SaleDetailPage({ params: routeParams }: { params: Promise<
   const saleId = decodeURIComponent(id);
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'link' as const, label: 'Sales', href: '/dashboard/platform/sales' }, { type: 'page' as const, label: 'Receipt' }];
   // The receipt query is access-checked on its own; the workspace call supplies the premises zone.
-  const workspace = await getCannabisWorkspace('sales', {});
+  const [workspace, receipt] = await Promise.all([getCannabisWorkspace('sales', {}), getSaleReceipt(saleId)]);
+  if (receipt.state === 'not_found') notFound();
   const timezone = workspace.state === 'ok' ? workspace.data.timezone : null;
-  return <PageContainer header={<PageTitle title="Receipt" />} breadcrumbs={breadcrumbs}>
+  const meta = workspace.state === 'ok' ? <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={workspace.data.generatedAt} timezone={workspace.data.timezone} />{workspace.data.jurisdictionCode && <span className="font-mono">{workspace.data.jurisdictionCode}</span>}</span> : undefined;
+  return <PageContainer header={<PageTitle title={receipt.state === 'ok' ? receipt.sale.receiptNumber : 'Receipt'} meta={meta} />} breadcrumbs={breadcrumbs}>
     <div className="space-y-4 px-4 pb-28 md:px-6">
       <SaleReceiptDetail saleId={saleId} timezone={timezone} closeHref="/dashboard/platform/sales" closeLabel="All sales" />
     </div>

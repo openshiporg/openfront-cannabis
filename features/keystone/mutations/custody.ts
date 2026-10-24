@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Context, PackageHoldTypeType } from ".keystone/types";
+import { isValidTimeZone } from "../domain/premisesTime";
 import { assertReasonCode, assertText, runControlledOperation, stableHash } from "./workflow";
 
 const HOLD_TYPES = new Set<PackageHoldTypeType>(["quarantine", "test_hold", "discrepancy", "authority", "expiry"]);
@@ -32,7 +33,7 @@ export async function placePackageHold(_root: unknown, args: { input: any }, con
 
 /**
  * Open a recall case and hold every matching package at this premises (by package UID
- * or production batch). The case starts in "hold"; later stages and hold release stay
+ * or production batch). Refused when nothing matches. The case starts in "hold"; later stages and hold release stay
  * with the regulator workflow.
  */
 export async function openRecallCase(_root: unknown, args: { input: any }, context: Context) {
@@ -54,7 +55,14 @@ export async function openRecallCase(_root: unknown, args: { input: any }, conte
       take: MAX_RECALL_PACKAGES + 1, query: "id packageUid",
     });
     if (matches.length > MAX_RECALL_PACKAGES) throw new Error(`More than ${MAX_RECALL_PACKAGES} packages match; split the recall by batch`);
-    const reference = `RC-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 6).toUpperCase()}`;
+    // A recall that holds nothing would look covered while all stock stays saleable.
+    if (!matches.length) {
+      const swapped = await sudo.query.InventoryPackage.count({ where: { ...scope, status: { notIn: ["depleted", "destroyed"] }, OR: [...(batchNumbers.length ? [{ packageUid: { in: batchNumbers } }] : []), ...(packageUids.length ? [{ productionBatchNumber: { in: packageUids } }] : [])] } as any });
+      throw new Error(swapped ? "No package matches. These codes match the other box: package UIDs go under Package UIDs, batch numbers under Production batches" : "No package at this premises matches these package UIDs or production batches");
+    }
+    const timeZone = isValidTimeZone(authority.actor.premises?.timezone) ? authority.actor.premises.timezone : "UTC";
+    const localDate = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).replaceAll("-", "");
+    const reference = `RC-${localDate}-${randomUUID().slice(0, 6).toUpperCase()}`;
     const evidenceHash = stableHash({ authorityReference, reason, packageUids, batchNumbers, matched: matches.map(pkg => pkg.packageUid) });
     const recall = await sudo.query.RecallCase.createOne({ data: {
       organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference, status: "hold",

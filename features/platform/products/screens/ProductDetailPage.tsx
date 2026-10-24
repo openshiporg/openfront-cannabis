@@ -12,7 +12,7 @@ export async function ProductDetailPage({ params: routeParams, searchParams }: {
   const path = `/dashboard/platform/menu/${encodeURIComponent(id)}`;
   const params: Params = { ...(await readParams(searchParams)), id: decodeURIComponent(id) };
   return frame('product', path, 'Product', params, data => {
-    if (!data.product) return <div className="px-4 md:px-6"><Notice tone="warn" action={<Track><PillLink href="/dashboard/platform/menu" active>Menu</PillLink></Track>}>Product not found at this premises</Notice></div>;
+    if (!data.product) return null;
     const product = data.product;
     const ready = data.packages.items.filter(pkg => pkg.readiness.ready);
     const missing = [!data.categories.limit.includes(product.categoryCode) && `No purchase limit for ${product.categoryCode}`, !data.categories.tax.includes(product.taxCategoryCode) && `No tax rule for ${product.taxCategoryCode}`].filter(Boolean).join(' · ');
@@ -52,6 +52,6 @@ export async function ProductDetailPage({ params: routeParams, searchParams }: {
         </Link>) : <Empty>No sales of this product.</Empty>}</ListBand>
       </section>
     </div>;
-  }, data => data.product ? (data.packages.items.some(pkg => pkg.readiness.ready) ? { tone: 'ok', state: 'Ready to sell' } : { tone: data.product.status === 'active' ? 'warn' : 'muted', state: data.product.status === 'active' ? 'Not ready' : sentenceCase(data.product.status) }) : { tone: 'muted', state: 'Not found' },
-  { crumbs: [{ label: 'Menu', href: '/dashboard/platform/menu' }, { label: 'Product' }], heading: data => data.product?.name ?? 'Product' });
+  }, data => data.product ? (data.packages.items.some(pkg => pkg.readiness.ready) ? { tone: 'ok', state: 'Ready to sell' } : { tone: data.product.status === 'active' ? 'warn' : 'muted', state: data.product.status === 'active' ? 'Not ready' : sentenceCase(data.product.status) }) : { tone: 'muted', state: '' },
+  { crumbs: [{ label: 'Menu', href: '/dashboard/platform/menu' }, { label: 'Product' }], heading: data => data.product?.name ?? 'Product', missing: data => !data.product });
 }
