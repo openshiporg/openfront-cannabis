@@ -22,14 +22,21 @@ const sectionAuthority: Record<string, { permission: CannabisPermission; activit
   cash: { permission: "canManageFinance", activity: "cash", mode: "operational" },
   reconciliation: { permission: "canViewReports", activity: "state_reporting", mode: "operational" },
   incidents: { permission: "canManageCompliance", activity: "incident", mode: "read" },
+  staff: { permission: "canManagePeople", activity: "authority", mode: "read" },
+  customers: { permission: "canManageCompliance", activity: "eligibility", mode: "read" },
+  customer: { permission: "canManageCompliance", activity: "eligibility", mode: "read" },
+  sales: { permission: "canManageSales", activity: "sale", mode: "read" },
+  product: { permission: "canManageInventory", activity: "inventory", mode: "read" },
+  recalls: { permission: "canManageCompliance", activity: "inventory", mode: "read" },
+  audit: { permission: "canViewReports", activity: "state_reporting", mode: "read" },
 };
 
-type Options = { cursor: string | null; search: string | null; filter: string | null; productSearch: string | null };
+type Options = { cursor: string | null; search: string | null; filter: string | null; productSearch: string | null; id: string | null };
 
 function readOptions(raw: unknown): Options {
   const value = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   const bounded = (entry: unknown, max: number) => typeof entry === "string" && entry.trim() && entry.trim().length <= max ? entry.trim() : null;
-  return { cursor: bounded(value.cursor, 100), search: bounded(value.search, 100), filter: bounded(value.filter, 40), productSearch: bounded(value.productSearch, 100) };
+  return { cursor: bounded(value.cursor, 100), search: bounded(value.search, 100), filter: bounded(value.filter, 40), productSearch: bounded(value.productSearch, 100), id: bounded(value.id, 100) };
 }
 
 /** One stable, id-tiebroken page plus the total for the same predicate. */
@@ -152,6 +159,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
         discountRuleCount: Array.isArray(rulePack.discountRules) ? rulePack.discountRules.length : 0,
         allowedTenderTypes: Array.isArray(rulePack.allowedTenderTypes) ? rulePack.allowedTenderTypes.filter((type: unknown) => typeof type === "string").slice(0, 10) : [],
       } : null,
+      ruleVersions: (await sudo.query.JurisdictionRulePack.findMany({ where: scope, orderBy: [{ effectiveAt: "desc" }], take: 20, query: "id version status effectiveAt expiresAt approvedAt approvedBy { name }" })),
       licenses: { ...licenses, items: licenses.items.map(license => ({ ...license, intervalState: intervalState(license as any, nowMs) })) },
       credentials: { ...credentials, items: credentials.items.map((credential, index) => ({ ...credential, intervalState: states[index] })) },
     };
@@ -221,7 +229,9 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   if (section === "cash") {
     const shifts = await page(context, "RegisterShift", { where: scope, orderBy: [{ createdAt: "desc" }], cursor: options.cursor, query: "id status openingFloatCents expectedCashCents actualCashCents varianceCents openedAt closedAt register { id name code } operator { id name }" });
     const registers = await page(context, "Register", { where: scope, orderBy: [{ code: "asc" }], take: 100, query: "id code name status" });
-    return { ...base, shifts, registers };
+    const tenders = await sudo.query.TenderConfiguration.findMany({ where: scope, orderBy: [{ type: "asc" }], take: 20, query: "id code type displayName enabled authorityReference effectiveAt expiresAt" });
+    const shiftEvents = await Promise.all(shifts.items.map(shift => sudo.query.CashEvent.findMany({ where: { shift: { id: { equals: shift.id } } }, orderBy: [{ occurredAt: "desc" }], take: 10, query: "id type amountCents reasonCode occurredAt actor { name }" })));
+    return { ...base, shifts: { ...shifts, items: shifts.items.map((shift, index) => ({ ...shift, cashEvents: shiftEvents[index] })) }, registers, tenders };
   }
 
   if (section === "reconciliation") {
@@ -230,7 +240,78 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const exceptions = await page(context, "OutboxEvent", { where: { ...scope, status: { in: ["rejected", "retryable", "dead_letter"] } }, orderBy: [{ availableAt: "asc" }], query: "id topic status attempts availableAt lastAttemptAt lastErrorCode" });
     // No delivery worker or provider adapter exists in this repository, so queued events are not sent.
     const installations = await sudo.query.IntegrationInstallation.count({ where: { ...scope, status: { equals: "active" } } });
-    return { ...base, runs, pending, exceptions, delivery: { workerAvailable: false, activeInstallations: installations } };
+    const integrations = await sudo.query.IntegrationInstallation.findMany({ where: scope, orderBy: [{ providerType: "asc" }], take: 20, query: "id providerCode providerType status facilityReference authorityReference validatedAt lastSuccessfulSyncAt" });
+    const inbox = await page(context, "StateEventInbox", { where: scope, orderBy: [{ receivedAt: "desc" }], take: 25, query: "id providerCode providerEventId status receivedAt processedAt rejectionReason" });
+    return { ...base, runs, pending, exceptions, delivery: { workerAvailable: false, activeInstallations: installations }, integrations, inbox };
+  }
+
+  if (section === "staff") {
+    const search = options.search ? { OR: [{ name: { contains: options.search, mode: "insensitive" } }, { email: { contains: options.search, mode: "insensitive" } }] } : {};
+    const people = await page(context, "User", { where: { AND: [scope, search] }, orderBy: [{ name: "asc" }], cursor: options.cursor,
+      query: "id name email status createdAt role { id name canManagePeople canManageAuthority canManageCompliance canManageInventory canManageSales canManageFinance canManageIntegrations canViewReports canManageOnboarding } staffCredential { id credentialType credentialReference status effectiveAt expiresAt allowedActivities approvalLimitCents }" });
+    return { ...base, selfId: authority.actor.id, search: options.search, people: { ...people, items: people.items.map(person => ({ ...person, credential: person.staffCredential ? { ...person.staffCredential, intervalState: intervalState(person.staffCredential as any, nowMs) } : null, staffCredential: undefined })) } };
+  }
+
+  if (section === "customers") {
+    const statuses = ["pending_verification", "eligible", "ineligible", "suspended"];
+    const filter = options.filter && statuses.includes(options.filter) ? options.filter : "all";
+    const search = options.search ? { reference: { contains: options.search, mode: "insensitive" } } : {};
+    const customers = await page(context, "Customer", { where: { AND: [scope, filter === "all" ? {} : { status: { equals: filter } }, search] }, orderBy: [{ createdAt: "desc" }], cursor: options.cursor, query: "id reference capacity status marketingConsent createdAt" });
+    const counts = Object.fromEntries(await Promise.all(["all", ...statuses].map(async status => [status, await sudo.query.Customer.count({ where: { ...scope, ...(status === "all" ? {} : { status: { equals: status as any } }) } })])));
+    return { ...base, filter, search: options.search, customers, counts };
+  }
+
+  if (section === "customer") {
+    const customer = options.id ? await sudo.query.Customer.findOne({ where: { id: options.id }, query: "id reference capacity status marketingConsent createdAt organization { id } premises { id }" }) : null;
+    if (!customer || customer.organization?.id !== authority.organizationId || customer.premises?.id !== authority.premisesId) return { ...base, customer: null, evidence: [], carts: [], sales: [] };
+    const byCustomer = { customer: { id: { equals: customer.id } } };
+    const [evidence, carts, sales] = await Promise.all([
+      sudo.query.EligibilityEvidence.findMany({ where: byCustomer, orderBy: [{ createdAt: "desc" }], take: 20, query: "id capacity identityMethod result reasonCodes identityExpiresAt registryName registryExpiresAt verifiedAt createdAt" }),
+      sudo.query.Cart.findMany({ where: byCustomer, orderBy: [{ createdAt: "desc" }], take: 20, query: "id reference source status totalCents expiresAt createdAt" }),
+      sudo.query.Sale.findMany({ where: byCustomer, orderBy: [{ finalizedAt: "desc" }], take: 20, query: "id receiptNumber status totalCents finalizedAt" }),
+    ]);
+    const { organization: _organization, premises: _premises, ...rest } = customer;
+    return { ...base, customer: rest, evidence, carts, sales };
+  }
+
+  if (section === "sales") {
+    const groups: Record<string, string[]> = { finalized: ["finalized"], reporting: ["state_queued", "state_rejected"], reported: ["state_accepted", "reconciled"], refunds: ["partially_refunded", "refunded", "reversal_pending", "reversed"] };
+    const filter = options.filter && groups[options.filter] ? options.filter : "all";
+    const search = options.search ? { receiptNumber: { contains: options.search, mode: "insensitive" } } : {};
+    const sales = await page(context, "Sale", { where: { AND: [scope, filter === "all" ? {} : { status: { in: groups[filter] } }, search] }, orderBy: [{ finalizedAt: "desc" }], cursor: options.cursor, query: "id receiptNumber status totalCents refundedCents customerCapacitySnapshot finalizedAt linesCount" });
+    const counts = Object.fromEntries(await Promise.all(["all", ...Object.keys(groups)].map(async group => [group, await sudo.query.Sale.count({ where: { ...scope, ...(group === "all" ? {} : { status: { in: groups[group] as any } }) } })])));
+    const refunds = await page(context, "Refund", { where: scope, orderBy: [{ occurredAt: "desc" }], take: 10, query: "id amountCents reasonCode status inventoryDisposition occurredAt sale { id receiptNumber }" });
+    return { ...base, filter, search: options.search, sales, counts, refunds };
+  }
+
+  if (section === "product") {
+    const product = options.id ? await sudo.query.Product.findOne({ where: { id: options.id }, query: "id name sku brand form categoryCode taxCategoryCode unitOfMeasure unitQuantityMicrounits equivalencyMicrounits priceCents status adultUseEligible medicalEligible publicDescription publicImageUrl updatedAt createdAt organization { id } premises { id }" }) : null;
+    if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) return { ...base, product: null, packages: { items: [], nextCursor: null, total: 0 }, saleLines: [], categories: { limit: [], tax: [] } };
+    const packages = await page(context, "InventoryPackage", { where: { ...scope, product: { id: { equals: product.id } } }, orderBy: [{ expiresAt: "asc" }], cursor: options.cursor, take: 25, query: PACKAGE_SELECTION });
+    const saleLines = await sudo.query.SaleLine.findMany({ where: { ...scope, skuSnapshot: { equals: product.sku } }, orderBy: [{ createdAt: "desc" }], take: 20, query: "id quantityMicrounits totalCents packageUidSnapshot createdAt sale { id receiptNumber status finalizedAt }" });
+    const codes = (rules: unknown) => [...new Set((Array.isArray(rules) ? rules : []).map((rule: any) => rule?.categoryCode).filter((code: unknown): code is string => typeof code === "string" && code.trim() !== ""))].slice(0, 50);
+    const { organization: _organization, premises: _premises, ...rest } = product;
+    return { ...base, product: rest, packages: { ...packages, items: packages.items.map(pkg => projectPackage(pkg, now)) }, saleLines, categories: { limit: codes(rulePack?.purchaseLimits), tax: codes(rulePack?.taxRules) } };
+  }
+
+  if (section === "recalls") {
+    const statuses = ["suspected", "hold", "scope_confirmed", "active", "monitoring", "disposition", "regulator_closed"];
+    const filter = options.filter === "closed" ? "closed" : options.filter === "all" ? "all" : "open";
+    const where = filter === "all" ? scope : filter === "closed" ? { ...scope, status: { equals: "regulator_closed" } } : { ...scope, status: { in: statuses.filter(status => status !== "regulator_closed") } };
+    const recalls = await page(context, "RecallCase", { where, orderBy: [{ openedAt: "desc" }], cursor: options.cursor, query: "id reference status authorityReference packageUids batchNumbers reason openedAt closedAt" });
+    const heldCounts = await Promise.all(recalls.items.map(recall => sudo.query.PackageHold.count({ where: { ...scope, type: { equals: "recall" }, status: { equals: "active" }, reason: { startsWith: `${recall.reference}:` } } })));
+    const [openTotal, closedTotal] = await Promise.all([
+      sudo.query.RecallCase.count({ where: { ...scope, status: { not: { equals: "regulator_closed" } } } }),
+      sudo.query.RecallCase.count({ where: { ...scope, status: { equals: "regulator_closed" } } }),
+    ]);
+    return { ...base, filter, recalls: { ...recalls, items: recalls.items.map((recall, index) => ({ ...recall, packageUids: Array.isArray(recall.packageUids) ? recall.packageUids.slice(0, 50) : [], batchNumbers: Array.isArray(recall.batchNumbers) ? recall.batchNumbers.slice(0, 50) : [], activeHolds: heldCounts[index] })) }, openTotal, closedTotal };
+  }
+
+  if (section === "audit") {
+    const resourceType = options.filter && /^[A-Za-z]{2,60}$/.test(options.filter) ? options.filter : null;
+    const search = options.search ? { action: { contains: options.search, mode: "insensitive" } } : {};
+    const events = await page(context, "AuditEvent", { where: { AND: [scope, resourceType ? { resourceType: { equals: resourceType } } : {}, search] }, orderBy: [{ occurredAt: "desc" }], cursor: options.cursor, query: "id action resourceType resourceId reasonCode correlationId occurredAt actor { name }" });
+    return { ...base, filter: resourceType, search: options.search, events };
   }
 
   // incidents

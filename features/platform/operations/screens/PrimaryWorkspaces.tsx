@@ -1,42 +1,14 @@
 import Link from 'next/link';
-import type React from 'react';
-import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
-import { getCannabisWorkspace, type WorkspaceOptions } from '@/features/platform/workspaces/actions/workspaces';
-import type { CannabisWorkspaceResult } from '@/features/platform/workspaces/lib/boundary';
-import type { WorkspaceData, WorkspaceSection } from '@/features/platform/workspaces/lib/contract';
 import { CartPreparationClient } from '@/features/platform/fulfillment/components/CartPreparationClient';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
-import { BandRow, ListBand, MetricStrip, Notice, operatingState, PageTitle, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
-import { AsOf, Empty, formatUsableThrough, formatWhen, Pager, readable, SearchForm, Status, Workboard, WorkspaceStateNotice } from '../components/WorkspaceKit';
+import { BandRow, ListBand, MetricStrip, Notice, operatingState, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
+import { Empty, formatUsableThrough, formatWhen, Pager, readable, SearchForm, Status, Workboard } from '../components/WorkspaceKit';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
-import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, ProvisionStaffForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
+import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-type Params = Record<string, string | undefined>;
-type TitleState = { tone: DotTone; state: string };
-
-async function readParams(searchParams?: SearchParams): Promise<Params> {
-  const raw = (await searchParams) || {};
-  return Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
-}
-
-async function frame<S extends WorkspaceSection>(section: S, path: string, title: string, params: Params, render: (data: WorkspaceData<S>) => React.ReactNode, titleState?: (data: WorkspaceData<S>) => TitleState) {
-  const options: WorkspaceOptions = { cursor: params.cursor, search: params.search, filter: params.filter, productSearch: params.productSearch };
-  const result: CannabisWorkspaceResult<WorkspaceData<S>> = await getCannabisWorkspace(section, options);
-  const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'page' as const, label: title }];
-  if (result.state !== 'ok') {
-    return <PageContainer header={<PageTitle title={title} />} breadcrumbs={breadcrumbs}><WorkspaceStateNotice result={result} retryHref={path} /></PageContainer>;
-  }
-  const data = result.data;
-  const { tone, state } = titleState ? titleState(data) : operatingState(data.operating);
-  const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} />{data.jurisdictionCode && <span className="font-mono">{data.jurisdictionCode}</span>}</span>;
-  const rulesNotice = data.salesRules.problem && section !== 'authority'
-    ? <div className="mb-6 px-4 md:px-6"><Notice tone="danger" action={<Track><PillLink href="/dashboard/platform/authority#sales-rules" active>Fix sales rules</PillLink></Track>}>Sales rules invalid: {data.salesRules.problem}. Menu and sales unavailable.</Notice></div>
-    : null;
-  return <PageContainer header={<PageTitle title={title} tone={tone} state={state} meta={meta} />} breadcrumbs={breadcrumbs}>{rulesNotice}{render(data)}</PageContainer>;
-}
+import { frame, readParams, type SearchParams } from '../lib/frame';
 
 function OperatingNotice({ operating }: { operating: { open: boolean; reason: string | null; limited: boolean } }) {
   if (operating.open || operating.limited) return null;
@@ -66,6 +38,11 @@ const WORKSPACES: Array<{ title: string; detail: string; href: string; access: '
   { title: 'Reconciliation', detail: 'State reporting queue', href: '/dashboard/platform/reconciliation', access: 'reports' },
   { title: 'Authority', detail: 'Licenses, staff and sales rules', href: '/dashboard/platform/authority', access: 'authority' },
   { title: 'Store Settings', detail: 'Name, logo and accent', href: '/dashboard/platform/store-settings', access: 'authority' },
+  { title: 'Staff', detail: 'People, roles and access', href: '/dashboard/platform/staff', access: 'authority' },
+  { title: 'Customers', detail: 'Eligibility and history', href: '/dashboard/platform/customers', access: 'compliance' },
+  { title: 'Recalls', detail: 'Recall cases and held packages', href: '/dashboard/platform/recalls', access: 'compliance' },
+  { title: 'Sales', detail: 'Receipts and refunds', href: '/dashboard/platform/sales', access: 'sales' },
+  { title: 'Audit log', detail: 'Who did what, and when', href: '/dashboard/platform/audit', access: 'reports' },
 ];
 
 const INTERVAL_LABEL: Record<string, string> = { current: 'Current', expiring_soon: 'Expires within 30 days', expired: 'Expired', not_yet_effective: 'Not yet effective', inactive: 'Inactive' };
@@ -144,6 +121,11 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
           {data.self.isOwner && <AmendRulesDisclosure initiallyOpen={Boolean(data.salesRules.problem)}><RulePackForm rules={rules} approvalLimitCents={data.self.approvalLimitCents} /></AmendRulesDisclosure>}
         </ListBand> : <ListBand><Empty>No sales rules installed.</Empty></ListBand>}
       </section>
+      {data.ruleVersions.length > 1 && <section>
+        <SectionTitle meta={data.ruleVersions.length}>Sales rule versions</SectionTitle>
+        <ListBand>{data.ruleVersions.map(version => <BandRow key={version.id} title={<span className="font-mono">{version.version}</span>} tone={version.status === 'effective' ? 'ok' : 'muted'} state={sentenceCase(version.status)}
+          detail={<>{formatWhen(version.effectiveAt, data.timezone)} – {formatWhen(version.expiresAt, data.timezone)}{version.approvedBy?.name ? ` · approved by ${version.approvedBy.name}` : ''}</>} />)}</ListBand>
+      </section>}
       <section data-testid="authority-workbench">
         <SectionTitle meta={data.licenses.total}>Licenses</SectionTitle>
         <ListBand>
@@ -166,7 +148,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
           <Pager basePath="/dashboard/platform/authority" params={params} nextCursor={data.credentials.nextCursor} shown={data.credentials.items.length} total={data.credentials.total} noun="credentials" />
         </ListBand>
       </section>
-      {data.operating.open && <Panel title="Add a staff member"><ProvisionStaffForm /></Panel>}
+      <Track><PillLink href="/dashboard/platform/staff" active>Staff, roles and access</PillLink></Track>
     </Workboard>;
   });
 }
@@ -191,14 +173,14 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
     </section>
     <div className="grid gap-8 lg:grid-cols-2">
       <section>
-        <SectionTitle meta={data.pendingCustomers.total}>Customers awaiting verification</SectionTitle>
+        <SectionTitle meta={data.pendingCustomers.total} action={<Track><PillLink href="/dashboard/platform/customers">All customers</PillLink></Track>}>Customers awaiting verification</SectionTitle>
         <ListBand>
           {data.pendingCustomers.items.length ? data.pendingCustomers.items.map(customer => <BandRow key={`${customer.kind}:${customer.id}`} title={<span className="font-mono">{customer.reference}</span>} tone={statusTone(customer.status)} state={<span >{sentenceCase(customer.status)}</span>} detail={<span >{sentenceCase(customer.capacity)} · since {formatWhen(customer.createdAt, data.timezone)}</span>} />) : <Empty>No customers are awaiting verification.</Empty>}
           <Pager basePath="/dashboard/platform/compliance" params={params} nextCursor={data.pendingCustomers.nextCursor} shown={data.pendingCustomers.items.length} total={data.pendingCustomers.total} noun="customers" />
         </ListBand>
       </section>
       <section>
-        <SectionTitle meta={data.recalls.total}>Recall cases</SectionTitle>
+        <SectionTitle meta={data.recalls.total} action={<Track><PillLink href="/dashboard/platform/recalls">Recalls</PillLink></Track>}>Recall cases</SectionTitle>
         <ListBand>
           {data.recalls.items.length ? data.recalls.items.map(recall => <BandRow key={`${recall.kind}:${recall.id}`} title={<span className="font-mono">{recall.reference}</span>} tone={statusTone(recall.status)} state={<span >{sentenceCase(recall.status)}</span>} detail={`${recall.reason} · opened ${formatWhen(recall.openedAt, data.timezone)}`} />) : <Empty>No recall cases.</Empty>}
           {data.recalls.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Latest {data.recalls.items.length} of {data.recalls.total} recalls</p>}
@@ -229,7 +211,10 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
                 detail={<><span className="font-mono">{product.sku}</span> · {product.form} · limit <span className="font-mono">{product.categoryCode}</span> · tax <span className="font-mono">{product.taxCategoryCode}</span>{product.adultUseEligible ? ' · adult-use' : ''}{product.medicalEligible ? ' · medical' : ''}</>}
                 aside={<span className="flex flex-col items-start gap-0.5 sm:items-end"><span className="font-mono">{formatMinorUnits(product.priceCents, data.currencyCode)}</span><span className="text-xs text-muted-foreground">{product.readyPackageCount > 0 ? <>{product.readyPackageCount}{product.readyCountComplete ? '' : '+'} pkg · <span className="font-mono">{formatMicrounits(product.availableMicrounits, product.unitOfMeasure)}</span> free</> : 'No saleable package'}</span></span>} />
             </summary>
-            {data.operating.open && <div className="border-t border-border/70 bg-background/50 px-4 py-4"><AmendProductForm product={product} limitCategories={data.categories.limit} taxCategories={data.categories.tax} /></div>}
+            <div className="border-t border-border/70 bg-background/50 px-4 py-4 space-y-4">
+              <Track><PillLink href={`/dashboard/platform/menu/${encodeURIComponent(product.id)}`} active>Packages and sales</PillLink></Track>
+              {data.operating.open && <AmendProductForm product={product} limitCategories={data.categories.limit} taxCategories={data.categories.tax} />}
+            </div>
           </details>;
           }) : <Empty>{params.search ? 'No products match this search.' : 'No active products yet.'}</Empty>}
           <Pager basePath="/dashboard/platform/menu" params={params} nextCursor={data.products.nextCursor} shown={data.products.items.length} total={data.products.total} noun="products" />
@@ -262,7 +247,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
             </ListBand>
           </section>
           <section>
-            <SectionTitle meta={data.sales.total}>Recent receipts</SectionTitle>
+            <SectionTitle meta={data.sales.total} action={<Track><PillLink href="/dashboard/platform/sales">All sales</PillLink></Track>}>Recent receipts</SectionTitle>
             <ListBand>
               {data.sales.items.length ? data.sales.items.map(sale => <Link key={sale.id} href={`/dashboard/platform/pos?sale=${encodeURIComponent(sale.id)}`} aria-current={params.sale === sale.id ? 'page' : undefined} className="block transition-colors hover:bg-background/60 aria-[current=page]:bg-background/80">
                 <BandRow title={<span className="font-mono">{sale.receiptNumber}</span>} tone={statusTone(sale.status)} state={<span >{sentenceCase(sale.status)}</span>} detail={`Finalized ${formatWhen(sale.finalizedAt, data.timezone)}`} aside={<span className="font-mono">{formatMinorUnits(sale.totalCents, data.currencyCode)}</span>} />
@@ -299,6 +284,9 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             detail={<>Opened {formatWhen(shift.openedAt, data.timezone)} · {shift.operator?.name || 'Operator not recorded'} · float <span className="font-mono">{formatMinorUnits(shift.openingFloatCents, data.currencyCode)}</span></>}
             aside={shift.varianceCents == null ? <span className="text-xs text-muted-foreground">No count yet</span> : <span className={shift.varianceCents === 0 ? 'font-mono' : 'font-mono text-amber-700 dark:text-amber-400'}>{shift.varianceCents > 0 ? '+' : ''}{formatMinorUnits(shift.varianceCents, data.currencyCode)}</span>}>
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
+            {shift.cashEvents.length > 0 && <details className="mt-2"><summary className="inline-flex cursor-pointer list-none text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Drawer ledger ({shift.cashEvents.length})</summary>
+              <ul className="mt-2 space-y-1 border-l border-border pl-3 text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3"><span>{sentenceCase(event.type)} · <span className="font-mono">{event.reasonCode}</span> · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="font-mono">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
+            </details>}
           </BandRow>) : <Empty>No shifts yet.</Empty>}
           <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
         </ListBand>
@@ -311,6 +299,10 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             {data.registers.items.length ? data.registers.items.map(register => <BandRow key={register.id} title={register.name} tone={statusTone(register.status)} state={<span >{sentenceCase(register.status)}</span>} detail={<span className="font-mono">{register.code}</span>} aside={<RegisterStatusForm register={register} />} />) : <Empty>No registers yet.</Empty>}
             <div className="bg-background/50 px-4 py-4"><RegisterForm /></div>
           </ListBand>
+        </section>
+        <section className="lg:col-span-2">
+          <SectionTitle meta={data.tenders.filter(tender => tender.enabled).length} action={<Track><PillLink href="/dashboard/platform/authority#sales-rules">Change payment types</PillLink></Track>}>Payment types</SectionTitle>
+          <ListBand>{data.tenders.length ? data.tenders.map(tender => <BandRow key={tender.id} title={tender.displayName} tone={tender.enabled ? 'ok' : 'muted'} state={tender.enabled ? 'Accepted' : 'Off'} detail={<><span className="font-mono">{tender.code}</span> · {tender.authorityReference} · until {formatWhen(tender.expiresAt, data.timezone)}</>} />) : <Empty>No payment types configured.</Empty>}</ListBand>
         </section>
       </div>
     </Workboard>;
@@ -347,6 +339,18 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
           {data.runs.items.length ? data.runs.items.map(run => <BandRow key={run.id} title={<span >{sentenceCase(run.type)}</span>} tone={run.discrepancyCount ? 'warn' : statusTone(run.status)} state={<span >{sentenceCase(run.status)}</span>} detail={`Started ${formatWhen(run.startedAt, data.timezone)}`} aside={<span className="font-mono text-xs">{run.discrepancyCount} discrepancies</span>} />) : <Empty>No reconciliation runs.</Empty>}
           <Pager basePath="/dashboard/platform/reconciliation" params={params} nextCursor={data.runs.nextCursor} shown={data.runs.items.length} total={data.runs.total} noun="runs" />
         </ListBand>
+      </section>
+    </div>
+    <div className="grid gap-8 lg:grid-cols-2">
+      <section>
+        <SectionTitle meta={data.integrations.length}>Integrations</SectionTitle>
+        <ListBand>{data.integrations.length ? data.integrations.map(integration => <BandRow key={integration.id} title={<span className="font-mono">{integration.providerCode}</span>} tone={statusTone(integration.status === 'unconfigured' ? 'pending' : integration.status)} state={sentenceCase(integration.status)}
+          detail={<>{sentenceCase(integration.providerType)} · {integration.authorityReference}{integration.facilityReference ? ` · facility ${integration.facilityReference}` : ''} · {integration.lastSuccessfulSyncAt ? `last sync ${formatWhen(integration.lastSuccessfulSyncAt, data.timezone)}` : 'never synced'}</>} />) : <Empty>No integrations.</Empty>}</ListBand>
+      </section>
+      <section>
+        <SectionTitle meta={data.inbox.total}>Inbound state events</SectionTitle>
+        <ListBand>{data.inbox.items.length ? data.inbox.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.providerEventId}</span>} tone={statusTone(event.status === 'processed' ? 'completed' : event.status)} state={sentenceCase(event.status)}
+          detail={<>{event.providerCode} · received {formatWhen(event.receivedAt, data.timezone)}{event.rejectionReason ? ` · ${event.rejectionReason}` : ''}</>} />) : <Empty>No inbound events.</Empty>}</ListBand>
       </section>
     </div>
   </Workboard>);

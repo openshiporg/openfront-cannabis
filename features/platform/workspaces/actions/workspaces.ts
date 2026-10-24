@@ -5,11 +5,11 @@ import { getAuthenticatedUser } from '@/features/dashboard/actions/auth';
 import type { CannabisWorkspaceResult } from '../lib/boundary';
 import { parseWorkspace, type WorkspaceData, type WorkspaceSection } from '../lib/contract';
 
-export type WorkspaceOptions = { cursor?: string; search?: string; filter?: string; productSearch?: string };
+export type WorkspaceOptions = { cursor?: string; search?: string; filter?: string; productSearch?: string; id?: string };
 
 function boundedOptions(options: WorkspaceOptions = {}) {
   const out: Record<string, string> = {};
-  for (const key of ['cursor', 'search', 'filter', 'productSearch'] as const) {
+  for (const key of ['cursor', 'search', 'filter', 'productSearch', 'id'] as const) {
     const value = options[key];
     if (typeof value === 'string' && value.trim() && value.trim().length <= 100) out[key] = value.trim();
   }

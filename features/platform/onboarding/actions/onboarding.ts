@@ -6,7 +6,6 @@ import { runCommandRequest } from '@/features/platform/lib/commandClient';
 import { getAuthenticatedUser } from '@/features/dashboard/actions/auth';
 import { notCompletedState, parseAuthorityPack, unknownOutcomeState, type OnboardingState } from '../lib/state';
 
-export type { OnboardingState } from '../lib/state';
 
 async function readOnboardingStatus(): Promise<string | null> {
   try {

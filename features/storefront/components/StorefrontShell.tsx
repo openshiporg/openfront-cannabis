@@ -44,6 +44,7 @@ export async function StorefrontShell({ settings, forms = [], children }: { sett
         <Link href="/" aria-label={`${name} menu`} className="inline-flex min-w-0 items-center text-cn-ink">{logo()}</Link>
         <nav aria-label="Menu forms" className="hidden min-w-0 items-center gap-1 lg:flex">
           <Link href="/#menu" className="rounded-full px-3 py-2 text-[14px] font-medium text-cn-ink hover:bg-cn-well">Menu</Link>
+          <Link href="/visit" className="rounded-full px-3 py-2 text-[14px] text-cn-ink-2 hover:bg-cn-well hover:text-cn-ink">Visit</Link>
           {shortcuts.map(form => <Link key={form.key} href={`/?form=${encodeURIComponent(form.key)}#menu`} className="rounded-full px-3 py-2 text-[14px] text-cn-ink-2 hover:bg-cn-well hover:text-cn-ink">{form.label}</Link>)}
         </nav>
         <Link href="/dashboard/signin" className="hidden shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[14px] text-cn-ink-2 hover:bg-cn-well hover:text-cn-ink sm:inline-flex">Staff sign in<ArrowUpRight className="size-4" aria-hidden="true" /></Link>
@@ -54,6 +55,7 @@ export async function StorefrontShell({ settings, forms = [], children }: { sett
               <li><Link href="/#menu" className="flex min-h-12 items-center justify-between px-2 text-[15px] font-medium text-cn-ink">Menu<span className="cn-num text-[12px] text-cn-ink-3">{forms.reduce((sum, form) => sum + form.count, 0)}</span></Link></li>
               {forms.map(form => <li key={form.key}><Link href={`/?form=${encodeURIComponent(form.key)}#menu`} className="flex min-h-12 items-center justify-between px-2 text-[15px] text-cn-ink-2">{form.label}<span className="cn-num text-[12px] text-cn-ink-3">{form.count}</span></Link></li>)}
             </ul>
+            <Link href="/visit" className="mt-1 flex min-h-12 items-center justify-between px-2 text-[15px] font-medium text-cn-ink">Visit · hours and address</Link>
             <Link href="/dashboard/signin" className="mt-1 flex min-h-12 items-center justify-between px-2 text-[15px] text-cn-ink-2">Staff sign in<ArrowUpRight className="size-4" aria-hidden="true" /></Link>
           </nav>
         </PhoneMenu>
@@ -85,6 +87,7 @@ export async function StorefrontShell({ settings, forms = [], children }: { sett
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-1 border-t border-cn-line px-4 py-3 text-[13px] text-cn-ink-2 sm:px-6">
         <span className="cn-num inline-flex min-h-11 items-center tracking-[0.12em] text-cn-ink">{ages.medical != null ? `${ages.adult}+ · PATIENTS ${ages.medical}+` : `${ages.adult}+`}</span>
         <Link href="/#menu" className="inline-flex min-h-11 items-center hover:text-cn-ink">Menu</Link>
+        <Link href="/visit" className="inline-flex min-h-11 items-center hover:text-cn-ink">Visit</Link>
         <Link href="/dashboard/signin" className="inline-flex min-h-11 items-center gap-1 hover:text-cn-ink">Staff sign in<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
         <span className="cn-num inline-flex min-h-11 items-center">© {new Date().getFullYear()}</span>
       </div>

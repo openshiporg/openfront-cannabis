@@ -44,10 +44,16 @@ function sortItems(items: TileProduct[], sort: SortId) {
   return list;
 }
 
-function menuHref(form: string | null, sort: SortId) {
+type Channel = 'adult' | 'medical' | null;
+type MenuState = { form: string | null; sort: SortId; q: string; channel: Channel };
+
+function menuHref(state: MenuState, patch: Partial<MenuState> = {}) {
+  const next = { ...state, ...patch };
   const query = new URLSearchParams();
-  if (form) query.set('form', form);
-  if (sort !== 'featured') query.set('sort', sort);
+  if (next.q) query.set('q', next.q);
+  if (next.form) query.set('form', next.form);
+  if (next.channel) query.set('channel', next.channel);
+  if (next.sort !== 'featured') query.set('sort', next.sort);
   const text = query.toString();
   return `/${text ? `?${text}` : ''}#menu`;
 }
@@ -63,7 +69,16 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
   const activeForm = forms.some(form => form.key === requestedForm) ? requestedForm! : null;
   const requestedSort = first(params.sort);
   const sort: SortId = SORTS.some(option => option.id === requestedSort) ? requestedSort as SortId : 'featured';
-  const shown = sortItems(activeForm ? catalog.filter(item => formKey(item.form) === activeForm) : catalog, sort);
+  const q = (first(params.q) || '').trim().slice(0, 80);
+  const requestedChannel = first(params.channel);
+  const hasMedical = catalog.some(item => item.medicalEligible); const hasAdult = catalog.some(item => item.adultUseEligible);
+  const channel: Channel = requestedChannel === 'medical' || requestedChannel === 'adult' ? requestedChannel : null;
+  const state: MenuState = { form: activeForm, sort, q, channel };
+  const needle = q.toLowerCase();
+  const shown = sortItems(catalog.filter(item => (!activeForm || formKey(item.form) === activeForm)
+    && (!channel || (channel === 'medical' ? item.medicalEligible : item.adultUseEligible))
+    && (!needle || item.name.toLowerCase().includes(needle) || item.form.toLowerCase().includes(needle))), sort);
+  const filtered = Boolean(activeForm || channel || q);
   const name = storeName(settings);
   const open = openState(settings.visit);
   const address = addressLines(settings.visit);
@@ -94,13 +109,23 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
           <span className="cn-num text-[13px] text-cn-ink-3">{shown.length}</span>
           {showDemo && !live.length && <span className="inline-flex items-baseline gap-1.5 text-[13px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Not for sale</span>}
         </div>
-        {catalog.length > 0 && <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        {catalog.length > 0 && <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+          <form action="/#menu" role="search" className="flex min-w-0 items-center gap-2">
+            {activeForm && <input type="hidden" name="form" value={activeForm} />}{channel && <input type="hidden" name="channel" value={channel} />}{sort !== 'featured' && <input type="hidden" name="sort" value={sort} />}
+            <label className="min-w-0 flex-1"><span className="sr-only">Search the menu</span><input name="q" defaultValue={q} maxLength={80} placeholder="Search the menu" className="h-11 w-full min-w-0 rounded-full border border-cn-line bg-cn-surface px-4 text-[14px] text-cn-ink outline-none placeholder:text-cn-ink-3 focus-visible:border-cn-accent sm:w-56" /></label>
+            <span className="cn-track"><button type="submit" className="cn-pill" data-active="true">Search</button></span>
+          </form>
+          {hasMedical && hasAdult && <nav aria-label="Filter by channel" className="cn-track">
+            <Link href={menuHref(state, { channel: null })} aria-current={!channel ? 'page' : undefined} className="cn-pill">Everyone</Link>
+            <Link href={menuHref(state, { channel: 'adult' })} aria-current={channel === 'adult' ? 'page' : undefined} className="cn-pill">Adult-use</Link>
+            <Link href={menuHref(state, { channel: 'medical' })} aria-current={channel === 'medical' ? 'page' : undefined} className="cn-pill">Medical</Link>
+          </nav>}
           <nav aria-label="Filter by form" className="cn-track">
-            <Link href={menuHref(null, sort)} aria-current={!activeForm ? 'page' : undefined} className="cn-pill">All <span className="cn-num text-[11px] text-cn-ink-3">{catalog.length}</span></Link>
-            {forms.map(form => <Link key={form.key} href={menuHref(form.key, sort)} aria-current={activeForm === form.key ? 'page' : undefined} className="cn-pill">{form.label} <span className="cn-num text-[11px] text-cn-ink-3">{form.count}</span></Link>)}
+            <Link href={menuHref(state, { form: null })} aria-current={!activeForm ? 'page' : undefined} className="cn-pill">All <span className="cn-num text-[11px] text-cn-ink-3">{catalog.length}</span></Link>
+            {forms.map(form => <Link key={form.key} href={menuHref(state, { form: form.key })} aria-current={activeForm === form.key ? 'page' : undefined} className="cn-pill">{form.label} <span className="cn-num text-[11px] text-cn-ink-3">{form.count}</span></Link>)}
           </nav>
           {!(showDemo && !live.length) && <nav aria-label="Sort" className="cn-track">
-            {SORTS.map(option => <Link key={option.id} href={menuHref(activeForm, option.id)} aria-current={sort === option.id ? 'page' : undefined} className="cn-pill">{option.label}</Link>)}
+            {SORTS.map(option => <Link key={option.id} href={menuHref(state, { sort: option.id })} aria-current={sort === option.id ? 'page' : undefined} className="cn-pill">{option.label}</Link>)}
           </nav>}
         </div>}
       </div>
@@ -113,6 +138,11 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
 
       {!live.length && showDemo && <div data-testid="demo-catalog-lane" className="mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 lg:grid-cols-4">
         {shown.map(product => <ProductTile key={product.id} product={product} />)}
+      </div>}
+
+      {catalog.length > 0 && !shown.length && filtered && <div className="cn-band mt-8 flex flex-col items-center gap-4 px-5 py-10 text-center">
+        <p className="cn-display text-[22px] text-cn-ink">Nothing matches{q ? ` “${q}”` : ''}</p>
+        <span className="cn-track"><Link href="/#menu" className="cn-pill" data-active="true">Clear filters</Link></span>
       </div>}
 
       {!menu.unavailable && !catalog.length && <div className="cn-band mt-8 px-5 py-10 text-center">

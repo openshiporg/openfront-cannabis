@@ -10,9 +10,9 @@ const readable = (value: string | null | undefined) => (value || '').replaceAll(
  * Read-only receipt. Amounts use the currency recorded on the sale itself;
  * `currencyCode` (the premises' current currency) is never applied to history.
  */
-export async function SaleReceiptDetail({ saleId, timezone }: { saleId: string; currencyCode?: string | null; timezone?: string | null }) {
+export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashboard/platform/pos', closeLabel = 'Close receipt' }: { saleId: string; currencyCode?: string | null; timezone?: string | null; closeHref?: string; closeLabel?: string }) {
   const result = await getSaleReceipt(saleId);
-  const close = <Track><PillLink href="/dashboard/platform/pos">Close receipt</PillLink></Track>;
+  const close = <Track><PillLink href={closeHref}>{closeLabel}</PillLink></Track>;
   if (result.state !== 'ok') {
     const text = result.state === 'forbidden' ? 'You do not have access to sales receipts.' : result.state === 'not_found' ? 'Receipt not found.' : 'Receipt is unavailable right now.';
     return <Panel data-testid="sale-receipt-detail"><div className="flex flex-wrap items-center justify-between gap-3"><p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone={result.state === 'unavailable' ? 'danger' : 'warn'} />{text}</p>{close}</div></Panel>;

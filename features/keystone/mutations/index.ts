@@ -13,6 +13,7 @@ import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSetting
 import { amendCannabisPremisesDetails, amendCannabisRulePack } from "./rulePack";
 import { setStaffTemporaryPassword } from "./staffAccess";
 import { exposeRuleErrors } from "./ruleErrors";
+import { openRecallCase, placePackageHold } from "./custody";
 
 const graphql = String.raw;
 
@@ -41,6 +42,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         renewCannabisAuthority(input: JSON!): JSON!
         amendCannabisRulePack(input: JSON!): JSON!
         amendCannabisPremisesDetails(input: JSON!): JSON!
+        placePackageHold(input: JSON!): JSON!
+        openRecallCase(input: JSON!): JSON!
         setStaffTemporaryPassword(input: JSON!): JSON!
         configureCannabisStorefrontSettings(input: JSON!): JSON!
         provisionStaffAuthority(input: JSON!): JSON!
@@ -81,6 +84,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         renewCannabisAuthority,
         amendCannabisRulePack,
         amendCannabisPremisesDetails,
+        placePackageHold,
+        openRecallCase,
         setStaffTemporaryPassword,
         configureCannabisStorefrontSettings,
         provisionStaffAuthority,

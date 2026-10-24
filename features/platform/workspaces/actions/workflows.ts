@@ -270,3 +270,29 @@ export async function amendPremisesDetailsFromDesk(_state: CommandState, formDat
     idempotencyKey, line1: text(formData, 'line1'), city: text(formData, 'city'), region: text(formData, 'region'), postalCode: text(formData, 'postalCode'), country: text(formData, 'country'), phone,
   }, 'Address and phone saved. The storefront shows them now.');
 }
+
+export async function placeHoldFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const type = text(formData, 'type');
+  if (!['quarantine', 'test_hold', 'discrepancy', 'authority', 'expiry'].includes(type)) errors.type = 'Choose a hold type';
+  if (!REASON_CODE.test(text(formData, 'reasonCode'))) errors.reasonCode = 'Use a lowercase code such as damaged_seal';
+  if (text(formData, 'reason').length < 4) errors.reason = 'Describe why the package is held';
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('placePackageHold', 'placePackageHold', { idempotencyKey, packageId: text(formData, 'packageId'), type, reasonCode: text(formData, 'reasonCode'), reason: text(formData, 'reason') }, 'Hold placed. The package is no longer ready to sell.');
+}
+
+const codeList = (value: string) => [...new Set(value.split(/[\s,]+/).map(entry => entry.trim()).filter(Boolean))];
+
+export async function openRecallFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  if (text(formData, 'authorityReference').length < 2) errors.authorityReference = 'Enter the recall notice reference';
+  if (text(formData, 'reason').length < 4) errors.reason = 'Enter the recall reason';
+  const packageUids = codeList(text(formData, 'packageUids')); const batchNumbers = codeList(text(formData, 'batchNumbers'));
+  if (!packageUids.length && !batchNumbers.length) errors.packageUids = 'Enter package UIDs or production batches';
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  const result = await runCommand('openRecallCase', 'openRecallCase', { idempotencyKey, authorityReference: text(formData, 'authorityReference'), reason: text(formData, 'reason'), packageUids, batchNumbers }, 'Recall opened.');
+  const held = typeof result.result?.heldPackages === 'number' ? result.result.heldPackages : null;
+  return result.success && held != null ? { ...result, success: `Recall ${String(result.result?.reference ?? '')} opened. ${held} package${held === 1 ? '' : 's'} held.` } : result;
+}
