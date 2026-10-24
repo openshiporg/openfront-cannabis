@@ -95,13 +95,17 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
 
   const authority = readAuthority; const sudo = context.sudo();
   const now = new Date(); const nowMs = now.getTime();
+  // A current credential that simply doesn't cover this section's activity is limited access, not a lapse.
+  const credential = authority.actor.staffCredential;
+  const credentialCurrent = Boolean(credential && credential.status === "active" && new Date(credential.effectiveAt).getTime() <= nowMs && new Date(credential.expiresAt).getTime() > nowMs);
+  const limited = Boolean(operatingClosedReason) && credentialCurrent && Array.isArray(credential?.allowedActivities) && !credential!.allowedActivities.includes(required.activity);
   const scope = { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } } };
   const base = {
     section, state: "ok", generatedAt: now.toISOString(),
     authorityFingerprint: stableHash([authority.actor.id, authority.organizationId, authority.premisesId]),
     jurisdictionCode: authority.actor.organization?.jurisdictionCode ?? null, premisesId: authority.premisesId,
     timezone: authority.actor.premises?.timezone ?? null, currencyCode: authority.actor.premises?.currencyCode ?? null,
-    operating: { open: !operatingClosedReason, reason: operatingClosedReason },
+    operating: { open: !operatingClosedReason, reason: operatingClosedReason, limited },
     salesRules: { version: null as string | null, problem: null as string | null },
   };
   // The same check sales and the public menu run, so a broken pack is visible on every workspace.
@@ -109,8 +113,8 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   base.salesRules = { version: rulePack?.version ?? null, problem: rulePackProblem(rulePack) };
 
   if (section === "overview") {
-    const role = (await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: "role { canManageInventory canManageCompliance canManageAuthority }" }))?.role;
-    const result: Record<string, unknown> = { ...base };
+    const role = (await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: "role { canManageInventory canManageCompliance canManageAuthority canManageSales canManageFinance canViewReports }" }))?.role;
+    const result: Record<string, unknown> = { ...base, access: { inventory: role?.canManageInventory === true, compliance: role?.canManageCompliance === true, authority: role?.canManageAuthority === true, sales: role?.canManageSales === true, finance: role?.canManageFinance === true, reports: role?.canViewReports === true } };
     if (role?.canManageInventory === true && !operatingClosedReason) {
       const ready = await page(context, "InventoryPackage", { where: { ...scope, ...readyPackageWhere(now) }, orderBy: [{ expiresAt: "asc" }], take: 10, query: "id packageUid expiresAt quantityOnHandMicrounits reservedMicrounits unitOfMeasure product { name }" });
       const [held, receiving] = await Promise.all([
@@ -133,9 +137,13 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const credentials = await page(context, "StaffCredential", { where: scope, orderBy: [{ expiresAt: "asc" }], cursor: options.cursor, query: "id credentialType status effectiveAt expiresAt approvalLimitCents user { id name }" });
     const states = credentials.items.map(credential => intervalState(credential as any, nowMs));
     const self = await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: "role { canManageOnboarding } staffCredential { id approvalLimitCents }" });
+    const premisesRow = await sudo.query.Premises.findOne({ where: { id: authority.premisesId }, query: "name addressSnapshot" });
+    const address = premisesRow?.addressSnapshot && typeof premisesRow.addressSnapshot === "object" && !Array.isArray(premisesRow.addressSnapshot) ? premisesRow.addressSnapshot as Record<string, unknown> : {};
+    const addressText = (key: string) => typeof address[key] === "string" ? (address[key] as string).slice(0, 200) : null;
     return {
       ...base,
       self: { credentialId: self?.staffCredential?.id ?? null, isOwner: self?.role?.canManageOnboarding === true, approvalLimitCents: self?.staffCredential?.approvalLimitCents ?? 0 },
+      premises: { name: premisesRow?.name ?? null, line1: addressText("line1"), city: addressText("city"), region: addressText("region"), postalCode: addressText("postalCode"), country: addressText("country"), phone: addressText("phone") },
       rules: rulePack ? {
         id: rulePack.id, version: rulePack.version, effectiveAt: new Date(rulePack.effectiveAt).toISOString(), expiresAt: new Date(rulePack.expiresAt).toISOString(),
         adultMinimumAge: rulePack.adultMinimumAge, medicalMinimumAge: rulePack.medicalMinimumAge, medicalEnabled: rulePack.medicalEnabled === true,
@@ -189,7 +197,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
 
   if (section === "menu") {
     const search = options.search ? { OR: [{ name: { contains: options.search, mode: "insensitive" } }, { sku: { contains: options.search, mode: "insensitive" } }] } : {};
-    const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, search] }, orderBy: [{ name: "asc" }], cursor: options.cursor, query: `id name sku form categoryCode priceCents status unitOfMeasure adultUseEligible medicalEligible updatedAt publicDescription packages(where: { status: { equals: saleable }, testStatus: { equals: passed }, expiresAt: { gt: "${now.toISOString()}" } }, orderBy: [{ expiresAt: asc }], take: 20) { id quantityOnHandMicrounits reservedMicrounits status testStatus expiresAt coaReference labelVersion holdsCount(where: { status: { equals: active } }) }` });
+    const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, search] }, orderBy: [{ name: "asc" }], cursor: options.cursor, query: `id name sku form categoryCode taxCategoryCode priceCents status unitOfMeasure adultUseEligible medicalEligible updatedAt publicDescription packages(where: { status: { equals: saleable }, testStatus: { equals: passed }, expiresAt: { gt: "${now.toISOString()}" } }, orderBy: [{ expiresAt: asc }], take: 20) { id quantityOnHandMicrounits reservedMicrounits status testStatus expiresAt coaReference labelVersion holdsCount(where: { status: { equals: active } }) }` });
     const items = products.items.map(product => {
       const candidates = Array.isArray(product.packages) ? product.packages : [];
       const ready = candidates.filter((pkg: any) => packageReadiness({ ...pkg, activeHoldCount: Number(pkg.holdsCount) || 0 }, now).ready);

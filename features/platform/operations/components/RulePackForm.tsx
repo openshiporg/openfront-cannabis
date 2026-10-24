@@ -1,21 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { ActionTrack, inputClass, labelClass, PillButton } from '@/features/platform/components/cannabis-ui';
+import { useId, useState, type ReactNode } from 'react';
+import { ActionTrack, inputClass, labelClass, PillButton, Track } from '@/features/platform/components/cannabis-ui';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
 import { amendRulePackFromDesk } from '@/features/platform/workspaces/actions/workflows';
 import { LimitsEditor, TaxEditor } from '@/features/platform/onboarding/components/RuleEditors';
-import { buildLimits, buildTaxes, emptyLimit, emptyTax, limitsToRows, minuteToTime, taxesToRows, timeToMinute, type RuleErrors } from '@/features/platform/onboarding/lib/pack';
+import { buildLimits, buildTaxes, emptyLimit, emptyTax, limitsToRows, minuteToTime, taxesToRows, TENDER_TYPES, timeToMinute, type RuleErrors } from '@/features/platform/onboarding/lib/pack';
 import { CommandStatus, useCommand } from './useCommand';
 
 type Rules = {
   version: string; adultMinimumAge: number; medicalMinimumAge: number; medicalEnabled: boolean; operatingStartMinute: number; operatingEndMinute: number;
-  purchaseLimits: Array<Record<string, unknown>>; taxRules: Array<Record<string, unknown>>;
+  purchaseLimits: Array<Record<string, unknown>>; taxRules: Array<Record<string, unknown>>; allowedTenderTypes: string[];
 };
 
 /** Owner-only: supersede the current sales rules with a corrected version, effective now. */
 export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; approvalLimitCents: number }) {
-  const { state, formAction, pending, key, summary, markDirty } = useCommand(amendRulePackFromDesk);
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(amendRulePackFromDesk);
   const [limits, setLimits] = useState(() => { const rows = limitsToRows(rules.purchaseLimits); return rows.length ? rows : [emptyLimit()]; });
   const [taxes, setTaxes] = useState(() => { const rows = taxesToRows(rules.taxRules); return rows.length ? rows : [emptyTax()]; });
   const [errors, setErrors] = useState<RuleErrors>({});
@@ -24,8 +24,10 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
   const [adultAge, setAdultAge] = useState(String(rules.adultMinimumAge));
   const [medicalAge, setMedicalAge] = useState(String(rules.medicalMinimumAge));
   const [limit, setLimit] = useState((approvalLimitCents / 100).toFixed(2));
+  const [tenders, setTenders] = useState<string[]>(rules.allowedTenderTypes);
+  const [medical, setMedical] = useState(rules.medicalEnabled);
 
-  function submit(formData: FormData) {
+  function prepare(formData: FormData) {
     const found: RuleErrors = {};
     const purchaseLimits = buildLimits(limits, found); const taxRules = buildTaxes(taxes, found);
     const operatingStartMinute = timeToMinute(opensAt); const operatingEndMinute = timeToMinute(closesAt);
@@ -35,14 +37,14 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
     if (!Number.isInteger(medicalMinimumAge) || medicalMinimumAge < 0 || medicalMinimumAge > 120) found.medicalAge = 'Whole number of years';
     const micro = limit.trim() === '0' ? 0 : parseQuantityToMicrounits(limit);
     if (micro == null) found.limit = 'Enter an amount, e.g. 50.00';
+    if (!tenders.length) found.tenders = 'Choose at least one payment type';
     setErrors(found);
-    if (Object.keys(found).length) return;
-    formData.set('payload', JSON.stringify({ purchaseLimits, taxRules, operatingStartMinute, operatingEndMinute, adultMinimumAge, medicalMinimumAge, ownerApprovalLimitCents: Math.round(micro! / 10_000) }));
-    formAction(formData);
+    if (Object.keys(found).length) return false;
+    formData.set('payload', JSON.stringify({ purchaseLimits, taxRules, operatingStartMinute, operatingEndMinute, adultMinimumAge, medicalMinimumAge, ownerApprovalLimitCents: Math.round(micro! / 10_000), allowedTenderTypes: tenders, medicalEnabled: medical }));
   }
 
   const err = (name: string) => errors[name] ? <span className="mt-1 block font-normal text-destructive">{errors[name]}</span> : null;
-  return <form action={submit} onChange={markDirty} className="space-y-5" aria-label="Amend sales rules">
+  return <form onSubmit={onSubmit(prepare)} onChange={markDirty} className="space-y-5" aria-label="Amend sales rules">
     <input type="hidden" name="idempotencyKey" value={key} />
     <fieldset disabled={pending} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -50,8 +52,15 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
         <label className={labelClass}>Opens<input type="time" value={opensAt} onChange={event => setOpensAt(event.target.value)} className={inputClass} />{err('opensAt')}</label>
         <label className={labelClass}>Closes<input type="time" value={closesAt} onChange={event => setClosesAt(event.target.value)} className={inputClass} />{err('closesAt')}</label>
         <label className={labelClass}>Adult-use minimum age<input value={adultAge} onChange={event => setAdultAge(event.target.value)} inputMode="numeric" className={`${inputClass} font-mono`} />{err('adultAge')}</label>
-        {rules.medicalEnabled && <label className={labelClass}>Medical minimum age<input value={medicalAge} onChange={event => setMedicalAge(event.target.value)} inputMode="numeric" className={`${inputClass} font-mono`} />{err('medicalAge')}</label>}
+        {medical && <label className={labelClass}>Medical minimum age<input value={medicalAge} onChange={event => setMedicalAge(event.target.value)} inputMode="numeric" className={`${inputClass} font-mono`} />{err('medicalAge')}</label>}
         <label className={labelClass}>Your variance approval limit<input value={limit} onChange={event => setLimit(event.target.value)} inputMode="decimal" className={`${inputClass} font-mono`} />{err('limit')}</label>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
+        <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm"><input type="checkbox" checked={medical} onChange={event => setMedical(event.target.checked)} className="size-4 accent-green-700 dark:accent-green-400" />Medical sales</label>
+        <fieldset className="space-y-2"><legend className="text-xs font-medium">Payment types</legend>
+          <div className="flex flex-wrap gap-2">{TENDER_TYPES.map(option => <label key={option.value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 text-sm has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" checked={tenders.includes(option.value)} onChange={event => setTenders(current => event.target.checked ? [...current, option.value] : current.filter(type => type !== option.value))} className="size-4 accent-green-700 dark:accent-green-400" />{option.label}</label>)}</div>
+          {err('tenders')}
+        </fieldset>
       </div>
       <section className="space-y-2"><h3 className="text-xs font-medium">Purchase limits</h3><LimitsEditor rows={limits} onChange={setLimits} errors={errors} /></section>
       <section className="space-y-2"><h3 className="text-xs font-medium">Tax rules</h3><TaxEditor rows={taxes} onChange={setTaxes} errors={errors} /></section>
@@ -61,4 +70,14 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
       <CommandStatus state={state} summary={summary} />
     </div>
   </form>;
+}
+
+/** Open state lives here, not in the server render, so the form and its result stay open after the save refreshes the page. */
+export function AmendRulesDisclosure({ initiallyOpen, label = 'Amend sales rules', children }: { initiallyOpen: boolean; label?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(initiallyOpen);
+  const id = useId();
+  return <div className="bg-background/50">
+    <div className="px-4 py-3"><Track><button type="button" aria-expanded={open} aria-controls={id} data-active={open} onClick={() => setOpen(value => !value)} className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:data-[active=true]:bg-zinc-800">{open ? 'Close' : label}</button></Track></div>
+    <div id={id} hidden={!open} className="px-4 pb-4">{children}</div>
+  </div>;
 }

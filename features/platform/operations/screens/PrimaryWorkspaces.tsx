@@ -8,10 +8,10 @@ import type { CannabisWorkspaceResult } from '@/features/platform/workspaces/lib
 import type { WorkspaceData, WorkspaceSection } from '@/features/platform/workspaces/lib/contract';
 import { CartPreparationClient } from '@/features/platform/fulfillment/components/CartPreparationClient';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
-import { BandRow, ListBand, MetricStrip, Notice, operatingState, PageTitle, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
+import { BandRow, ListBand, MetricStrip, Notice, operatingState, PageTitle, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { AsOf, Empty, formatUsableThrough, formatWhen, Pager, readable, SearchForm, Status, Workboard, WorkspaceStateNotice } from '../components/WorkspaceKit';
-import { RulePackForm } from '../components/RulePackForm';
-import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, ProvisionStaffForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
+import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
+import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, ProvisionStaffForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 type Params = Record<string, string | undefined>;
@@ -38,12 +38,13 @@ async function frame<S extends WorkspaceSection>(section: S, path: string, title
   return <PageContainer header={<PageTitle title={title} tone={tone} state={state} meta={meta} />} breadcrumbs={breadcrumbs}>{rulesNotice}{render(data)}</PageContainer>;
 }
 
-function OperatingNotice({ operating }: { operating: { open: boolean; reason: string | null } }) {
-  if (operating.open) return null;
+function OperatingNotice({ operating }: { operating: { open: boolean; reason: string | null; limited: boolean } }) {
+  if (operating.open || operating.limited) return null;
   return <Notice tone="danger" action={<Track><PillLink href="/dashboard/platform/authority" active>Open Authority</PillLink></Track>}>Operating authority is not current: {operating.reason}. Read only until renewed.</Notice>;
 }
 
 const minuteLabel = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+const TENDER_LABEL: Record<string, string> = { cash: 'Cash', debit: 'Debit', ach: 'ACH', wallet: 'Wallet', other: 'Other' };
 const CAPACITY_LABEL: Record<string, string> = { adult_use: 'adult-use', patient: 'patient', caregiver: 'caregiver', all: 'all buyers' };
 function describeLimit(rule: Record<string, unknown>) {
   const max = typeof rule.maxEquivalencyMicrounits === 'number' ? formatMicrounits(rule.maxEquivalencyMicrounits) : '?';
@@ -54,6 +55,19 @@ function describeTax(rule: Record<string, unknown>) {
   const rate = typeof rule.basisPoints === 'number' ? `${rule.basisPoints / 100}%` : '?';
   return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${rate}`;
 }
+const WORKSPACES: Array<{ title: string; detail: string; href: string; access: 'inventory' | 'compliance' | 'authority' | 'sales' | 'finance' | 'reports' }> = [
+  { title: 'POS', detail: 'Carts, preparation and receipts', href: '/dashboard/platform/pos', access: 'sales' },
+  { title: 'Inventory', detail: 'Packages, holds and custody', href: '/dashboard/platform/inventory', access: 'inventory' },
+  { title: 'Receiving', detail: 'Packages against manifests', href: '/dashboard/platform/receiving', access: 'inventory' },
+  { title: 'Menu', detail: 'Products and readiness', href: '/dashboard/platform/menu', access: 'inventory' },
+  { title: 'Cash', detail: 'Registers and shifts', href: '/dashboard/platform/cash', access: 'finance' },
+  { title: 'Compliance', detail: 'Holds, verification and recalls', href: '/dashboard/platform/compliance', access: 'compliance' },
+  { title: 'Incidents', detail: 'Incidents and deadlines', href: '/dashboard/platform/incidents', access: 'compliance' },
+  { title: 'Reconciliation', detail: 'State reporting queue', href: '/dashboard/platform/reconciliation', access: 'reports' },
+  { title: 'Authority', detail: 'Licenses, staff and sales rules', href: '/dashboard/platform/authority', access: 'authority' },
+  { title: 'Store Settings', detail: 'Name, logo and accent', href: '/dashboard/platform/store-settings', access: 'authority' },
+];
+
 const INTERVAL_LABEL: Record<string, string> = { current: 'Current', expiring_soon: 'Expires within 30 days', expired: 'Expired', not_yet_effective: 'Not yet effective', inactive: 'Inactive' };
 const NOTIFICATION_LABEL: Record<string, string> = { none: 'No deadline', overdue: 'Notification overdue', due_soon: 'Due within 24 hours', upcoming: 'Upcoming deadline', resolved: 'Resolved', unknown: 'Deadline unknown' };
 const NOTIFICATION_TONE: Record<string, DotTone> = { none: 'muted', overdue: 'danger', due_soon: 'warn', upcoming: 'info', resolved: 'ok', unknown: 'warn' };
@@ -85,11 +99,14 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
       {data.incidents && <section>
         <SectionTitle meta={data.incidents.openTotal} action={<Track><PillLink href="/dashboard/platform/incidents">All incidents</PillLink></Track>}>Open incidents</SectionTitle>
         <ListBand>{data.incidents.open.length ? data.incidents.open.map(incident => <Link key={incident.id} href={`/dashboard/platform/incidents#incident-${incident.id}`} className="block transition-colors hover:bg-background/60">
-          <BandRow title={<span className="font-mono">{incident.reference}</span>} tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'} state={NOTIFICATION_LABEL[incident.notificationState] || readable(incident.notificationState)} detail={<span className="capitalize">{readable(incident.type)} · {readable(incident.severity)}</span>} />
+          <BandRow title={<span className="font-mono">{incident.reference}</span>} tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'} state={NOTIFICATION_LABEL[incident.notificationState] || sentenceCase(incident.notificationState)} detail={<span >{sentenceCase(incident.type)} · {sentenceCase(incident.severity)}</span>} />
         </Link>) : <Empty>No open incidents.</Empty>}</ListBand>
       </section>}
     </div>
-    {!data.inventory && !data.incidents && <ListBand><Empty>Your role has no inventory or compliance access.</Empty></ListBand>}
+    <section>
+      <SectionTitle>Your workspaces</SectionTitle>
+      <ListBand>{WORKSPACES.filter(item => data.access[item.access]).map(item => <Link key={item.href} href={item.href} className="block transition-colors hover:bg-background/60"><BandRow title={item.title} detail={item.detail} /></Link>)}</ListBand>
+    </section>
   </Workboard>);
 }
 
@@ -106,6 +123,14 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
         { label: 'Staff credentials', value: data.credentials.total },
         { label: 'Your approval limit', value: formatMinorUnits(data.self.approvalLimitCents, data.currencyCode) },
       ]} />
+      <section id="premises" className="scroll-mt-20">
+        <SectionTitle meta={data.premises.name}>Premises</SectionTitle>
+        <ListBand>
+          <BandRow title="Address" detail={[data.premises.line1, [data.premises.city, [data.premises.region, data.premises.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', '), data.premises.country].filter(Boolean).join(' · ') || 'Not recorded'} />
+          <BandRow title="Phone" detail={data.premises.phone || 'Not recorded'} tone={data.premises.phone ? undefined : 'warn'} state={data.premises.phone ? undefined : 'Not shown on the storefront'} />
+          {data.self.isOwner && <AmendRulesDisclosure initiallyOpen={false} label="Edit address and phone"><PremisesDetailsForm premises={data.premises} /></AmendRulesDisclosure>}
+        </ListBand>
+      </section>
       <section id="sales-rules" className="scroll-mt-20">
         <SectionTitle meta={rules?.version} action={rules ? <Status value={data.salesRules.problem ? 'Invalid' : 'In effect'} tone={data.salesRules.problem ? 'danger' : 'ok'} /> : undefined}>Sales rules</SectionTitle>
         {data.salesRules.problem && <Notice tone="danger" className="mb-3">{data.salesRules.problem}</Notice>}
@@ -115,17 +140,14 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
           <BandRow title="Minimum age" detail={<>Adult-use <span className="font-mono">{rules.adultMinimumAge}</span>{rules.medicalEnabled ? <> · medical <span className="font-mono">{rules.medicalMinimumAge}</span></> : ' · medical sales off'}</>} />
           <BandRow title="Purchase limits" detail={rules.purchaseLimits.length ? rules.purchaseLimits.map((rule, index) => <span key={index} className="block font-mono">{describeLimit(rule)}</span>) : 'None'} />
           <BandRow title="Tax rules" detail={rules.taxRules.length ? rules.taxRules.map((rule, index) => <span key={index} className="block font-mono">{describeTax(rule)}</span>) : 'None'} />
-          <BandRow title="Payment types" detail={<span className="capitalize">{rules.allowedTenderTypes.join(', ') || 'None'}</span>} />
-          {data.self.isOwner && <details className="group bg-background/50" open={Boolean(data.salesRules.problem)}>
-            <summary className="flex cursor-pointer list-none items-center px-4 py-3 [&::-webkit-details-marker]:hidden"><Track><span className="inline-flex min-h-8 items-center rounded-full bg-background px-3 text-[13px] font-medium shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:bg-zinc-800">Amend sales rules</span></Track></summary>
-            <div className="px-4 pb-4"><RulePackForm rules={rules} approvalLimitCents={data.self.approvalLimitCents} /></div>
-          </details>}
+          <BandRow title="Payment types" detail={rules.allowedTenderTypes.map(type => TENDER_LABEL[type] ?? sentenceCase(type)).join(', ') || 'None'} />
+          {data.self.isOwner && <AmendRulesDisclosure initiallyOpen={Boolean(data.salesRules.problem)}><RulePackForm rules={rules} approvalLimitCents={data.self.approvalLimitCents} /></AmendRulesDisclosure>}
         </ListBand> : <ListBand><Empty>No sales rules installed.</Empty></ListBand>}
       </section>
       <section data-testid="authority-workbench">
         <SectionTitle meta={data.licenses.total}>Licenses</SectionTitle>
         <ListBand>
-          {data.licenses.items.length ? data.licenses.items.map(license => <BandRow key={license.id} title={<span className="font-mono">{license.licenseNumber}</span>} tone={statusTone(license.intervalState === 'current' ? license.status : license.intervalState)} state={<span className="capitalize">{readable(license.status)} · {INTERVAL_LABEL[license.intervalState]}</span>}
+          {data.licenses.items.length ? data.licenses.items.map(license => <BandRow key={license.id} title={<span className="font-mono">{license.licenseNumber}</span>} tone={statusTone(license.intervalState === 'current' ? license.status : license.intervalState)} state={<span >{sentenceCase(license.status)} · {INTERVAL_LABEL[license.intervalState]}</span>}
             detail={`${license.licenseType} · ${license.regulatorName} · ${formatWhen(license.effectiveAt, data.timezone)} – ${formatWhen(license.expiresAt, data.timezone)}`}>
             {['expired', 'expiring_soon'].includes(license.intervalState) && <RenewAuthorityForm kind="license" id={license.id} />}
           </BandRow>) : <Empty>No licenses are recorded.</Empty>}
@@ -135,7 +157,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
       <section>
         <SectionTitle meta={data.credentials.total}>Staff credentials</SectionTitle>
         <ListBand>
-          {data.credentials.items.length ? data.credentials.items.map(credential => <BandRow key={credential.id} title={<>{credential.user?.name || 'Unassigned'}{credential.id === data.self.credentialId && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</>} tone={statusTone(credential.intervalState === 'current' ? credential.status : credential.intervalState)} state={<span className="capitalize">{readable(credential.status)} · {INTERVAL_LABEL[credential.intervalState]}</span>}
+          {data.credentials.items.length ? data.credentials.items.map(credential => <BandRow key={credential.id} title={<>{credential.user?.name || 'Unassigned'}{credential.id === data.self.credentialId && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</>} tone={statusTone(credential.intervalState === 'current' ? credential.status : credential.intervalState)} state={<span >{sentenceCase(credential.status)} · {INTERVAL_LABEL[credential.intervalState]}</span>}
             detail={<>{credential.credentialType} · valid {formatWhen(credential.effectiveAt, data.timezone)} – {formatWhen(credential.expiresAt, data.timezone)} · approval limit <span className="font-mono">{formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</span></>}>
             {data.operating.open && credential.user && <TemporaryPasswordForm userId={credential.user.id} name={credential.user.name} />}
             {data.operating.open && credential.id !== data.self.credentialId && <RevokeCredentialForm credentialId={credential.id} status={credential.status} name={credential.user?.name || 'this person'} />}
@@ -162,7 +184,7 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
       <SectionTitle meta={data.holds.total}>Active package holds</SectionTitle>
       <ListBand>
         {data.holds.items.length ? data.holds.items.map(hold => <Link key={hold.id} href={`/dashboard/platform/inventory?search=${encodeURIComponent(hold.package?.packageUid || '')}`} className="block transition-colors hover:bg-background/60">
-          <BandRow title={<span className="capitalize">{readable(hold.type)} hold</span>} tone="danger" state={<span className="font-mono">{hold.reasonCode}</span>} detail={<>Package <span className="font-mono">{hold.package?.packageUid || 'not recorded'}</span> · placed {formatWhen(hold.placedAt, data.timezone)}</>} />
+          <BandRow title={<span >{sentenceCase(hold.type)} hold</span>} tone="danger" state={<span className="font-mono">{hold.reasonCode}</span>} detail={<>Package <span className="font-mono">{hold.package?.packageUid || 'not recorded'}</span> · placed {formatWhen(hold.placedAt, data.timezone)}</>} />
         </Link>) : <Empty>No active package holds.</Empty>}
         {data.holds.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.holds.items.length} of {data.holds.total} holds</p>}
       </ListBand>
@@ -171,14 +193,14 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
       <section>
         <SectionTitle meta={data.pendingCustomers.total}>Customers awaiting verification</SectionTitle>
         <ListBand>
-          {data.pendingCustomers.items.length ? data.pendingCustomers.items.map(customer => <BandRow key={`${customer.kind}:${customer.id}`} title={<span className="font-mono">{customer.reference}</span>} tone={statusTone(customer.status)} state={<span className="capitalize">{readable(customer.status)}</span>} detail={<span className="capitalize">{readable(customer.capacity)} · since {formatWhen(customer.createdAt, data.timezone)}</span>} />) : <Empty>No customers are awaiting verification.</Empty>}
+          {data.pendingCustomers.items.length ? data.pendingCustomers.items.map(customer => <BandRow key={`${customer.kind}:${customer.id}`} title={<span className="font-mono">{customer.reference}</span>} tone={statusTone(customer.status)} state={<span >{sentenceCase(customer.status)}</span>} detail={<span >{sentenceCase(customer.capacity)} · since {formatWhen(customer.createdAt, data.timezone)}</span>} />) : <Empty>No customers are awaiting verification.</Empty>}
           <Pager basePath="/dashboard/platform/compliance" params={params} nextCursor={data.pendingCustomers.nextCursor} shown={data.pendingCustomers.items.length} total={data.pendingCustomers.total} noun="customers" />
         </ListBand>
       </section>
       <section>
         <SectionTitle meta={data.recalls.total}>Recall cases</SectionTitle>
         <ListBand>
-          {data.recalls.items.length ? data.recalls.items.map(recall => <BandRow key={`${recall.kind}:${recall.id}`} title={<span className="font-mono">{recall.reference}</span>} tone={statusTone(recall.status)} state={<span className="capitalize">{readable(recall.status)}</span>} detail={`${recall.reason} · opened ${formatWhen(recall.openedAt, data.timezone)}`} />) : <Empty>No recall cases.</Empty>}
+          {data.recalls.items.length ? data.recalls.items.map(recall => <BandRow key={`${recall.kind}:${recall.id}`} title={<span className="font-mono">{recall.reference}</span>} tone={statusTone(recall.status)} state={<span >{sentenceCase(recall.status)}</span>} detail={`${recall.reason} · opened ${formatWhen(recall.openedAt, data.timezone)}`} />) : <Empty>No recall cases.</Empty>}
           {data.recalls.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Latest {data.recalls.items.length} of {data.recalls.total} recalls</p>}
         </ListBand>
       </section>
@@ -199,14 +221,17 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
       <section data-testid="menu-workbench">
         <SectionTitle meta={data.products.total} action={<SearchForm basePath="/dashboard/platform/menu" params={params} label="Search products" placeholder="Name or SKU" />}>Products</SectionTitle>
         <ListBand>
-          {data.products.items.length ? data.products.items.map(product => <details key={product.id} className="group">
+          {data.products.items.length ? data.products.items.map(product => {
+            const missing = [!data.categories.limit.includes(product.categoryCode) && `No purchase limit for ${product.categoryCode}`, !data.categories.tax.includes(product.taxCategoryCode) && `No tax rule for ${product.taxCategoryCode}`].filter(Boolean).join(' · ');
+            return <details key={product.id} className="group">
             <summary className="cursor-pointer list-none transition-colors hover:bg-background/60 [&::-webkit-details-marker]:hidden">
-              <BandRow title={product.name} tone={product.readyPackageCount > 0 ? 'ok' : product.status === 'active' ? 'warn' : 'muted'} state={product.readyPackageCount > 0 ? 'Ready to sell' : product.status === 'active' ? 'Not ready' : <span className="capitalize">{readable(product.status)}</span>}
-                detail={<><span className="font-mono">{product.sku}</span> · {product.form} · {product.categoryCode}{product.adultUseEligible ? ' · adult-use' : ''}{product.medicalEligible ? ' · medical' : ''}</>}
+              <BandRow title={product.name} tone={missing ? 'danger' : product.readyPackageCount > 0 ? 'ok' : product.status === 'active' ? 'warn' : 'muted'} state={missing || (product.readyPackageCount > 0 ? 'Ready to sell' : product.status === 'active' ? 'Not ready' : sentenceCase(product.status))}
+                detail={<><span className="font-mono">{product.sku}</span> · {product.form} · limit <span className="font-mono">{product.categoryCode}</span> · tax <span className="font-mono">{product.taxCategoryCode}</span>{product.adultUseEligible ? ' · adult-use' : ''}{product.medicalEligible ? ' · medical' : ''}</>}
                 aside={<span className="flex flex-col items-start gap-0.5 sm:items-end"><span className="font-mono">{formatMinorUnits(product.priceCents, data.currencyCode)}</span><span className="text-xs text-muted-foreground">{product.readyPackageCount > 0 ? <>{product.readyPackageCount}{product.readyCountComplete ? '' : '+'} pkg · <span className="font-mono">{formatMicrounits(product.availableMicrounits, product.unitOfMeasure)}</span> free</> : 'No saleable package'}</span></span>} />
             </summary>
-            {data.operating.open && <div className="border-t border-border/70 bg-background/50 px-4 py-4"><AmendProductForm product={product} /></div>}
-          </details>) : <Empty>{params.search ? 'No products match this search.' : 'No active products yet.'}</Empty>}
+            {data.operating.open && <div className="border-t border-border/70 bg-background/50 px-4 py-4"><AmendProductForm product={product} limitCategories={data.categories.limit} taxCategories={data.categories.tax} /></div>}
+          </details>;
+          }) : <Empty>{params.search ? 'No products match this search.' : 'No active products yet.'}</Empty>}
           <Pager basePath="/dashboard/platform/menu" params={params} nextCursor={data.products.nextCursor} shown={data.products.items.length} total={data.products.total} noun="products" />
         </ListBand>
       </section>
@@ -232,7 +257,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
           <section data-testid="pos-fulfillment-workbench">
             <SectionTitle meta={data.carts.total}>Open carts</SectionTitle>
             <ListBand>
-              {data.carts.items.length ? data.carts.items.map(cart => <BandRow key={cart.id} title={<span className="font-mono">{cart.reference}</span>} tone={statusTone(cart.status)} state={<span className="capitalize">{readable(cart.status)}</span>} detail={<>Expires {formatWhen(cart.expiresAt, data.timezone)} · customer <span className="font-mono">{cart.customer?.reference || 'not recorded'}</span></>} aside={<span className="font-mono">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>} />) : <Empty>No open carts.</Empty>}
+              {data.carts.items.length ? data.carts.items.map(cart => <BandRow key={cart.id} title={<span className="font-mono">{cart.reference}</span>} tone={statusTone(cart.status)} state={<span >{sentenceCase(cart.status)}</span>} detail={<>Expires {formatWhen(cart.expiresAt, data.timezone)} · customer <span className="font-mono">{cart.customer?.reference || 'not recorded'}</span></>} aside={<span className="font-mono">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>} />) : <Empty>No open carts.</Empty>}
               <Pager basePath="/dashboard/platform/pos" params={params} nextCursor={data.carts.nextCursor} shown={data.carts.items.length} total={data.carts.total} noun="carts" />
             </ListBand>
           </section>
@@ -240,7 +265,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
             <SectionTitle meta={data.sales.total}>Recent receipts</SectionTitle>
             <ListBand>
               {data.sales.items.length ? data.sales.items.map(sale => <Link key={sale.id} href={`/dashboard/platform/pos?sale=${encodeURIComponent(sale.id)}`} aria-current={params.sale === sale.id ? 'page' : undefined} className="block transition-colors hover:bg-background/60 aria-[current=page]:bg-background/80">
-                <BandRow title={<span className="font-mono">{sale.receiptNumber}</span>} tone={statusTone(sale.status)} state={<span className="capitalize">{readable(sale.status)}</span>} detail={`Finalized ${formatWhen(sale.finalizedAt, data.timezone)}`} aside={<span className="font-mono">{formatMinorUnits(sale.totalCents, data.currencyCode)}</span>} />
+                <BandRow title={<span className="font-mono">{sale.receiptNumber}</span>} tone={statusTone(sale.status)} state={<span >{sentenceCase(sale.status)}</span>} detail={`Finalized ${formatWhen(sale.finalizedAt, data.timezone)}`} aside={<span className="font-mono">{formatMinorUnits(sale.totalCents, data.currencyCode)}</span>} />
               </Link>) : <Empty>No receipts yet.</Empty>}
               {data.sales.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Latest {data.sales.items.length} of {data.sales.total} receipts</p>}
             </ListBand>
@@ -270,7 +295,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
       <section data-testid="cash-workbench">
         <SectionTitle meta={data.shifts.total}>Shifts</SectionTitle>
         <ListBand>
-          {data.shifts.items.length ? data.shifts.items.map(shift => <BandRow key={shift.id} title={shift.register?.name || 'Register not recorded'} tone={statusTone(shift.status)} state={<span className="capitalize">{readable(shift.status)}</span>}
+          {data.shifts.items.length ? data.shifts.items.map(shift => <BandRow key={shift.id} title={shift.register?.name || 'Register not recorded'} tone={statusTone(shift.status)} state={<span >{sentenceCase(shift.status)}</span>}
             detail={<>Opened {formatWhen(shift.openedAt, data.timezone)} · {shift.operator?.name || 'Operator not recorded'} · float <span className="font-mono">{formatMinorUnits(shift.openingFloatCents, data.currencyCode)}</span></>}
             aside={shift.varianceCents == null ? <span className="text-xs text-muted-foreground">No count yet</span> : <span className={shift.varianceCents === 0 ? 'font-mono' : 'font-mono text-amber-700 dark:text-amber-400'}>{shift.varianceCents > 0 ? '+' : ''}{formatMinorUnits(shift.varianceCents, data.currencyCode)}</span>}>
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
@@ -283,7 +308,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
         <section>
           <SectionTitle meta={data.registers.total}>Registers</SectionTitle>
           <ListBand>
-            {data.registers.items.length ? data.registers.items.map(register => <BandRow key={register.id} title={register.name} tone={statusTone(register.status)} state={<span className="capitalize">{readable(register.status)}</span>} detail={<span className="font-mono">{register.code}</span>} aside={<RegisterStatusForm register={register} />} />) : <Empty>No registers yet.</Empty>}
+            {data.registers.items.length ? data.registers.items.map(register => <BandRow key={register.id} title={register.name} tone={statusTone(register.status)} state={<span >{sentenceCase(register.status)}</span>} detail={<span className="font-mono">{register.code}</span>} aside={<RegisterStatusForm register={register} />} />) : <Empty>No registers yet.</Empty>}
             <div className="bg-background/50 px-4 py-4"><RegisterForm /></div>
           </ListBand>
         </section>
@@ -304,7 +329,7 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
     <section>
       <SectionTitle meta={data.exceptions.total}>Failed or rejected reports</SectionTitle>
       <ListBand>
-        {data.exceptions.items.length ? data.exceptions.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.topic}</span>} tone="danger" state={<span className="capitalize">{readable(event.status)}</span>} detail={<>Attempts <span className="font-mono">{event.attempts}</span> · last {formatWhen(event.lastAttemptAt, data.timezone)} · <span className="font-mono">{event.lastErrorCode || 'no error code'}</span></>} aside={data.operating.open ? <RetryOutboxButton eventId={event.id} /> : undefined} />) : <Empty>No failed or rejected reports.</Empty>}
+        {data.exceptions.items.length ? data.exceptions.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.topic}</span>} tone="danger" state={<span >{sentenceCase(event.status)}</span>} detail={<>Attempts <span className="font-mono">{event.attempts}</span> · last {formatWhen(event.lastAttemptAt, data.timezone)} · <span className="font-mono">{event.lastErrorCode || 'no error code'}</span></>} aside={data.operating.open ? <RetryOutboxButton eventId={event.id} /> : undefined} />) : <Empty>No failed or rejected reports.</Empty>}
         {data.exceptions.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.exceptions.items.length} of {data.exceptions.total}</p>}
       </ListBand>
     </section>
@@ -312,14 +337,14 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
       <section>
         <SectionTitle meta={data.pending.total}>Waiting to send</SectionTitle>
         <ListBand>
-          {data.pending.items.length ? data.pending.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.topic}</span>} tone={statusTone(event.status)} state={<span className="capitalize">{readable(event.status)}</span>} detail={`Queued since ${formatWhen(event.availableAt, data.timezone)}`} />) : <Empty>Nothing is waiting to send.</Empty>}
+          {data.pending.items.length ? data.pending.items.map(event => <BandRow key={event.id} title={<span className="font-mono">{event.topic}</span>} tone={statusTone(event.status)} state={<span >{sentenceCase(event.status)}</span>} detail={`Queued since ${formatWhen(event.availableAt, data.timezone)}`} />) : <Empty>Nothing is waiting to send.</Empty>}
           {data.pending.nextCursor && <p className="px-4 py-2.5 font-mono text-xs text-muted-foreground">Oldest {data.pending.items.length} of {data.pending.total}</p>}
         </ListBand>
       </section>
       <section data-testid="reconciliation-workbench">
         <SectionTitle meta={data.runs.total}>Reconciliation runs</SectionTitle>
         <ListBand>
-          {data.runs.items.length ? data.runs.items.map(run => <BandRow key={run.id} title={<span className="capitalize">{readable(run.type)}</span>} tone={run.discrepancyCount ? 'warn' : statusTone(run.status)} state={<span className="capitalize">{readable(run.status)}</span>} detail={`Started ${formatWhen(run.startedAt, data.timezone)}`} aside={<span className="font-mono text-xs">{run.discrepancyCount} discrepancies</span>} />) : <Empty>No reconciliation runs.</Empty>}
+          {data.runs.items.length ? data.runs.items.map(run => <BandRow key={run.id} title={<span >{sentenceCase(run.type)}</span>} tone={run.discrepancyCount ? 'warn' : statusTone(run.status)} state={<span >{sentenceCase(run.status)}</span>} detail={`Started ${formatWhen(run.startedAt, data.timezone)}`} aside={<span className="font-mono text-xs">{run.discrepancyCount} discrepancies</span>} />) : <Empty>No reconciliation runs.</Empty>}
           <Pager basePath="/dashboard/platform/reconciliation" params={params} nextCursor={data.runs.nextCursor} shown={data.runs.items.length} total={data.runs.total} noun="runs" />
         </ListBand>
       </section>
@@ -343,8 +368,8 @@ export async function IncidentsWorkspacePage({ searchParams }: { searchParams?: 
       </Track></nav>}>Incidents</SectionTitle>
       <ListBand>
         {data.incidents.items.length ? data.incidents.items.map(incident => <BandRow id={`incident-${incident.id}`} key={incident.id} className="scroll-mt-20 target:bg-background/70"
-          title={<span className="font-mono">{incident.reference}</span>} tone={SEVERITY_TONE[incident.severity] || 'muted'} state={<span className="capitalize">{readable(incident.severity)} · {readable(incident.status)}</span>}
-          detail={<><span className="capitalize">{readable(incident.type)}</span> · occurred {formatWhen(incident.occurredAt, data.timezone)}</>}
+          title={<span className="font-mono">{incident.reference}</span>} tone={SEVERITY_TONE[incident.severity] || 'muted'} state={<span >{sentenceCase(incident.severity)} · {sentenceCase(incident.status)}</span>}
+          detail={<><span >{sentenceCase(incident.type)}</span> · occurred {formatWhen(incident.occurredAt, data.timezone)}</>}
           aside={<Status value={NOTIFICATION_LABEL[incident.notificationState] || readable(incident.notificationState)} tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'} />}>
           {incident.notificationDueAt && <p className="mt-1 text-xs text-muted-foreground">Notify by {formatWhen(incident.notificationDueAt, data.timezone)}</p>}
           <p className="mt-2 max-w-3xl whitespace-pre-line break-words text-sm text-foreground">{incident.description}</p>

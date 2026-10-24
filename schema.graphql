@@ -4963,6 +4963,7 @@ type Mutation {
   amendRegister(input: JSON!): JSON!
   renewCannabisAuthority(input: JSON!): JSON!
   amendCannabisRulePack(input: JSON!): JSON!
+  amendCannabisPremisesDetails(input: JSON!): JSON!
   setStaffTemporaryPassword(input: JSON!): JSON!
   configureCannabisStorefrontSettings(input: JSON!): JSON!
   provisionStaffAuthority(input: JSON!): JSON!

@@ -26,6 +26,9 @@ async function commandReceipt(scope: string, idempotencyKey: string) {
  * applying it twice. After a failure the receipt is read back to tell "not recorded"
  * apart from "outcome unknown".
  */
+/** Server rule messages that belong to one field, shown next to it as well as in the summary. */
+const FIELD_MESSAGES: Array<[RegExp, string]> = [[/^SKU /, 'sku'], [/^Register code /, 'code'], [/^Staff email /, 'email'], [/^Package UID|^Package .* already/i, 'packageUid']];
+
 async function runCommand(mutation: string, scope: string, input: Record<string, unknown>, success: string): Promise<CommandState> {
   const response = await runCommandRequest<Record<string, Record<string, unknown>>>(`mutation ControlledCannabisCommand($input: JSON!) { ${mutation}(input: $input) }`, { input });
   if (response.success) {
@@ -38,7 +41,11 @@ async function runCommand(mutation: string, scope: string, input: Record<string,
     revalidatePath('/dashboard/platform', 'layout');
     return { success: `${success} (already recorded)`, result: receipt.result ?? undefined };
   }
-  if (receipt?.state === 'not_found') return { error: response.message ? `Not recorded: ${response.message}` : 'Not recorded. Check the details and current authority, then try again.' };
+  if (receipt?.state === 'not_found') {
+    if (!response.message) return { error: 'Not recorded. Check the details and current authority, then try again.' };
+    const field = FIELD_MESSAGES.find(([pattern]) => pattern.test(response.message!))?.[1];
+    return { error: `Not recorded: ${response.message}`, ...(field ? { fieldErrors: { [field]: response.message } } : {}) };
+  }
   return { error: 'The outcome could not be confirmed. Try again: the same command will not be applied twice.', outcome: 'unknown' };
 }
 
@@ -107,6 +114,9 @@ export async function amendProductFromMenu(_state: CommandState, formData: FormD
   return runCommand('amendCannabisProduct', 'amendCannabisProduct', {
     idempotencyKey, productId: text(formData, 'productId'), expectedUpdatedAt: text(formData, 'expectedUpdatedAt'), name: text(formData, 'name'), priceCents, status,
     adultUseEligible, medicalEligible, publicDescription: text(formData, 'publicDescription'),
+    // Categories are sent only when changed, so an unrelated edit isn't blocked by a stale code.
+    ...(text(formData, 'categoryCode') && text(formData, 'categoryCode') !== text(formData, 'currentCategoryCode') ? { categoryCode: text(formData, 'categoryCode') } : {}),
+    ...(text(formData, 'taxCategoryCode') && text(formData, 'taxCategoryCode') !== text(formData, 'currentTaxCategoryCode') ? { taxCategoryCode: text(formData, 'taxCategoryCode') } : {}),
   }, 'Product updated.');
 }
 
@@ -238,7 +248,7 @@ export async function amendRulePackFromDesk(_state: CommandState, formData: Form
   try { const value = JSON.parse(text(formData, 'payload')); payload = value && typeof value === 'object' && !Array.isArray(value) ? value : null; } catch { payload = null; }
   if (!payload || !idempotencyKey) return { error: 'Correct the highlighted fields.' };
   if (!text(formData, 'version')) return invalid({ version: 'Enter a new rule version' });
-  return runCommand('amendCannabisRulePack', 'amendCannabisRulePack', { ...payload, version: text(formData, 'version'), idempotencyKey }, 'Sales rules updated.');
+  return runCommand('amendCannabisRulePack', 'amendCannabisRulePack', { ...payload, version: text(formData, 'version'), idempotencyKey }, `Sales rules ${text(formData, 'version')} are now in effect.`);
 }
 
 export async function setTemporaryPasswordFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
@@ -247,4 +257,16 @@ export async function setTemporaryPasswordFromDesk(_state: CommandState, formDat
   const idempotencyKey = commandKey(formData);
   if (!idempotencyKey) return invalid({});
   return runCommand('setStaffTemporaryPassword', 'setStaffTemporaryPassword', { idempotencyKey, userId: text(formData, 'userId'), temporaryPassword: password }, 'Temporary password set. Share it in person.');
+}
+
+export async function amendPremisesDetailsFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  for (const [name, label] of [['line1', 'Enter the street address'], ['city', 'Enter the city'], ['region', 'Enter the state or province']]) if (!text(formData, name)) errors[name] = label;
+  const phone = text(formData, 'phone');
+  if (phone && !/^[+()\d\s.-]{7,40}$/.test(phone)) errors.phone = 'Digits, spaces, +, -, . and parentheses only';
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('amendCannabisPremisesDetails', 'amendCannabisPremisesDetails', {
+    idempotencyKey, line1: text(formData, 'line1'), city: text(formData, 'city'), region: text(formData, 'region'), postalCode: text(formData, 'postalCode'), country: text(formData, 'country'), phone,
+  }, 'Address and phone saved. The storefront shows them now.');
 }

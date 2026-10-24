@@ -6,13 +6,14 @@ import { isCompleteShiftCashEventRead } from "../domain/operatorReadBounds";
 import { evaluateRefundAllocationEvidence, getRefundEvidenceTenderIds, MAX_REFUND_ALLOCATION_EVIDENCE_ROWS } from "../domain/refundAllocation";
 import { serializableTransaction } from "../domain/transaction";
 import { assertInteger, assertReasonCode, assertText, fenceAuthority, requireReadAuthority, retainedRequest, runControlledOperation, stableHash } from "./workflow";
+import { latestRulePack } from "./rulePack";
 
 export async function configureCannabisProduct(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input;
   assertInteger(input.unitQuantityMicrounits, "Unit quantity", 1); assertInteger(input.equivalencyMicrounits, "Equivalency", 1); assertInteger(input.priceCents, "Price", 0);
   if (input.adultUseEligible !== true && input.medicalEligible !== true) throw new Error("Product must be explicitly eligible for at least one configured channel");
   return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "configureCannabisProduct", resourceType: "Product", action: "catalog.product.configured", emitStateEvent: false, lockKeys: [String(input.sku)] }, async (tx, authority) => {
-    const sudo = tx.sudo(); const existing = await sudo.query.Product.findOne({ where: { sku: assertText(input.sku, "SKU") }, query: "id" }); if (existing) throw new Error("SKU already exists");
+    const sudo = tx.sudo(); const existing = await sudo.query.Product.findOne({ where: { sku: assertText(input.sku, "SKU") }, query: "id name" }); if (existing) throw new Error(`SKU ${input.sku.trim()} is already used by ${existing.name}`);
     const product = await sudo.query.Product.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sku: input.sku, name: assertText(input.name, "Product name"), brand: input.brand ? assertText(input.brand, "Brand", 1, 200) : "", form: assertText(input.form, "Product form"), categoryCode: assertText(input.categoryCode, "Category code"), unitOfMeasure: assertText(input.unitOfMeasure, "Unit of measure"), unitQuantityMicrounits: input.unitQuantityMicrounits, equivalencyMicrounits: input.equivalencyMicrounits, priceCents: input.priceCents, taxCategoryCode: assertText(input.taxCategoryCode, "Tax category"), adultUseEligible: input.adultUseEligible === true, medicalEligible: input.medicalEligible === true, status: "active", publicDescription: input.publicDescription ? assertText(input.publicDescription, "Public description", 1, 1000) : "", publicImageUrl: "" }, query: "id sku status" });
     return { id: product.id, status: product.status, reference: product.sku };
   });
@@ -21,7 +22,7 @@ export async function configureCannabisProduct(_root: unknown, args: { input: an
 export async function configureRegister(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input;
   return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "configureRegister", resourceType: "Register", action: "register.configured", emitStateEvent: false, lockKeys: [String(input.code)] }, async (tx, authority) => {
-    const sudo = tx.sudo(); const existing = await sudo.query.Register.findOne({ where: { code: assertText(input.code, "Register code") }, query: "id" }); if (existing) throw new Error("Register code already exists");
+    const sudo = tx.sudo(); const existing = await sudo.query.Register.findOne({ where: { code: assertText(input.code, "Register code") }, query: "id name" }); if (existing) throw new Error(`Register code ${input.code.trim()} is already used by ${existing.name}`);
     const register = await sudo.query.Register.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, code: input.code, name: assertText(input.name, "Register name"), status: "active" }, query: "id code status" });
     return { id: register.id, status: register.status, reference: register.code };
   });
@@ -241,15 +242,25 @@ export async function amendCannabisProduct(_root: unknown, args: { input: any },
   if (input.adultUseEligible != null) data.adultUseEligible = input.adultUseEligible === true;
   if (input.medicalEligible != null) data.medicalEligible = input.medicalEligible === true;
   if (input.publicDescription != null) data.publicDescription = input.publicDescription === "" ? "" : assertText(input.publicDescription, "Public description", 1, 1000);
+  // Categories can be corrected after a sales-rules change; sales lines keep their own category snapshot.
+  if (input.categoryCode != null) data.categoryCode = assertText(input.categoryCode, "Purchase-limit category", 1, 60);
+  if (input.taxCategoryCode != null) data.taxCategoryCode = assertText(input.taxCategoryCode, "Tax category", 1, 60);
   if (!Object.keys(data).length) throw new Error("No product changes were submitted");
   return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", emitStateEvent: false, lockKeys: [productId] }, async (tx, authority) => {
-    const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription updatedAt organization { id } premises { id }" });
+    const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription categoryCode taxCategoryCode updatedAt organization { id } premises { id }" });
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) throw new Error("Product is outside this premises");
+    if (data.categoryCode != null || data.taxCategoryCode != null) {
+      const { pack } = await latestRulePack(tx, authority.organizationId, authority.premisesId);
+      const limits = Array.isArray(pack?.purchaseLimits) ? pack!.purchaseLimits as Array<{ categoryCode?: unknown }> : [];
+      const taxes = Array.isArray(pack?.taxRules) ? pack!.taxRules as Array<{ categoryCode?: unknown }> : [];
+      if (data.categoryCode != null && !limits.some(rule => rule?.categoryCode === data.categoryCode)) throw new Error(`No purchase limit in the current sales rules uses category ${data.categoryCode}`);
+      if (data.taxCategoryCode != null && !taxes.some(rule => rule?.categoryCode === data.taxCategoryCode)) throw new Error(`No tax rule in the current sales rules uses category ${data.taxCategoryCode}`);
+    }
     const next: Record<string, unknown> = { adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible, ...data };
     if (next.adultUseEligible !== true && next.medicalEligible !== true) throw new Error("Product must remain eligible for at least one channel");
     const changed = await tx.prisma.product.updateMany({ where: { id: product.id, updatedAt: expectedUpdatedAt }, data });
     if (changed.count !== 1) throw new Error("This product changed since you opened it. Refresh and try again.");
-    const before = { name: product.name, priceCents: product.priceCents, status: product.status, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible, publicDescription: product.publicDescription };
+    const before = { name: product.name, priceCents: product.priceCents, status: product.status, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible, publicDescription: product.publicDescription, categoryCode: product.categoryCode, taxCategoryCode: product.taxCategoryCode };
     return { id: product.id, status: String(next.status ?? product.status), reference: product.sku, before, changes: data };
   });
 }

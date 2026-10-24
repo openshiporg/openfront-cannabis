@@ -35,7 +35,7 @@ export function AllocationQuotePanel({ cartId, products, productsHasMore, timezo
   return <section className="space-y-3 rounded-lg bg-muted/40 p-3 ring-1 ring-inset ring-border/60" aria-label="Price quote">
     <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Price quote</h4>
     {productsHasMore && <p className="text-xs text-muted-foreground">First 100 active products shown</p>}
-    {!products.length ? <p className="text-sm text-muted-foreground">No active products.</p> : <form action={load} className="grid gap-3 sm:grid-cols-2" onChange={() => setQuote(null)}>
+    {!products.length ? <p className="text-sm text-muted-foreground">No active products.</p> : <form onSubmit={event => { event.preventDefault(); load(new FormData(event.currentTarget)); }} className="grid gap-3 sm:grid-cols-2" onChange={() => setQuote(null)}>
       <input type="hidden" name="cartId" value={cartId} />
       <label className={`${labelClass} sm:col-span-2`}>Product<select name="productId" required disabled={pending} value={productId} onChange={event => setProductId(event.target.value)} className={inputClass}>{products.map(entry => <option key={entry.id} value={entry.id}>{entry.name} · {entry.sku} · {entry.form} ({entry.unitOfMeasure})</option>)}</select></label>
       <label className={labelClass}>Quantity{product ? ` (${product.unitOfMeasure})` : ''}<input name="quantity" inputMode="decimal" required disabled={pending} placeholder={product ? formatMicrounits(product.unitQuantityMicrounits) : ''} className={`${inputClass} font-mono`} /></label>

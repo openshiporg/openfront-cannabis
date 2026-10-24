@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { startTransition, useActionState, useRef, useState } from 'react';
 import type { CommandState } from '@/features/platform/workspaces/actions/workflows';
 import { useFocusFirstError } from '@/features/platform/lib/formErrors';
 import { useUnsavedChangesGuard } from '@/features/platform/lib/useUnsavedChangesGuard';
@@ -15,15 +15,29 @@ type Action = (state: CommandState, formData: FormData) => Promise<CommandState>
 export function useCommand(action: Action) {
   const [key, setKey] = useState(() => crypto.randomUUID());
   const [dirty, setDirty] = useState(false);
+  const form = useRef<HTMLFormElement | null>(null);
   const [state, formAction, pending] = useActionState(async (previous: CommandState, formData: FormData) => {
     const next = await action(previous, formData);
-    // Only a confirmed command retires its key; anything else retries under the same identity.
-    if (next.success) { setKey(crypto.randomUUID()); setDirty(false); }
+    // Only a confirmed command retires its key and clears the form; anything else keeps
+    // what was typed and retries under the same identity.
+    if (next.success) { setKey(crypto.randomUUID()); setDirty(false); form.current?.reset(); }
     return next;
   }, {} as CommandState);
   const summary = useFocusFirstError(state);
   useUnsavedChangesGuard(dirty && !pending);
-  return { state, formAction, pending, key, summary, markDirty: () => setDirty(true) };
+  /**
+   * Submit handler for <form onSubmit>. A function `action` makes React reset every
+   * uncontrolled field when it settles, even after an error; submitting here keeps them.
+   * `prepare` may add derived fields, or return false to stop (client check or cancelled confirm).
+   */
+  const onSubmit = (prepare?: (formData: FormData) => boolean | void) => (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    form.current = event.currentTarget;
+    const formData = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
+    if (prepare?.(formData) === false) return;
+    startTransition(() => formAction(formData));
+  };
+  return { state, formAction, onSubmit, pending, key, summary, markDirty: () => setDirty(true) };
 }
 
 export function CommandStatus({ state, summary }: { state: CommandState; summary: React.RefObject<HTMLParagraphElement | null> }) {

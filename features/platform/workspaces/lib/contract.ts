@@ -33,7 +33,7 @@ function page<T>(item: Check<T>) {
   return obj({ items: arr(item, 100), nextCursor: optStr, total: count });
 }
 
-const base = { section: str, generatedAt: date, authorityFingerprint: str, jurisdictionCode: optStr, premisesId: str, timezone: optStr, currencyCode: optStr, operating: obj({ open: bool, reason: optStr }), salesRules: obj({ version: optStr, problem: optStr }) };
+const base = { section: str, generatedAt: date, authorityFingerprint: str, jurisdictionCode: optStr, premisesId: str, timezone: optStr, currencyCode: optStr, operating: obj({ open: bool, reason: optStr, limited: bool }), salesRules: obj({ version: optStr, problem: optStr }) };
 const named = obj({ name: optStr });
 
 const hold = obj({ id: str, type: str, reasonCode: str, reason: optStr, status: str, placedAt: date });
@@ -62,9 +62,11 @@ const sections = {
     inventory: nullable(obj({ ready: arr(obj({ id: str, packageUid: str, expiresAt: date, quantityOnHandMicrounits: int, reservedMicrounits: int, unitOfMeasure: str, product: nullable(named) }), 10), readyTotal: count, heldTotal: count, receivingTotal: count })),
     incidents: nullable(obj({ open: arr(incident, 10), openTotal: count, overdueTotal: count })),
     authorityAccess: (v: unknown) => v === true,
+    access: obj({ inventory: bool, compliance: bool, authority: bool, sales: bool, finance: bool, reports: bool }),
   }),
   authority: obj({ ...base,
     self: obj({ credentialId: optStr, isOwner: bool, approvalLimitCents: int }),
+    premises: obj({ name: optStr, line1: optStr, city: optStr, region: optStr, postalCode: optStr, country: optStr, phone: optStr }),
     rules: nullable(obj({ id: str, version: str, effectiveAt: date, expiresAt: date, adultMinimumAge: int, medicalMinimumAge: int, medicalEnabled: bool, operatingStartMinute: int, operatingEndMinute: int,
       purchaseLimits: arr(json, 50), taxRules: arr(json, 50), discountRuleCount: count, allowedTenderTypes: arr(str, 10) })),
     licenses: page(obj({ ...interval, licenseNumber: str, licenseType: str, regulatorName: str })),
@@ -86,7 +88,7 @@ const sections = {
     products: page(product), receivingHoldTotal: count, discrepancyTotal: count,
   }),
   menu: obj({ ...base, search: optStr, inactiveTotal: count, categories: obj({ limit: arr(str, 50), tax: arr(str, 50) }),
-    products: page(obj({ id: str, name: str, sku: str, form: str, categoryCode: str, priceCents: int, status: str, unitOfMeasure: str, adultUseEligible: bool, medicalEligible: bool, updatedAt: date, publicDescription: optStr, readyPackageCount: count, readyCountComplete: bool, availableMicrounits: int })),
+    products: page(obj({ id: str, name: str, sku: str, form: str, categoryCode: str, taxCategoryCode: str, priceCents: int, status: str, unitOfMeasure: str, adultUseEligible: bool, medicalEligible: bool, updatedAt: date, publicDescription: optStr, readyPackageCount: count, readyCountComplete: bool, availableMicrounits: int })),
   }),
   pos: obj({ ...base, productSearch: optStr,
     carts: page(obj({ id: str, reference: str, source: str, status: str, expiresAt: date, totalCents: int, customer: nullable(obj({ id: str, reference: str, capacity: str })) })),

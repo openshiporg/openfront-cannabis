@@ -7,6 +7,12 @@ import type React from 'react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
+/** A stored code as sentence-case text: "inventory_discrepancy" → "Inventory discrepancy". */
+export function sentenceCase(value: string | null | undefined) {
+  const text = (value || '').replaceAll('_', ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : '';
+}
+
 export const DOT_TONES = {
   ok: 'bg-emerald-600 dark:bg-emerald-400',
   warn: 'bg-amber-500 dark:bg-amber-400',
@@ -158,8 +164,9 @@ export const textareaClass = 'mt-1.5 block min-h-20 w-full min-w-0 rounded-lg bo
 export const labelClass = 'block min-w-0 text-xs font-medium text-foreground';
 
 /** Operating authority as a title-line state. */
-export function operatingState(operating: { open: boolean }) {
-  return operating.open ? { tone: 'ok' as const, state: 'Operating' } : { tone: 'danger' as const, state: 'Authority lapsed' };
+export function operatingState(operating: { open: boolean; limited?: boolean }) {
+  if (operating.open) return { tone: 'ok' as const, state: 'Operating' };
+  return operating.limited ? { tone: 'info' as const, state: 'Limited access' } : { tone: 'danger' as const, state: 'Authority lapsed' };
 }
 
 const OK = ['active', 'current', 'passed', 'saleable', 'released', 'accepted', 'completed', 'finalized', 'delivered', 'eligible', 'resolved', 'closed', 'open', 'published', 'staged', 'reconciled'];

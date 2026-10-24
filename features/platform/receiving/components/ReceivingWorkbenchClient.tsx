@@ -8,7 +8,7 @@ import type { WorkspaceData } from '@/features/platform/workspaces/lib/contract'
 import { formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { CommandStatus, useCommand } from '@/features/platform/operations/components/useCommand';
 import { readable } from '@/features/platform/inventory/lib/custody';
-import { ActionTrack, DotLabel, inputClass, labelClass, ListBand, MetricStrip, Notice, Panel, PillButton, PillLink, SectionTitle, statusTone, Track } from '@/features/platform/components/cannabis-ui';
+import { ActionTrack, DotLabel, inputClass, labelClass, ListBand, MetricStrip, Notice, Panel, PillButton, PillLink, SectionTitle, statusTone, Track, sentenceCase } from '@/features/platform/components/cannabis-ui';
 
 type Data = WorkspaceData<'receiving'>;
 type Manifest = Data['manifests']['items'][number];
@@ -24,13 +24,13 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 const manifestHasDiscrepancy = (manifest: Manifest) => manifest.status === 'partially_accepted' || manifest.status === 'rejected';
 
 function ReceivePackageForm({ products, productsHasMore, timezone }: { products: Data['products']['items']; productsHasMore: boolean; timezone: string | null }) {
-  const { state, formAction, pending, key, summary, markDirty } = useCommand(receivePackageFromWorkbench);
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(receivePackageFromWorkbench);
   const [productId, setProductId] = useState('');
   const product = products.find(candidate => candidate.id === productId);
   const errors = state.fieldErrors;
   if (!products.length) return <Notice tone="warn" action={<Track><PillLink href="/dashboard/platform/menu" active>Add a product</PillLink></Track>}>No active products</Notice>;
   return <Panel title="Receive a package" meta="Into receiving hold">
-    <form action={formAction} onChange={markDirty} className="space-y-6" data-testid="typed-receiving-form" aria-label="Receive a package">
+    <form onSubmit={onSubmit()} onChange={markDirty} className="space-y-6" data-testid="typed-receiving-form" aria-label="Receive a package">
       <input type="hidden" name="idempotencyKey" value={key} />
       <fieldset disabled={pending} className="space-y-6">
           <Group title="Product">
@@ -86,7 +86,7 @@ export function ReceivingWorkbenchClient({ data, params }: { data: Data; params:
           <SectionTitle meta={data.manifests.total} action={<SearchForm basePath="/dashboard/platform/receiving" params={params} label="Search manifests" placeholder="Manifest number" />}>Inbound manifests</SectionTitle>
           <ListBand>
             <div role="listbox" aria-label="Manifests" aria-controls="manifest-detail" className="divide-y divide-border">{manifests.length ? manifests.map(manifest => <button type="button" role="option" aria-selected={selected?.id === manifest.id} onClick={() => setSelectedId(manifest.id)} key={manifest.id} className="block w-full px-4 py-3 text-left transition-colors hover:bg-background/60 aria-selected:bg-background aria-selected:shadow-[inset_3px_0_0_var(--color-foreground)]">
-              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5"><span className="truncate font-mono text-sm font-medium">{manifest.manifestNumber}</span><DotLabel tone={manifestHasDiscrepancy(manifest) ? 'danger' : statusTone(manifest.status)} className="text-xs capitalize text-muted-foreground">{manifestHasDiscrepancy(manifest) ? `${readable(manifest.status)} · discrepancy` : readable(manifest.status)}</DotLabel></div>
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5"><span className="truncate font-mono text-sm font-medium">{manifest.manifestNumber}</span><DotLabel tone={manifestHasDiscrepancy(manifest) ? 'danger' : statusTone(manifest.status)} className="text-xs text-muted-foreground">{manifestHasDiscrepancy(manifest) ? `${sentenceCase(manifest.status)} · discrepancy` : sentenceCase(manifest.status)}</DotLabel></div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground"><span className="font-mono">{manifest.sourceLicenseNumber || 'Supplier not recorded'}</span> to <span className="font-mono">{manifest.destinationLicenseNumber || 'destination not recorded'}</span> · {formatWhen(manifest.occurredAt, data.timezone)}</p>
             </button>) : <p className="px-4 py-8 text-center text-sm text-muted-foreground">{params.search ? 'No manifests match.' : 'No inbound manifests yet.'}</p>}</div>
             <Pager basePath="/dashboard/platform/receiving" params={params} nextCursor={data.manifests.nextCursor} shown={manifests.length} total={data.manifests.total} noun="manifests" />
@@ -94,12 +94,12 @@ export function ReceivingWorkbenchClient({ data, params }: { data: Data; params:
         </section>
       </div>
       <Panel id="manifest-detail" data-testid="manifest-detail-drill-in" aria-label="Manifest detail" className="xl:sticky xl:top-4">{selected ? <div className="space-y-5">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="break-all font-mono text-base font-semibold">{selected.manifestNumber}</h2><DotLabel tone={manifestHasDiscrepancy(selected) ? 'danger' : statusTone(selected.status)} className="text-xs capitalize text-muted-foreground">{readable(selected.status)}</DotLabel></div>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="break-all font-mono text-base font-semibold">{selected.manifestNumber}</h2><DotLabel tone={manifestHasDiscrepancy(selected) ? 'danger' : statusTone(selected.status)} className="text-xs text-muted-foreground">{sentenceCase(selected.status)}</DotLabel></div>
         <dl className="divide-y divide-border rounded-lg bg-muted/40 text-sm ring-1 ring-inset ring-border/60">
-          {([['Type', <span key="t" className="capitalize">{readable(selected.type)}</span>], ['Supplier license', selected.sourceLicenseNumber], ['Destination license', selected.destinationLicenseNumber], ['State manifest ID', selected.regulatorManifestId], ['Transporter', selected.transporterReference], ['Reason code', selected.reasonCode]] as Array<[string, React.ReactNode]>).map(([term, value]) => <div key={term} className="flex items-baseline justify-between gap-4 px-3 py-2"><dt className="shrink-0 text-xs text-muted-foreground">{term}</dt><dd className="min-w-0 break-all text-right font-mono text-xs">{value || 'Not recorded'}</dd></div>)}
+          {([['Type', <span key="t" >{sentenceCase(selected.type)}</span>], ['Supplier license', selected.sourceLicenseNumber], ['Destination license', selected.destinationLicenseNumber], ['State manifest ID', selected.regulatorManifestId], ['Transporter', selected.transporterReference], ['Reason code', selected.reasonCode]] as Array<[string, React.ReactNode]>).map(([term, value]) => <div key={term} className="flex items-baseline justify-between gap-4 px-3 py-2"><dt className="shrink-0 text-xs text-muted-foreground">{term}</dt><dd className="min-w-0 break-all text-right font-mono text-xs">{value || 'Not recorded'}</dd></div>)}
         </dl>
         <section><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Packages {selected.packageEventsCount > selected.packageEvents.length && <span className="font-mono normal-case tracking-normal">· first {selected.packageEvents.length} of {selected.packageEventsCount}</span>}</h3>
-          {selected.packageEvents.length ? <ul className="mt-2 space-y-1.5">{selected.packageEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs"><span><span className="font-medium capitalize">{readable(event.eventType)}</span> · <span className="font-mono">{event.package?.packageUid || 'Package not recorded'}</span></span><span className="font-mono">{formatMicrounits(event.quantityDeltaMicrounits, event.package?.unitOfMeasure)}</span></li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">No packages recorded on this manifest.</p>}</section>
+          {selected.packageEvents.length ? <ul className="mt-2 space-y-1.5">{selected.packageEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs"><span><span className="font-medium">{sentenceCase(event.eventType)}</span> · <span className="font-mono">{event.package?.packageUid || 'Package not recorded'}</span></span><span className="font-mono">{formatMicrounits(event.quantityDeltaMicrounits, event.package?.unitOfMeasure)}</span></li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">No packages recorded on this manifest.</p>}</section>
         {manifestHasDiscrepancy(selected) && <Notice tone="danger" className="text-xs">Discrepancy: keep goods segregated and record an inventory discrepancy incident.</Notice>}
       </div> : <p className="py-6 text-center text-sm text-muted-foreground">No manifest selected</p>}</Panel>
     </div>

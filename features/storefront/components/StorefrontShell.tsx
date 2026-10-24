@@ -83,7 +83,7 @@ export async function StorefrontShell({ settings, forms = [], children }: { sett
         </section>}
       </div>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-1 border-t border-cn-line px-4 py-3 text-[13px] text-cn-ink-2 sm:px-6">
-        <span className="cn-num inline-flex min-h-11 items-center tracking-[0.12em] text-cn-ink">{ages.adult}+</span>
+        <span className="cn-num inline-flex min-h-11 items-center tracking-[0.12em] text-cn-ink">{ages.medical != null ? `${ages.adult}+ · PATIENTS ${ages.medical}+` : `${ages.adult}+`}</span>
         <Link href="/#menu" className="inline-flex min-h-11 items-center hover:text-cn-ink">Menu</Link>
         <Link href="/dashboard/signin" className="inline-flex min-h-11 items-center gap-1 hover:text-cn-ink">Staff sign in<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
         <span className="cn-num inline-flex min-h-11 items-center">© {new Date().getFullYear()}</span>

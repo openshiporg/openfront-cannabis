@@ -11,8 +11,8 @@ export type CommandResponse<T> = { success: true; data: T } | { success: false; 
 const INTERNAL = /prisma|invalid `|\bsql\b|stack|econn|fetch failed|unexpected error|node_modules|\n/i;
 
 function operatorMessage(error: unknown): string | null {
-  if (!(error instanceof ClientError)) return null;
-  const message = error.response?.errors?.[0]?.message;
+  // Duck-typed: across server bundles a ClientError may not be this module's class, so instanceof misses it.
+  const message = (error as ClientError | null)?.response?.errors?.[0]?.message;
   if (typeof message !== 'string') return null;
   const text = message.trim();
   return text && text.length <= 300 && !INTERNAL.test(text) ? text : null;

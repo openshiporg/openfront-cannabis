@@ -3,7 +3,7 @@ import { formatInstant } from '@/features/platform/lib/time';
 import { SetupLauncher } from '@/features/platform/onboarding/components/SetupLauncher';
 export { formatUsableThrough } from '@/features/platform/lib/time';
 import { WORKSPACE_STATE_COPY, type WorkspaceClosedState } from '@/features/platform/workspaces/lib/boundary';
-import { ActionTrack, BandEmpty, Dot, DotLabel, inputClass, MetricStrip, PillAnchor, PillButton, PillLink, statusTone, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
+import { ActionTrack, BandEmpty, Dot, DotLabel, inputClass, MetricStrip, PillAnchor, PillButton, PillLink, statusTone, Track, type DotTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
 
 export const readable = (value: string) => value.replaceAll('_', ' ');
 
@@ -23,6 +23,7 @@ export function WorkspaceStateNotice({ result, retryHref }: { result: WorkspaceC
       {result.state === 'operating_closed' && <ActionTrack><PillAnchor href="/dashboard/platform/authority">Open Authority</PillAnchor></ActionTrack>}
       {result.state === 'signed_out' && <ActionTrack><PillAnchor href="/dashboard/signin" tone="ink">Sign in</PillAnchor></ActionTrack>}
       {result.state === 'unavailable' && <ActionTrack><PillAnchor href={retryHref}>Try again</PillAnchor></ActionTrack>}
+      {result.state === 'forbidden' && <ActionTrack><PillAnchor href="/dashboard/platform">Your workspaces</PillAnchor></ActionTrack>}
       {result.state === 'setup_required' && <SetupLauncher />}
     </div>
   </div>;
@@ -37,7 +38,7 @@ export function Metric({ label, value, href }: { label: string; value: string | 
 
 /** A record status as a dot and its label. */
 export function Status({ value, tone }: { value: string; tone?: DotTone }) {
-  return <DotLabel tone={tone ?? statusTone(value)} className="text-xs capitalize text-muted-foreground">{readable(value)}</DotLabel>;
+  return <DotLabel tone={tone ?? statusTone(value)} className="text-xs text-muted-foreground">{sentenceCase(value)}</DotLabel>;
 }
 
 export function Empty({ children }: { children: React.ReactNode }) { return <BandEmpty>{children}</BandEmpty>; }

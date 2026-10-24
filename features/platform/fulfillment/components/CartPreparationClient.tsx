@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
-import { ActionTrack, Dot, DotLabel, inputClass, labelClass, Panel, PillButton, statusTone } from '@/features/platform/components/cannabis-ui';
+import { ActionTrack, Dot, DotLabel, inputClass, labelClass, Panel, PillButton, statusTone, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { getCartPreparation, getPreparationOutcome, prepareCart } from '../actions/preparation';
@@ -141,14 +141,14 @@ export function CartPreparationClient({ carts, authorityFingerprint, products, p
       {detail && detail.authorityFingerprint === authorityFingerprint && <div className="space-y-4">
         <AllocationQuotePanel timezone={timezone} key={`${authorityFingerprint}:${detail.id}`} cartId={detail.id} products={products} productsHasMore={productsHasMore} />
         <div>
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="font-mono text-base font-semibold">{detail.reference}</span><DotLabel tone={statusTone(detail.status)} className="text-xs capitalize text-muted-foreground">{readable(detail.status)}</DotLabel><span className="ml-auto font-mono text-sm">{money(detail.totalCents)}</span></div>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="font-mono text-base font-semibold">{detail.reference}</span><DotLabel tone={statusTone(detail.status)} className="text-xs text-muted-foreground">{sentenceCase(detail.status)}</DotLabel><span className="ml-auto font-mono text-sm">{money(detail.totalCents)}</span></div>
           <p className="mt-0.5 text-xs text-muted-foreground">v{detail.version} · loaded {formatInstant(new Date(observedAt).toISOString(), timezone)} · reservation expires {formatInstant(detail.expiresAt, timezone)}</p>
         </div>
         <ul className="divide-y divide-border overflow-hidden rounded-lg bg-muted/40 ring-1 ring-inset ring-border/60">{detail.lines.map(line => <li key={line.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2.5 text-sm"><div className="min-w-0"><p className="font-medium">{line.titleSnapshot}</p><p className="break-all font-mono text-xs text-muted-foreground">{line.packageUidSnapshot}</p></div><p className="font-mono text-xs">{formatMicrounits(line.quantityMicrounits)} · {money(line.totalCents)}</p></li>)}</ul>
         {detail.linesHasMore && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="warn" />Too many lines to show; preparation steps unavailable.</p>}
         {expired && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="danger" />Reservation expired</p>}
         {saved?.state === 'pending' && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="warn" />A step for this cart is not confirmed. Resolve it under Saved commands.</p>}
-        {!detail.linesHasMore && !expired && journal && saved?.state !== 'pending' && actions[detail.status]?.map(action => <form key={`${detail.id}:${detail.version}:${action.status}`} action={submit} className="flex flex-col gap-3 rounded-lg bg-muted/40 p-3 ring-1 ring-inset ring-border/60 sm:flex-row sm:items-end">
+        {!detail.linesHasMore && !expired && journal && saved?.state !== 'pending' && actions[detail.status]?.map(action => <form key={`${detail.id}:${detail.version}:${action.status}`} onSubmit={event => { event.preventDefault(); submit(new FormData(event.currentTarget)); }} className="flex flex-col gap-3 rounded-lg bg-muted/40 p-3 ring-1 ring-inset ring-border/60 sm:flex-row sm:items-end">
           <input type="hidden" name="cartId" value={detail.id} /><input type="hidden" name="expectedVersion" value={detail.version} /><input type="hidden" name="nextStatus" value={action.status} />
           <label className={`${labelClass} flex-1`}>Reason code
             <input name="reasonCode" required pattern={REASON_CODE_HTML_PATTERN} maxLength={100} disabled={pending} placeholder="picking_started" aria-describedby={`reason-help-${action.status}`} className={`${inputClass} font-mono`} />
@@ -162,7 +162,7 @@ export function CartPreparationClient({ carts, authorityFingerprint, products, p
           {detail.allocationHistoryHasMore && <p className="text-xs text-muted-foreground">Showing the latest 20 allocation records.</p>}
         </section>
         <section aria-label="Preparation history"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preparation history</h3>
-          {detail.history.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.history.map(event => <li key={event.id} className="text-sm"><p className="capitalize">{readable(event.beforeStatus)} to {readable(event.status)} · <span className="font-mono normal-case">{event.reasonCode}</span></p><p className="text-xs text-muted-foreground">{event.actorName || 'Staff member'} · {formatInstant(event.occurredAt, timezone)}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No preparation steps recorded.</p>}
+          {detail.history.length ? <ul className="mt-2 space-y-2 border-l border-border pl-3">{detail.history.map(event => <li key={event.id} className="text-sm"><p >{sentenceCase(event.beforeStatus)} to {sentenceCase(event.status)} · <span className="font-mono normal-case">{event.reasonCode}</span></p><p className="text-xs text-muted-foreground">{event.actorName || 'Staff member'} · {formatInstant(event.occurredAt, timezone)}</p></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No preparation steps recorded.</p>}
           {detail.historyHasMore && <p className="mt-2 text-xs text-muted-foreground">Showing the latest 20 steps.</p>}
         </section>
       </div>}

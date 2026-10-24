@@ -1,6 +1,6 @@
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
-import { Dot, DotLabel, Panel, PillLink, statusTone, Track } from '@/features/platform/components/cannabis-ui';
+import { Dot, DotLabel, Panel, PillLink, statusTone, Track, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { getSaleReceipt } from '../actions/receipt';
 import { formatInstant } from '@/features/platform/lib/time';
 
@@ -23,8 +23,8 @@ export async function SaleReceiptDetail({ saleId, timezone }: { saleId: string; 
   return <Panel data-testid="sale-receipt-detail">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="font-mono text-base font-semibold">{sale.receiptNumber}</h2><DotLabel tone={statusTone(sale.status)} className="text-xs capitalize text-muted-foreground">{readable(sale.status)}</DotLabel></div>
-        <p className="mt-0.5 text-xs text-muted-foreground">Finalized {formatInstant(sale.finalizedAt, timezone)} · <span className="capitalize">{readable(sale.customerCapacitySnapshot)}</span> · policy <span className="font-mono">{sale.rulePackVersion}</span>{!sale.currencyCode && ' · currency not recorded'}</p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="font-mono text-base font-semibold">{sale.receiptNumber}</h2><DotLabel tone={statusTone(sale.status)} className="text-xs text-muted-foreground">{sentenceCase(sale.status)}</DotLabel></div>
+        <p className="mt-0.5 text-xs text-muted-foreground">Finalized {formatInstant(sale.finalizedAt, timezone)} · <span >{sentenceCase(sale.customerCapacitySnapshot)}</span> · policy <span className="font-mono">{sale.rulePackVersion}</span>{!sale.currencyCode && ' · currency not recorded'}</p>
       </div>
       {close}
     </div>
@@ -41,7 +41,7 @@ export async function SaleReceiptDetail({ saleId, timezone }: { saleId: string; 
       <div className="space-y-5">
         <dl className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm ring-1 ring-inset ring-border/60">{totals.map(([term, cents, strong]) => <div key={term} className={`flex items-baseline justify-between gap-4 ${strong ? 'border-y border-border py-1.5 font-semibold' : ''}`}><dt className={strong ? '' : 'text-muted-foreground'}>{term}</dt><dd className="font-mono">{money(cents)}</dd></div>)}</dl>
         <section aria-label="Tenders"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Tenders</h3>
-          {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(tender.status)} className="capitalize">{readable(tender.typeSnapshot)} · {readable(tender.status)}</DotLabel><span className="font-mono">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
+          {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(tender.status)} >{sentenceCase(tender.typeSnapshot)} · {sentenceCase(tender.status)}</DotLabel><span className="font-mono">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
         </section>
         <section aria-label="Refunds"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refunds</h3>
           {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · <span className="font-mono">{refund.reasonCode}</span> · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}

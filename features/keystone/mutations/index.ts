@@ -10,8 +10,9 @@ import { configureCannabisProduct, configureRegister, openRegisterShift, closeRe
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
 import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings } from "./storefrontSettings";
-import { amendCannabisRulePack } from "./rulePack";
+import { amendCannabisPremisesDetails, amendCannabisRulePack } from "./rulePack";
 import { setStaffTemporaryPassword } from "./staffAccess";
+import { exposeRuleErrors } from "./ruleErrors";
 
 const graphql = String.raw;
 
@@ -39,6 +40,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         amendRegister(input: JSON!): JSON!
         renewCannabisAuthority(input: JSON!): JSON!
         amendCannabisRulePack(input: JSON!): JSON!
+        amendCannabisPremisesDetails(input: JSON!): JSON!
         setStaffTemporaryPassword(input: JSON!): JSON!
         configureCannabisStorefrontSettings(input: JSON!): JSON!
         provisionStaffAuthority(input: JSON!): JSON!
@@ -68,8 +70,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
     `,
     resolvers: {
-      Query: { redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt },
-      Mutation: {
+      Query: exposeRuleErrors({ redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
+      Mutation: exposeRuleErrors({
         runCannabisOnboarding,
         dismissCannabisOnboarding,
         transitionComplianceIncident,
@@ -78,6 +80,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         amendRegister,
         renewCannabisAuthority,
         amendCannabisRulePack,
+        amendCannabisPremisesDetails,
         setStaffTemporaryPassword,
         configureCannabisStorefrontSettings,
         provisionStaffAuthority,
@@ -104,7 +107,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         retryStateOutboxEvent,
         recordReconciliationRun,
         approveReconciliationRun,
-      },
+      }),
     },
   });
 }
