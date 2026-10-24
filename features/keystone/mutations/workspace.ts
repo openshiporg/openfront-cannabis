@@ -1,7 +1,6 @@
 import type { Context } from ".keystone/types";
 import type { CannabisPermission } from "../access";
 import { packageReadiness } from "../domain/packageReadiness";
-import { isRuntimeCapabilityEnabled } from "../domain/runtimeCapabilities";
 import { requireOperationalAuthority, requireReadAuthority, stableHash } from "./workflow";
 import { latestRulePack, rulePackProblem } from "./rulePack";
 
@@ -188,11 +187,10 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const search = options.search ? { OR: [{ packageUid: { contains: options.search, mode: "insensitive" } }, { lotNumber: { contains: options.search, mode: "insensitive" } }, { product: { name: { contains: options.search, mode: "insensitive" } } }] } : {};
     const packages = await page(context, "InventoryPackage", { where: { AND: [scope, PACKAGE_FILTERS[filter](now), search] }, orderBy: [{ expiresAt: "asc" }], cursor: options.cursor, query: PACKAGE_SELECTION });
     const counts = Object.fromEntries(await Promise.all(Object.entries(PACKAGE_FILTERS).map(async ([key, where]) => [key, await sudo.query.InventoryPackage.count({ where: { AND: [scope, where(now)] } as any })])));
-    const releaseAvailable = isRuntimeCapabilityEnabled("inventory.event-specific-custody");
     return {
       ...base, filter, search: options.search, counts,
       packages: { ...packages, items: packages.items.map(pkg => projectPackage(pkg, now)) },
-      actions: { release: releaseAvailable ? { available: true } : { available: false, reason: "Releasing packages to saleable is not available yet. It needs verified lab evidence and an independent approval workflow." } },
+      actions: { release: { available: true } },
     };
   }
 
@@ -225,11 +223,15 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   }
 
   if (section === "pos") {
-    const carts = await page(context, "Cart", { where: { ...scope, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference source status expiresAt totalCents customer { id reference capacity }" });
+    const carts = await page(context, "Cart", { where: { ...scope, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference source status version expiresAt subtotalCents discountCents taxCents totalCents customer { id reference capacity } shift { id operator { id } } lines(take: 50) { id titleSnapshot quantityMicrounits totalCents package { unitOfMeasure } }" });
+    // Selling needs the actor's own open shift; payment types are the configured, current ones.
+    const myShifts = await sudo.query.RegisterShift.findMany({ where: { ...scope, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, orderBy: [{ openedAt: "desc" }], take: 5, query: "id register { name code }" });
+    const tenderTypes = await sudo.query.TenderConfiguration.findMany({ where: { ...scope, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, orderBy: [{ type: "asc" }], take: 10, query: "type displayName" });
     const productSearch = options.productSearch ? { OR: [{ name: { contains: options.productSearch, mode: "insensitive" } }, { sku: { contains: options.productSearch, mode: "insensitive" } }] } : {};
     const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, productSearch] }, orderBy: [{ name: "asc" }], take: 100, query: "id name sku form unitQuantityMicrounits unitOfMeasure" });
     const sales = await page(context, "Sale", { where: scope, orderBy: [{ finalizedAt: "desc" }], take: 25, query: "id receiptNumber status totalCents finalizedAt" });
-    return { ...base, carts, products, sales, productSearch: options.productSearch };
+    const allowed = Array.isArray(rulePack?.allowedTenderTypes) ? rulePack!.allowedTenderTypes as string[] : [];
+    return { ...base, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
   }
 
   if (section === "cash") {
@@ -237,7 +239,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const registers = await page(context, "Register", { where: scope, orderBy: [{ code: "asc" }], take: 100, query: "id code name status" });
     const tenders = await sudo.query.TenderConfiguration.findMany({ where: scope, orderBy: [{ type: "asc" }], take: 20, query: "id code type displayName enabled authorityReference effectiveAt expiresAt" });
     const shiftEvents = await Promise.all(shifts.items.map(shift => sudo.query.CashEvent.findMany({ where: { shift: { id: { equals: shift.id } } }, orderBy: [{ occurredAt: "desc" }], take: 10, query: "id type amountCents reasonCode occurredAt actor { name }" })));
-    return { ...base, shifts: { ...shifts, items: shifts.items.map((shift, index) => ({ ...shift, cashEvents: shiftEvents[index] })) }, registers, tenders };
+    return { ...base, actorId: authority.actor.id, shifts: { ...shifts, items: shifts.items.map((shift, index) => ({ ...shift, cashEvents: shiftEvents[index] })) }, registers, tenders };
   }
 
   if (section === "reconciliation") {

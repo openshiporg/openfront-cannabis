@@ -2,6 +2,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { Dot, DotLabel, Panel, PillLink, statusTone, Track, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { getSaleReceipt } from '../actions/receipt';
+import { RefundForm } from '@/features/platform/operations/components/SaleForms';
 import { formatInstant } from '@/features/platform/lib/time';
 
 const readable = (value: string | null | undefined) => (value || '').replaceAll('_', ' ');
@@ -10,7 +11,7 @@ const readable = (value: string | null | undefined) => (value || '').replaceAll(
  * Read-only receipt. Amounts use the currency recorded on the sale itself;
  * `currencyCode` (the premises' current currency) is never applied to history.
  */
-export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashboard/platform/pos', closeLabel = 'Close receipt' }: { saleId: string; currencyCode?: string | null; timezone?: string | null; closeHref?: string; closeLabel?: string }) {
+export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashboard/platform/pos', closeLabel = 'Close receipt', refundable = false }: { saleId: string; currencyCode?: string | null; timezone?: string | null; closeHref?: string; closeLabel?: string; refundable?: boolean }) {
   const result = await getSaleReceipt(saleId);
   const close = <Track><PillLink href={closeHref}>{closeLabel}</PillLink></Track>;
   if (result.state !== 'ok') {
@@ -45,6 +46,7 @@ export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashbo
         </section>
         <section aria-label="Refunds"><h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Refunds</h3>
           {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · {codeLabel(refund.reasonCode)} · {readable(refund.status)}</span><span className="font-mono">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
+          {refundable && <div className="mt-3"><RefundForm saleId={sale.id} tenders={sale.tenders.filter(tender => tender.status !== 'reversed' && tender.status !== 'failed')} remainingCents={sale.totalCents - sale.refundedCents} currencyCode={sale.currencyCode} /></div>}
         </section>
       </div>
     </div>

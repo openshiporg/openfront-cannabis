@@ -5,6 +5,7 @@ import { CartPreparationClient } from '@/features/platform/fulfillment/component
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
 import { BandRow, ListBand, MetricStrip, Notice, operatingState, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, codeLabel, INTERVAL_LABEL, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatUsableThrough, formatWhen, Pager, readable, SearchForm, Status, Workboard } from '../components/WorkspaceKit';
+import { CartPanel, CheckInForm, CloseShiftForm } from '../components/SaleForms';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
 import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
 
@@ -160,7 +161,6 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
       { label: 'Active package holds', value: data.holds.total, tone: data.holds.total ? 'danger' : 'muted', href: '/dashboard/platform/inventory?filter=held' },
       { label: 'Recall cases', value: data.recalls.total, tone: data.recalls.total ? 'danger' : 'muted' },
     ]} />
-    <Notice tone="muted">Eligibility decisions and hold releases unavailable</Notice>
     <section data-testid="compliance-workbench">
       <SectionTitle meta={data.holds.total}>Active package holds</SectionTitle>
       <ListBand>
@@ -234,14 +234,16 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
         { label: 'In final verification', value: finalVerification },
         { label: 'Receipts', value: data.sales.total },
       ]} />
-      <Notice tone="muted">New carts and sale completion unavailable</Notice>
       {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} timezone={data.timezone} />}
+      {data.operating.open && <Panel title="New sale">{data.myShifts.length ? <CheckInForm shifts={data.myShifts} medicalEnabled={data.medicalEnabled} /> : <Notice tone="warn" action={<Track><PillLink href="/dashboard/platform/cash" active>Open a shift</PillLink></Track>}>Open a shift on a register to sell</Notice>}</Panel>}
       <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <div className="space-y-8">
           <section data-testid="pos-fulfillment-workbench">
             <SectionTitle meta={data.carts.total}>Open carts</SectionTitle>
             <ListBand>
-              {data.carts.items.length ? data.carts.items.map(cart => <BandRow key={cart.id} title={<span className="font-mono">{cart.reference}</span>} tone={statusTone(cart.status)} state={<span >{sentenceCase(cart.status)}</span>} detail={<>Expires {formatWhen(cart.expiresAt, data.timezone)} · customer <span className="font-mono">{cart.customer?.reference || 'not recorded'}</span></>} aside={<span className="font-mono">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>} />) : <Empty>No open carts.</Empty>}
+              {data.carts.items.length ? data.carts.items.map(cart => <BandRow key={cart.id} title={<span className="font-mono">{cart.reference}</span>} tone={statusTone(cart.status)} state={<span >{sentenceCase(cart.status)}</span>} detail={<>Expires {formatWhen(cart.expiresAt, data.timezone)} · customer <span className="font-mono">{cart.customer?.reference || 'not recorded'}</span>{cart.customer ? ` · ${sentenceCase(cart.customer.capacity)}` : ''}</>} aside={<span className="font-mono">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>}>
+                {cart.source === 'pos' && data.operating.open && <div className="mt-3"><CartPanel cart={cart} products={data.products.items} tenderTypes={data.tenderTypes} currencyCode={data.currencyCode} actorId={data.actorId} /></div>}
+              </BandRow>) : <Empty>No open carts.</Empty>}
               <Pager basePath="/dashboard/platform/pos" params={params} nextCursor={data.carts.nextCursor} shown={data.carts.items.length} total={data.carts.total} noun="carts" />
             </ListBand>
           </section>
@@ -275,7 +277,6 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
         { label: 'Variance reviews', value: review, tone: review ? 'warn' : 'muted' },
         { label: 'Registers', value: data.registers.total },
       ]} />
-      <Notice tone="muted">Blind-count shift close unavailable</Notice>
       <section data-testid="cash-workbench">
         <SectionTitle meta={data.shifts.total}>Shifts</SectionTitle>
         <ListBand>
@@ -283,6 +284,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             detail={<>Opened {formatWhen(shift.openedAt, data.timezone)} · {shift.operator?.name || 'Operator not recorded'} · float <span className="font-mono">{formatMinorUnits(shift.openingFloatCents, data.currencyCode)}</span></>}
             aside={shift.varianceCents == null ? <span className="text-xs text-muted-foreground">No count yet</span> : <span className={shift.varianceCents === 0 ? 'font-mono' : 'font-mono text-amber-700 dark:text-amber-400'}>{shift.varianceCents > 0 ? '+' : ''}{formatMinorUnits(shift.varianceCents, data.currencyCode)}</span>}>
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
+            {shift.status === 'open' && shift.operator?.id === data.actorId && data.operating.open && <div className="mt-2"><CloseShiftForm shiftId={shift.id} /></div>}
             {shift.cashEvents.length > 0 && <details className="mt-2"><summary className="inline-flex cursor-pointer list-none text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Drawer ledger ({shift.cashEvents.length})</summary>
               <ul className="mt-2 space-y-1 border-l border-border pl-3 text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3"><span>{sentenceCase(event.type)} · {codeLabel(event.reasonCode)} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="font-mono">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
             </details>}

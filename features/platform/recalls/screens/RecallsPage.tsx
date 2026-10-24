@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { BandRow, Count, ListBand, MetricStrip, Panel, PillLink, SectionTitle, sentenceCase, Track } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatWhen, Pager } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
+import { AdvanceRecallForm } from '@/features/platform/operations/components/SaleForms';
 import { OpenRecallForm } from '../components/OpenRecallForm';
 
 export async function RecallsPage({ searchParams }: { searchParams?: SearchParams }) {
@@ -27,6 +28,7 @@ export async function RecallsPage({ searchParams }: { searchParams?: SearchParam
             {recall.packageUids.map(uid => <Link key={uid} href={`/dashboard/platform/inventory?search=${encodeURIComponent(uid)}`} className="rounded-full bg-background px-2 py-0.5 font-mono text-[11px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.12)] hover:underline dark:bg-zinc-800">{uid}</Link>)}
             {recall.batchNumbers.map(batch => <span key={batch} className="rounded-full px-2 py-0.5 font-mono text-[11px] text-muted-foreground ring-1 ring-inset ring-border">batch {batch}</span>)}
           </div>}
+          {data.operating.open && recall.status !== 'regulator_closed' && <div className="mt-3"><AdvanceRecallForm recallId={recall.id} reference={recall.reference} status={recall.status} /></div>}
         </BandRow>) : <Empty>{data.filter === 'open' ? 'No open recalls.' : 'No recalls.'}</Empty>}
         <Pager basePath="/dashboard/platform/recalls" params={params} nextCursor={data.recalls.nextCursor} shown={data.recalls.items.length} total={data.recalls.total} noun="recalls" />
       </ListBand>

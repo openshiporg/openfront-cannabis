@@ -296,3 +296,154 @@ export async function openRecallFromDesk(_state: CommandState, formData: FormDat
   const held = typeof result.result?.heldPackages === 'number' ? result.result.heldPackages : null;
   return result.success && held != null ? { ...result, success: `Recall ${String(result.result?.reference ?? '')} opened. ${held} package${held === 1 ? '' : 's'} held.` } : result;
 }
+
+const moneyCents = (value: string) => /^\d{1,7}(\.\d{1,2})?$/.test(value) ? Math.round(Number(value) * 100) : null;
+
+/** The second person's own sign-in, checked server-side for this one command. */
+function approverFields(formData: FormData, errors: FieldErrors) {
+  const approverEmail = text(formData, 'approverEmail'); const approverPassword = String(formData.get('approverPassword') ?? '');
+  if (!approverEmail.includes('@')) errors.approverEmail = 'Enter the approver’s email';
+  if (!approverPassword) errors.approverPassword = 'The approver enters their password';
+  return { approverEmail, approverPassword };
+}
+
+export async function recordLabResultFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const result = text(formData, 'result');
+  if (!['passed', 'failed'].includes(result)) errors.result = 'Choose passed or failed';
+  for (const [name, label] of [['labName', 'Enter the lab'], ['labResultReference', 'Enter the result reference'], ['coaReference', 'Enter the COA reference']] as const) if (text(formData, name).length < 2) errors[name] = label;
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('recordPackageLabResult', 'recordPackageLabResult', { idempotencyKey, packageId: text(formData, 'packageId'), result, labName: text(formData, 'labName'), labResultReference: text(formData, 'labResultReference'), coaReference: text(formData, 'coaReference') },
+    result === 'passed' ? 'Lab result recorded: passed.' : 'Lab result recorded: failed. The package is quarantined.');
+}
+
+export async function releasePackageFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const idempotencyKey = commandKey(formData);
+  if (!idempotencyKey) return invalid({});
+  return runCommand('releaseCannabisPackage', 'releaseCannabisPackage', { idempotencyKey, packageId: text(formData, 'packageId') }, 'Released. The package is ready to sell.');
+}
+
+export async function releaseHoldFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  if (text(formData, 'releaseAuthorityReference').length < 2) errors.releaseAuthorityReference = 'Enter the release reference';
+  if (!REASON_CODE.test(text(formData, 'reasonCode'))) errors.reasonCode = 'Use a lowercase code such as retest_passed';
+  const approver = approverFields(formData, errors);
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('releasePackageHold', 'releasePackageHold', { idempotencyKey, holdId: text(formData, 'holdId'), releaseAuthorityReference: text(formData, 'releaseAuthorityReference'), reasonCode: text(formData, 'reasonCode'), ...approver }, 'Hold released.');
+}
+
+const RECALL_STAGES = ['scope_confirmed', 'active', 'monitoring', 'disposition', 'regulator_closed'];
+
+export async function advanceRecallFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const nextStatus = text(formData, 'nextStatus');
+  if (!RECALL_STAGES.includes(nextStatus)) errors.nextStatus = 'Choose the next stage';
+  const closing = nextStatus === 'regulator_closed';
+  const disposition = text(formData, 'disposition');
+  if (closing && !['release', 'destroy'].includes(disposition)) errors.disposition = 'Choose release or destroy';
+  if (closing && text(formData, 'closureReference').length < 2) errors.closureReference = 'Enter the regulator’s closure reference';
+  const approver = closing ? approverFields(formData, errors) : {};
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  const result = await runCommand('advanceRecallCase', 'advanceRecallCase', { idempotencyKey, recallId: text(formData, 'recallId'), nextStatus, ...(closing ? { disposition, closureReference: text(formData, 'closureReference'), ...approver } : {}) }, 'Recall updated.');
+  const settled = result.result?.settledPackages;
+  return result.success && closing && typeof settled === 'number' ? { ...result, success: `Recall closed. ${settled} package${settled === 1 ? '' : 's'} ${disposition === 'destroy' ? 'destroyed' : 'released'}.` } : result;
+}
+
+export async function checkInAndStartSaleFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const capacity = text(formData, 'capacity');
+  if (!['adult_use', 'patient', 'caregiver'].includes(capacity)) errors.capacity = 'Choose the buyer type';
+  if (!text(formData, 'identityMethod')) errors.identityMethod = 'Choose the ID type';
+  if (text(formData, 'identityNumber').length < 4) errors.identityNumber = 'Enter the ID number';
+  for (const [name, label] of [['dateOfBirth', 'Enter the date of birth'], ['identityExpiresAt', 'Enter the ID expiry']] as const) if (!DATE_ONLY.test(text(formData, name))) errors[name] = label;
+  if (formData.get('identityVerified') !== 'on') errors.identityVerified = 'Confirm you checked the ID';
+  const medical = capacity === 'patient' || capacity === 'caregiver';
+  if (medical) {
+    if (text(formData, 'registryName').length < 2) errors.registryName = 'Enter the registry';
+    if (text(formData, 'registryNumber').length < 3) errors.registryNumber = 'Enter the registry card number';
+    if (!DATE_ONLY.test(text(formData, 'registryExpiresAt'))) errors.registryExpiresAt = 'Enter the card expiry';
+    if (formData.get('registryVerified') !== 'on') errors.registryVerified = 'Confirm you checked the card';
+  }
+  if (capacity === 'caregiver') {
+    if (text(formData, 'representedPatientNumber').length < 3) errors.representedPatientNumber = 'Enter the patient’s registry number';
+    if (formData.get('representedPatientVerified') !== 'on') errors.representedPatientVerified = 'Confirm the caregiver authority';
+  }
+  if (!text(formData, 'shiftId')) errors.shiftId = 'Open a shift on a register first';
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  const checkIn = await runCommand('checkInCannabisCustomer', 'checkInCannabisCustomer', {
+    idempotencyKey: `${idempotencyKey}:in`, capacity, identityMethod: text(formData, 'identityMethod'), identityNumber: text(formData, 'identityNumber'), dateOfBirth: text(formData, 'dateOfBirth'), identityExpiresAt: text(formData, 'identityExpiresAt'), identityVerified: true,
+    ...(medical ? { registryName: text(formData, 'registryName'), registryNumber: text(formData, 'registryNumber'), registryExpiresAt: text(formData, 'registryExpiresAt'), registryVerified: true } : {}),
+    ...(capacity === 'caregiver' ? { representedPatientNumber: text(formData, 'representedPatientNumber'), representedPatientVerified: true } : {}),
+  }, 'Checked in.');
+  if (!checkIn.success) return checkIn;
+  const customerId = String(checkIn.result?.id ?? ''); const eligibilityEvidenceId = String(checkIn.result?.eligibilityEvidenceId ?? '');
+  const cart = await runCommand('createPosCannabisCart', 'createPosCannabisCart', { idempotencyKey: `${idempotencyKey}:cart`, customerId, eligibilityEvidenceId, shiftId: text(formData, 'shiftId') }, 'Sale started.');
+  if (!cart.success) return { ...cart, error: `Customer ${String(checkIn.result?.reference ?? '')} checked in, but the sale was not started: ${cart.error ?? ''}` };
+  return { ...cart, success: `Customer ${String(checkIn.result?.reference ?? '')} checked in${checkIn.result?.returning ? ' (returning)' : ''}. Sale ${String(cart.result?.reference ?? '')} started.` };
+}
+
+export async function addCartLineFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const idempotencyKey = commandKey(formData);
+  const quantityMicrounits = Number(text(formData, 'quantityMicrounits')); const expectedCartVersion = Number(text(formData, 'expectedCartVersion'));
+  const reviewedQuoteHash = text(formData, 'reviewedQuoteHash');
+  if (!idempotencyKey || !Number.isSafeInteger(quantityMicrounits) || quantityMicrounits < 1 || !Number.isSafeInteger(expectedCartVersion) || !/^[a-f0-9]{64}$/.test(reviewedQuoteHash)) return { error: 'Get a fresh quote, then add it.' };
+  const promotionCode = text(formData, 'promotionCode');
+  return runCommand('addCannabisCartLine', 'addCannabisCartLine', { idempotencyKey, cartId: text(formData, 'cartId'), productId: text(formData, 'productId'), quantityMicrounits, expectedCartVersion, reviewedQuoteHash, ...(promotionCode ? { promotionCode } : {}) }, 'Added to the cart.');
+}
+
+export async function finalizeSaleFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const type = text(formData, 'tenderType'); const totalCents = Number(text(formData, 'totalCents'));
+  if (!type) errors.tenderType = 'Choose a payment type';
+  let tender: Record<string, unknown> = {};
+  if (type === 'cash') {
+    const tendered = moneyCents(text(formData, 'tendered'));
+    if (tendered == null) errors.tendered = 'Enter the cash received, e.g. 60.00';
+    else if (tendered < totalCents) errors.tendered = 'Less than the total';
+    else tender = { type, amountCents: totalCents, tenderedCents: tendered, changeCents: tendered - totalCents };
+  } else if (type) {
+    if (text(formData, 'providerReference').length < 2) errors.providerReference = 'Enter the terminal approval code';
+    else tender = { type, amountCents: totalCents, tenderedCents: totalCents, changeCents: 0, providerReference: text(formData, 'providerReference') };
+  }
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey || !Number.isSafeInteger(totalCents)) return invalid(errors);
+  const result = await runCommand('finalizeCannabisSale', 'finalizeCannabisSale', { idempotencyKey, cartId: text(formData, 'cartId'), tenders: [tender], representedPatientVerified: formData.get('representedPatientVerified') === 'on' }, 'Sale complete.');
+  const change = Number(tender.changeCents ?? 0);
+  return result.success ? { ...result, success: `Sale ${String(result.result?.reference ?? '')} complete.${change > 0 ? ` Change due ${(change / 100).toFixed(2)}.` : ''}` } : result;
+}
+
+export async function cancelCartFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const idempotencyKey = commandKey(formData);
+  if (!idempotencyKey) return invalid({});
+  return runCommand('cancelCannabisCart', 'cancelCannabisCart', { idempotencyKey, cartId: text(formData, 'cartId'), reasonCode: 'cart_cancelled' }, 'Cart cancelled. Its stock is free again.');
+}
+
+export async function closeShiftFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const actualCashCents = moneyCents(text(formData, 'actualCash'));
+  if (actualCashCents == null) errors.actualCash = 'Enter the counted cash, e.g. 412.50';
+  const approver = approverFields(formData, errors);
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  const result = await runCommand('closeRegisterShift', 'closeRegisterShift', { idempotencyKey, shiftId: text(formData, 'shiftId'), actualCashCents, ...approver }, 'Shift closed.');
+  return result.success && result.result?.status === 'variance_review' ? { ...result, success: 'Counted. The drawer is off, so the shift waits for variance approval.' } : result;
+}
+
+export async function refundSaleFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const amountCents = moneyCents(text(formData, 'amount'));
+  if (amountCents == null || amountCents < 1) errors.amount = 'Enter the refund amount';
+  if (!text(formData, 'originalTenderId')) errors.originalTenderId = 'Choose the original payment';
+  if (!REASON_CODE.test(text(formData, 'reasonCode'))) errors.reasonCode = 'Use a lowercase code such as damaged_product';
+  const inventoryDisposition = text(formData, 'inventoryDisposition');
+  if (!['none', 'quarantine', 'waste', 'returned_to_authority'].includes(inventoryDisposition)) errors.inventoryDisposition = 'Choose what happens to returned product';
+  const approver = approverFields(formData, errors);
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  const providerReference = text(formData, 'providerReference');
+  return runCommand('refundCannabisSale', 'refundCannabisSale', { idempotencyKey, saleId: text(formData, 'saleId'), originalTenderId: text(formData, 'originalTenderId'), amountCents, reasonCode: text(formData, 'reasonCode'), inventoryDisposition, ...(providerReference ? { providerReference } : {}), ...approver }, 'Refund recorded.');
+}

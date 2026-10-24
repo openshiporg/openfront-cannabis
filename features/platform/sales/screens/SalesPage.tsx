@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { formatMinorUnits } from '@/features/lib/money';
-import { BandRow, Count, ListBand, MetricStrip, Notice, PageTitle, PillLink, SectionTitle, codeLabel, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
+import { BandRow, Count, ListBand, MetricStrip, PageTitle, PillLink, SectionTitle, codeLabel, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
 import { AsOf, Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
@@ -26,7 +26,6 @@ export async function SalesPage({ searchParams }: { searchParams?: SearchParams 
       { label: 'Awaiting state reporting', value: data.counts.reporting, tone: data.counts.reporting ? 'warn' : 'muted', href: filterHref('reporting') },
       { label: 'Refunded or reversed', value: data.counts.refunds, href: filterHref('refunds') },
     ]} />
-    <Notice tone="muted">Sale completion and refunds unavailable</Notice>
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <nav aria-label="Sale status"><Track className="max-sm:flex-wrap max-sm:rounded-2xl">{FILTERS.map(item => <PillLink key={item.id} href={filterHref(item.id, params.search)} active={data.filter === item.id}>{item.label} <Count>{data.counts[item.id]}</Count></PillLink>)}</Track></nav>
       <SearchForm basePath="/dashboard/platform/sales" params={params} label="Search receipts" placeholder="Receipt number" />
@@ -61,7 +60,7 @@ export async function SaleDetailPage({ params: routeParams }: { params: Promise<
   const meta = workspace.state === 'ok' ? <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={workspace.data.generatedAt} timezone={workspace.data.timezone} />{workspace.data.jurisdictionCode && <span className="font-mono">{workspace.data.jurisdictionCode}</span>}</span> : undefined;
   return <PageContainer header={<PageTitle title={receipt.state === 'ok' ? receipt.sale.receiptNumber : 'Receipt'} meta={meta} />} breadcrumbs={breadcrumbs}>
     <div className="space-y-4 px-4 pb-28 md:px-6">
-      <SaleReceiptDetail saleId={saleId} timezone={timezone} closeHref="/dashboard/platform/sales" closeLabel="All sales" />
+      <SaleReceiptDetail saleId={saleId} timezone={timezone} closeHref="/dashboard/platform/sales" closeLabel="All sales" refundable />
     </div>
   </PageContainer>;
 }

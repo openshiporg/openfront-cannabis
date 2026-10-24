@@ -1,5 +1,6 @@
 import type { Context } from ".keystone/types";
 import { requireRuntimeCapability } from "../domain/runtimeCapabilities";
+import { verifySecondApprover, withApprover } from "./approval";
 import { validateReconciliationSubmission } from "../domain/reconciliationEvidence";
 import { assertProviderEventScopeMatch } from "../domain/providerEventScope";
 import { isCompleteShiftCashEventRead } from "../domain/operatorReadBounds";
@@ -44,7 +45,8 @@ export async function openRegisterShift(_root: unknown, args: { input: any }, co
 
 export async function closeRegisterShift(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("finance.action-bound-approval", "Shift close is disabled until an authenticated, action-bound second-party approval workflow is implemented.");
-  const input = args.input; const actual = assertInteger(input.actualCashCents, "Actual cash", 0);
+  const actual = assertInteger(args.input?.actualCashCents, "Actual cash", 0);
+  const input = withApprover(args.input, await verifySecondApprover(context, args.input, "canManageFinance"));
   if (!input.approvedById || input.approvedById === (context.session as any)?.itemId) throw new Error("Shift close requires an independent approver");
   return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "closeRegisterShift", resourceType: "RegisterShift", action: "cash.shift.closed", emitStateEvent: false, lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status openingFloatCents organization { id } premises { id } operator { id } cashEvents(take: 500) { type amountCents }" });
@@ -78,7 +80,8 @@ export async function approveCashVariance(_root: unknown, args: { input: any }, 
 
 export async function refundCannabisSale(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("finance.verified-refunds", "Refunds are disabled until trusted payment outcomes, cumulative tender allocations, return custody, and independent approvals are implemented.");
-  const input = args.input; const amount = assertInteger(input.amountCents, "Refund amount", 1);
+  const amount = assertInteger(args.input?.amountCents, "Refund amount", 1);
+  const input = withApprover(args.input, await verifySecondApprover(context, args.input, "canManageFinance"));
   if (!input.approvedById || input.approvedById === (context.session as any)?.itemId) throw new Error("Refund requires independent approval");
   return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "refundCannabisSale", resourceType: "Refund", action: "sale.refunded", lockKeys: [String(input.saleId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const sale = await sudo.query.Sale.findOne({ where: { id: assertText(input.saleId, "Sale ID") }, query: "id receiptNumber status totalCents refundedCents organization { id } premises { id } shift { id status }" });
@@ -113,8 +116,10 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
     });
     if (!allocation.ok) throw new Error(allocation.reason === "limit" ? "Refund exceeds the remaining original tender allocation" : "Refund allocation evidence is incomplete or ambiguous");
     const originalTender = allocation.originalTender;
+    // Cash leaves the drawer now; a card refund runs on the terminal and its reference is recorded.
+    const providerReference = originalTender.typeSnapshot === "cash" ? "" : assertText(input.providerReference, "Terminal refund reference", 2, 200);
     const evidenceHash = stableHash(input.evidence || {});
-    const refund = await sudo.query.Refund.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, amountCents: amount, reasonCode: assertText(input.reasonCode, "Refund reason"), inventoryDisposition: input.inventoryDisposition, status: "pending", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, originalTenderReference: originalTender.id, providerReference: input.providerReference || "", occurredAt: new Date(), evidenceHash }, query: "id status" });
+    const refund = await sudo.query.Refund.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, amountCents: amount, reasonCode: assertText(input.reasonCode, "Refund reason"), inventoryDisposition: input.inventoryDisposition, status: "completed", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, originalTenderReference: originalTender.id, providerReference, occurredAt: new Date(), evidenceHash }, query: "id status" });
     const refundedCents = sale.refundedCents + amount; const saleStatus = refundedCents === sale.totalCents ? "refunded" : "partially_refunded";
     await sudo.query.Sale.updateOne({ where: { id: sale.id }, data: { refundedCents, status: saleStatus }, query: "id" });
     if (originalTender.typeSnapshot === "cash") await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: sale.shift.id } }, type: "refund", amountCents: -amount, reasonCode: input.reasonCode, actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, occurredAt: new Date(), idempotencyKey: `${correlationId}:refund`, evidenceHash }, query: "id" });

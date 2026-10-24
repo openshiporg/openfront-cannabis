@@ -4966,6 +4966,10 @@ type Mutation {
   amendCannabisPremisesDetails(input: JSON!): JSON!
   placePackageHold(input: JSON!): JSON!
   openRecallCase(input: JSON!): JSON!
+  advanceRecallCase(input: JSON!): JSON!
+  recordPackageLabResult(input: JSON!): JSON!
+  releaseCannabisPackage(input: JSON!): JSON!
+  checkInCannabisCustomer(input: JSON!): JSON!
   setStaffTemporaryPassword(input: JSON!): JSON!
   configureCannabisStorefrontSettings(input: JSON!): JSON!
   provisionStaffAuthority(input: JSON!): JSON!

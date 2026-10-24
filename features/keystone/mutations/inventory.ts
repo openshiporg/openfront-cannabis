@@ -2,6 +2,7 @@ import type { Context, InventoryEventEventTypeType } from ".keystone/types";
 import { PACKAGE_TRANSITIONS, assertInventoryDestructionQuantityDelta, assertInventoryEventQuantityDelta, assertTransition } from "../domain/cannabisPolicy";
 import { requireRuntimeCapability } from "../domain/runtimeCapabilities";
 import { endOfLocalDate } from "../domain/premisesTime";
+import { verifySecondApprover, withApprover } from "./approval";
 import { assertInteger, assertReasonCode, assertText, runControlledOperation, stableHash } from "./workflow";
 
 const EVENT_STATUS = {
@@ -65,12 +66,13 @@ export async function receiveCannabisPackage(_root: unknown, args: { input: any 
 
 export async function releasePackageHold(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("inventory.action-bound-approval", "Hold release is disabled until an authenticated, action-bound second-party approval workflow is implemented.");
-  const input = args.input;
+  const input = withApprover(args.input, await verifySecondApprover(context, args.input, "canManageCompliance"));
   if (!input.approvedById || input.approvedById === (context.session as any)?.itemId) throw new Error("Hold release requires an independent compliance approver");
   return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "inventory", scope: "releasePackageHold", resourceType: "PackageHold", action: "inventory.hold.released", lockKeys: [String(input.holdId)] }, async (tx, authority) => {
     const sudo = tx.sudo();
-    const hold = await sudo.query.PackageHold.findOne({ where: { id: assertText(input.holdId, "Hold ID") }, query: "id status organization { id } premises { id } package { id packageUid status }" });
+    const hold = await sudo.query.PackageHold.findOne({ where: { id: assertText(input.holdId, "Hold ID") }, query: "id type status organization { id } premises { id } package { id packageUid status }" });
     if (!hold || hold.status !== "active" || hold.organization?.id !== authority.organizationId || hold.premises?.id !== authority.premisesId) throw new Error("Active hold is outside this authority scope");
+    if (hold.type === "recall") throw new Error("Recall holds are released by closing their recall");
     const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageCompliance }" });
     if (!approver || approver.status !== "active" || !approver.role?.canManageCompliance || approver.organization?.id !== authority.organizationId || approver.premises?.id !== authority.premisesId) throw new Error("Approver lacks current compliance authority");
     await sudo.query.PackageHold.updateOne({ where: { id: hold.id }, data: { status: "released", releasedBy: { connect: { id: approver.id } }, releasedAt: new Date(), releaseAuthorityReference: assertText(input.releaseAuthorityReference, "Release authority reference") }, query: "id" });

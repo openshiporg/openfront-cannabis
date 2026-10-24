@@ -6,6 +6,7 @@ import type { WorkspaceData } from '@/features/platform/workspaces/lib/contract'
 import { formatUsableThrough, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { Count, Dot, DotLabel, ListBand, MetricStrip, Panel, PillLink, SectionTitle, statusTone, Track, type DotTone, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { PlaceHoldForm } from './PlaceHoldForm';
+import { LabResultForm, ReleaseHoldForm, ReleasePackageForm } from '@/features/platform/operations/components/SaleForms';
 import { hasDiscrepancy, readable, readinessReasons, type CustodyPackage } from '../lib/custody';
 
 type Props = { data: WorkspaceData<'inventory'>; params: Record<string, string | undefined> };
@@ -44,10 +45,14 @@ function PackageDetail({ pkg, release, timezone }: { pkg: CustodyPackage; releas
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Ready to sell</h3>
       {pkg.readiness.ready ? <p className="mt-1.5"><DotLabel tone="ok" className="text-sm">Ready</DotLabel></p> : <ul className="mt-1.5 space-y-1 text-sm">{reasons.map(reason => <li key={reason} className="flex items-baseline gap-2"><Dot tone="warn" />{reason}</li>)}</ul>}
       {!pkg.readiness.ready && pkg.status === 'receiving_hold' && !release.available && <p className="mt-2 text-xs text-muted-foreground">{release.reason}</p>}
+      {['receiving_hold', 'quarantined'].includes(pkg.status) && <div className="mt-3 space-y-3">
+        {release.available && pkg.testStatus === 'passed' && !pkg.holds.length && pkg.coaReference && pkg.labelVersion && <ReleasePackageForm key={`release-${pkg.id}`} packageId={pkg.id} packageUid={pkg.packageUid} />}
+        <LabResultForm key={`lab-${pkg.id}`} packageId={pkg.id} packageUid={pkg.packageUid} labName={pkg.labName} labResultReference={pkg.labResultReference} coaReference={pkg.coaReference} />
+      </div>}
     </section>
     <section>
       <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Active holds {pkg.holdsCount > pkg.holds.length && <span className="font-mono normal-case tracking-normal">· latest {pkg.holds.length} of {pkg.holdsCount}</span>}</h3>
-      {pkg.holds.length ? <ul className="mt-1.5 space-y-2">{pkg.holds.map(hold => <li key={hold.id} className="text-sm"><DotLabel tone="danger" >{sentenceCase(hold.type)} · {codeLabel(hold.reasonCode)}</DotLabel>{hold.reason && <p className="mt-0.5 pl-3.5 text-xs text-muted-foreground">{hold.reason}</p>}</li>)}</ul> : <p className="mt-1.5 text-sm text-muted-foreground">No active holds.</p>}
+      {pkg.holds.length ? <ul className="mt-1.5 space-y-2">{pkg.holds.map(hold => <li key={hold.id} className="space-y-1.5 text-sm"><DotLabel tone="danger" >{sentenceCase(hold.type)} · {codeLabel(hold.reasonCode)}</DotLabel>{hold.reason && <p className="mt-0.5 pl-3.5 text-xs text-muted-foreground">{hold.reason}</p>}{hold.type === 'recall' ? <p className="pl-3.5 text-xs text-muted-foreground">Released by closing its recall</p> : <ReleaseHoldForm holdId={hold.id} label={`${sentenceCase(hold.type)} hold on ${pkg.packageUid}`} />}</li>)}</ul> : <p className="mt-1.5 text-sm text-muted-foreground">No active holds.</p>}
     </section>
     {!['depleted', 'destroyed'].includes(pkg.status) && <PlaceHoldForm key={pkg.id} packageId={pkg.id} packageUid={pkg.packageUid} />}
     <section>

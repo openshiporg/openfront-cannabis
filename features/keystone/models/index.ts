@@ -1,3 +1,4 @@
+import type { CannabisPermission, Session } from "../access";
 import { User } from "./User";
 import { Role } from "./Role";
 import {
@@ -67,11 +68,25 @@ const LIST_VIEWS: Record<string, [labelField: string, columns: string[]]> = {
   ComplianceIncident: ["reference", ["reference", "type", "severity", "status"]],
 };
 
+// The role permission each list's read access requires (see each list's `access`). A list the
+// session's role can't read is hidden, so the sidebar and dashboard home show only what opens.
+const LIST_PERMISSION: Record<string, CannabisPermission> = {
+  User: "canManagePeople", Role: "canManageRoles", Organization: "canManageAuthority", Premises: "canManageAuthority", StorefrontSettings: "canManageAuthority",
+  CannabisLicense: "canManageAuthority", StaffCredential: "canManageAuthority", Customer: "canManageCompliance", EligibilityEvidence: "canManageCompliance",
+  JurisdictionRulePack: "canManageCompliance", Register: "canManageFinance", RegisterShift: "canManageFinance", CashEvent: "canManageFinance", TenderConfiguration: "canManageFinance",
+  Cart: "canManageSales", CartLine: "canManageSales", Sale: "canManageSales", SaleLine: "canManageSales", Tender: "canManageFinance", Refund: "canManageFinance",
+  Product: "canManageInventory", InventoryPackage: "canManageInventory", PackageHold: "canManageCompliance", RegulatedManifest: "canManageInventory", InventoryEvent: "canManageInventory",
+  RecallCase: "canManageCompliance", AuditEvent: "canViewReports", IdempotencyKey: "canViewReports", OutboxEvent: "canManageIntegrations", StateEventInbox: "canManageIntegrations",
+  IntegrationInstallation: "canManageIntegrations", ReconciliationRun: "canViewReports", ComplianceIncident: "canManageCompliance",
+};
+
 // Raw creation/deletion is denied for every current List. Keep those dead
 // actions out of generic model views; domain commands remain the write surface.
 for (const [key, model] of Object.entries(models)) {
   const view = LIST_VIEWS[key];
+  const permission = LIST_PERMISSION[key];
   model.ui = { ...model.ui, hideCreate: true, hideDelete: true,
+    ...(permission ? { isHidden: ({ session }: { session?: Session }) => session?.data?.role?.[permission] !== true } : {}),
     ...(view ? { labelField: view[0], listView: { ...model.ui?.listView, initialColumns: view[1] } } : {}),
     ...(key === 'User' ? {} : { itemView: { ...model.ui?.itemView, defaultFieldMode: 'read' as const } }),
   };

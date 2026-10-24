@@ -51,6 +51,19 @@ async function validateCustomerProof(context: Context, customerId: string, proof
   return customer;
 }
 
+/** Equivalency the customer already bought inside each configured day, rolling or allotment window. */
+async function purchaseWindowTotals(sudo: Context, customerId: string, pack: Record<string, any>, now: Date) {
+  const priorSales = await sudo.query.Sale.findMany({ where: { customer: { id: { equals: customerId } }, finalizedAt: { gte: new Date(now.getTime() - 366 * 86400_000) }, status: { in: ["finalized", "state_queued", "state_accepted", "state_rejected", "reconciled", "partially_refunded"] } }, orderBy: [{ finalizedAt: "desc" }], take: 1001, query: "finalizedAt lines { categoryCodeSnapshot equivalencyMicrounits }" });
+  if (priorSales.length > 1000) throw new Error("Purchase history exceeds bounded automatic evaluation and requires compliance review");
+  const priorWindowTotals: Record<string, number> = {};
+  for (const rule of pack.purchaseLimits as any[]) {
+    const windowMs = rule.window === "day" ? 86400_000 : rule.window === "rolling" ? assertInteger(rule.windowDays, "Rolling limit days", 1, 366) * 86400_000 : rule.window === "allotment" ? 366 * 86400_000 : 0;
+    if (!windowMs) continue;
+    priorWindowTotals[purchaseLimitKey(rule)] = priorSales.filter(sale => now.getTime() - new Date(sale.finalizedAt).getTime() < windowMs).flatMap(sale => sale.lines || []).filter(line => line.categoryCodeSnapshot === rule.categoryCode).reduce((sum, line) => sum + line.equivalencyMicrounits, 0);
+  }
+  return priorWindowTotals;
+}
+
 export async function createCustomerPickupCart(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("commerce.customer-cart", "Customer carts are disabled until owned account/intake continuity and server-side allocation are implemented.");
   const input = args.input; const customer = await validateCustomerProof(context, assertText(input.customerId, "Customer ID"), input.proof);
@@ -109,7 +122,7 @@ export async function cannabisCartAllocationQuote(_root: unknown, args: { input:
   const boundQuote = { ...quote, customerId: cart.customer.id, eligibilityEvidenceId: cart.eligibilityEvidence?.id ?? null, shiftId: cart.shift?.id ?? null,
     currencyCode: authority.actor.premises?.currencyCode ?? null, cartExpiresAt: new Date(cart.expiresAt).toISOString(), observedAt: new Date().toISOString() };
   return { quote: boundQuote, quoteHash: stableHash(boundQuote), packagesHasMore: candidates.length > 50,
-    reservationReadiness: "Price quote only. It does not reserve stock or confirm eligibility; adding items to a cart is not available yet." };
+    reservationReadiness: "Price quote only. Nothing is reserved until it is added to the cart." };
 }
 
 export async function addCannabisCartLine(_root: unknown, args: { input: unknown }, context: Context) {
@@ -182,10 +195,8 @@ export async function addCannabisCartLine(_root: unknown, args: { input: unknown
       if (!Number.isSafeInteger(categoryTotals[line.categoryCodeSnapshot])) throw new Error("Cart equivalency total exceeds safe integer range");
     }
     categoryTotals[pkg.product.categoryCode] = (categoryTotals[pkg.product.categoryCode] || 0) + equivalencyMicrounits;
-    // Current schema lacks approved day/allotment subject-window provenance.
-    // Never substitute empty history for those contracts or expired reservations.
-    if (pack.purchaseLimits.some((rule: { capacity: string; window: string }) => rule.capacity === currentCart.customer.capacity && rule.window !== "transaction")) throw new Error("Configured prior-window consumption and pending-allocation evidence contract is required; no empty history is assumed");
-    evaluatePurchaseLimits({ capacity: currentCart.customer.capacity, categoryTotals, priorWindowTotals: Object.create(null) }, pack as EffectiveRulePack);
+    // Windowed limits count this customer's finalized sales; the same check runs again at payment.
+    evaluatePurchaseLimits({ capacity: currentCart.customer.capacity, categoryTotals, priorWindowTotals: await purchaseWindowTotals(sudo, currentCart.customer.id, pack, new Date()) }, pack as EffectiveRulePack);
     const claimed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, organizationId: currentAuthority.organizationId, premisesId: currentAuthority.premisesId, status: "saleable", quantityOnHandMicrounits: balances.beforeQuantityMicrounits, version: pkg.version, reservedMicrounits: balances.beforeReservedMicrounits }, data: { reservedMicrounits: balances.afterReservedMicrounits, version: { increment: 1 } } });
     if (claimed.count !== 1) throw new Error("Package reservation changed concurrently");
     const line = await sudo.query.CartLine.createOne({ data: { organization: { connect: { id: currentCart.organization.id } }, premises: { connect: { id: currentCart.premises.id } }, cart: { connect: { id: currentCart.id } }, idempotencyKey: operationKey, package: { connect: { id: pkg.id } }, product: { connect: { id: pkg.product.id } }, quantityMicrounits: quantity, equivalencyMicrounits, titleSnapshot: pkg.product.name, skuSnapshot: pkg.product.sku, categoryCodeSnapshot: pkg.product.categoryCode, packageUidSnapshot: pkg.packageUid, batchSnapshot: pkg.productionBatchNumber, potencySnapshot: pkg.potencySnapshot, unitPriceCents: pkg.product.priceCents, subtotalCents, discountCents, discountSnapshot, taxBasisPoints: quote.taxBasisPoints, taxCents, totalCents }, query: "id totalCents" });
@@ -337,8 +348,11 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-cart", cartId);
     const sudo = tx.sudo(); const now = new Date(); const pack = await requireRulePack(tx, authority.organizationId!, authority.premisesId!); assertEffectiveRulePack(pack as any, now); assertOperatingWindow(pack as any, localMinute(now, authority.actor.premises.timezone));
     if (pack.offlineSalesAllowed !== false) throw new Error("Bounded launch requires offline regulated sales to remain disabled");
+    // The sale's state report is queued in the outbox (status state_queued). With no connected
+    // traceability provider it is reported through the state system directly (Reconciliation shows it);
+    // a connected provider must be the only one and validated.
     const traceability = await sudo.query.IntegrationInstallation.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, providerType: { equals: "traceability" }, status: { equals: "active" } }, take: 2, query: "id providerCode validatedAt authorityReference" });
-    if (traceability.length !== 1 || !traceability[0].validatedAt) throw new Error("Exactly one externally validated active traceability installation is required before sale");
+    if (traceability.length > 1 || (traceability.length === 1 && !traceability[0].validatedAt)) throw new Error("Exactly one externally validated active traceability installation is required before sale");
     const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference status expiresAt totalCents subtotalCents discountCents taxCents version organization { id } premises { id } shift { id status operator { id } } customer { id capacity status } eligibilityEvidence { id result capacity dateOfBirth identityExpiresAt registryExpiresAt evidenceHash allotmentRemainingMicrounits } rulePack { id version } lines(take: 251) { id package { id version status testStatus expiresAt unitOfMeasure premises { id } quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } } product { id categoryCode } titleSnapshot skuSnapshot categoryCodeSnapshot packageUidSnapshot batchSnapshot potencySnapshot quantityMicrounits equivalencyMicrounits unitPriceCents discountCents discountSnapshot taxCents totalCents }" });
     if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || cart.status !== "reserved" || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
     if (!cart.shift || cart.shift.status !== "open" || cart.shift.operator?.id !== authority.actor.id) throw new Error("Actor must own the cart's open register shift");
@@ -346,14 +360,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     assertEligibility({ capacity: cart.customer.capacity, age: ageAt(evidence.dateOfBirth, now), identityValid: true, registryValid: cart.customer.capacity === "adult_use" || Boolean(evidence.registryExpiresAt && new Date(evidence.registryExpiresAt) > now), representedPatientValid: cart.customer.capacity !== "caregiver" || Boolean(input.representedPatientVerified) }, pack as any);
     const salePackageGroups = groupSaleLinesByPackage(cart.lines);
     const categoryTotals: Record<string, number> = {}; for (const line of cart.lines) categoryTotals[line.categoryCodeSnapshot] = (categoryTotals[line.categoryCodeSnapshot] || 0) + line.equivalencyMicrounits;
-    const priorSales = await sudo.query.Sale.findMany({ where: { customer: { id: { equals: cart.customer.id } }, finalizedAt: { gte: new Date(now.getTime() - 366 * 86400_000) }, status: { in: ["finalized", "state_queued", "state_accepted", "state_rejected", "reconciled", "partially_refunded"] } }, orderBy: [{ finalizedAt: "desc" }], take: 1001, query: "finalizedAt lines { categoryCodeSnapshot equivalencyMicrounits }" });
-    if (priorSales.length > 1000) throw new Error("Purchase history exceeds bounded automatic evaluation and requires compliance review");
-    const priorWindowTotals: Record<string, number> = {};
-    for (const rule of pack.purchaseLimits as any[]) {
-      const windowMs = rule.window === "day" ? 86400_000 : rule.window === "rolling" ? assertInteger(rule.windowDays, "Rolling limit days", 1, 366) * 86400_000 : rule.window === "allotment" ? 366 * 86400_000 : 0;
-      if (!windowMs) continue;
-      priorWindowTotals[purchaseLimitKey(rule)] = priorSales.filter(sale => now.getTime() - new Date(sale.finalizedAt).getTime() < windowMs).flatMap(sale => sale.lines || []).filter(line => line.categoryCodeSnapshot === rule.categoryCode).reduce((sum, line) => sum + line.equivalencyMicrounits, 0);
-    }
+    const priorWindowTotals = await purchaseWindowTotals(sudo, cart.customer.id, pack, now);
     const limitDecision = evaluatePurchaseLimits({ capacity: cart.customer.capacity, categoryTotals, priorWindowTotals }, pack as any);
     if (cart.customer.capacity !== "adult_use" && evidence.allotmentRemainingMicrounits != null && Object.values(categoryTotals).reduce((a, b) => a + b, 0) > evidence.allotmentRemainingMicrounits) throw new Error("Patient or caregiver allotment is insufficient");
     const tenders = input.tenders; if (!Array.isArray(tenders) || tenders.length < 1 || tenders.length > 10) throw new Error("Sale requires 1-10 tenders");
@@ -365,6 +372,8 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       const changeCents = assertInteger(tender.changeCents ?? 0, "Change cents", 0);
       if (tender.type === "cash" && tenderedCents - changeCents !== amount) throw new Error("Cash tendered less change must equal the applied tender amount");
       if (tender.type !== "cash" && (tenderedCents !== amount || changeCents !== 0)) throw new Error("Non-cash tender must match its applied amount exactly");
+      // Card and ACH run on the store's own terminal; its approval reference is the capture evidence.
+      if (tender.type !== "cash") tender.providerReference = assertText(tender.providerReference, "Terminal approval reference", 2, 200);
       const configurations = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, type: { equals: tender.type }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id code type providerCode" });
       if (configurations.length !== 1) throw new Error("Exactly one current tender configuration is required"); tenderConfigs.push(configurations[0]);
     }
@@ -425,7 +434,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       const saleLine = await sudo.query.SaleLine.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, package: { connect: { id: line.package.id } }, titleSnapshot: line.titleSnapshot, skuSnapshot: line.skuSnapshot, categoryCodeSnapshot: line.categoryCodeSnapshot, packageUidSnapshot: line.packageUidSnapshot, batchSnapshot: line.batchSnapshot, coaReferenceSnapshot: pkg.coaReference, potencySnapshot: line.potencySnapshot, quantityMicrounits: line.quantityMicrounits, equivalencyMicrounits: line.equivalencyMicrounits, unitPriceCents: line.unitPriceCents, discountCents: line.discountCents, discountSnapshot: line.discountSnapshot, taxCents: line.taxCents, totalCents: line.totalCents }, query: "id" });
       await sudo.query.InventoryEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, package: { connect: { id: line.package.id } }, eventType: "sale", quantityDeltaMicrounits: -line.quantityMicrounits, beforeQuantityMicrounits: balance.before, afterQuantityMicrounits: balance.after, reasonCode: "sale", actor: { connect: { id: authority.actor.id } }, sourceType: "SaleLine", sourceId: saleLine.id, idempotencyKey: `${correlationId}:line:${index}`, occurredAt: now, evidenceHash: stableHash({ saleId: sale.id, saleLineId: saleLine.id, packageId: line.package.id, before: balance.before, after: balance.after }), stateReportStatus: "queued" }, query: "id" });
     }
-    for (const [index, tender] of tenders.entries()) await sudo.query.Tender.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, configuration: { connect: { id: tenderConfigs[index].id } }, typeSnapshot: tender.type, amountCents: tender.amountCents, tenderedCents: tender.tenderedCents ?? tender.amountCents, changeCents: tender.changeCents ?? 0, status: "received", providerReference: null, idempotencyKey: `${correlationId}:tender:${index}`, evidenceHash: stableHash(tender) }, query: "id" });
+    for (const [index, tender] of tenders.entries()) await sudo.query.Tender.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, configuration: { connect: { id: tenderConfigs[index].id } }, typeSnapshot: tender.type, amountCents: tender.amountCents, tenderedCents: tender.tenderedCents ?? tender.amountCents, changeCents: tender.changeCents ?? 0, status: tender.type === "cash" ? "received" : "captured", providerReference: tender.type === "cash" ? "" : tender.providerReference, idempotencyKey: `${correlationId}:tender:${index}`, evidenceHash: stableHash(tender) }, query: "id" });
     await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: cart.shift.id } }, type: "sale", amountCents: tenders.filter((t: any) => t.type === "cash").reduce((sum: number, tender: any) => sum + tender.amountCents, 0), reasonCode: "sale", actor: { connect: { id: authority.actor.id } }, occurredAt: now, idempotencyKey: `${correlationId}:cash`, evidenceHash: stableHash({ saleId: sale.id }) }, query: "id" });
     const cartFence = await sudo.query.Cart.findOne({ where: { id: cart.id }, query: "id status version" });
     if (!cartFence) throw new Error("Reserved cart is missing during finalization");

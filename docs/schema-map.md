@@ -11,7 +11,7 @@ Every list uses `immutable*Access`: the generic GraphQL create/update/delete ope
 
 Reads for the platform pages go through one resolver, `cannabisOperationsWorkspace(section, options)`, validated client-side by `features/platform/workspaces/lib/contract.ts`.
 
-Sixteen runtime capabilities (`domain/runtimeCapabilities.ts`) stay off until their verified workflow exists. Only `storefront.public-live-menu` is on. "Gated" below means the mutation exists but refuses to run.
+Runtime capabilities (`domain/runtimeCapabilities.ts`) gate commands whose workflow isn't complete. Since 2026-10-24 (owner sign-off) the in-store sale path is on: hold release, counter ID check, POS carts and reservations, sale completion with cash or terminal-referenced card/ACH, shift close and refunds. Still off: online intake and pickup carts (`privacy.approved-intake`, `commerce.customer-cart`), generic inventory events (`inventory.event-specific-custody`), and the provider adapters (installation activation, signed inbox, computed reconciliation). "Gated" below means the mutation exists but refuses to run. Hold release, shift close, refunds and recall close need a second person, who re-enters their own password for that one command (`mutations/approval.ts`).
 
 ## Lists
 
@@ -58,12 +58,12 @@ Sixteen runtime capabilities (`domain/runtimeCapabilities.ts`) stay off until th
 3. **Staff:** User, Role, StaffCredential (add, temporary password, suspend / terminate, review permissions).
 4. **Catalog:** Product (add, edit, categories tied to the rules) → public menu.
 5. **Receive:** RegulatedManifest, InventoryPackage, InventoryEvent (receive into hold).
-6. **Custody:** InventoryPackage, PackageHold, InventoryEvent (readiness, place a hold, release (gated), history).
-7. **Recall:** RecallCase, PackageHold (open a case, hold the affected packages, track status).
-8. **Verify customers:** Customer, EligibilityEvidence (gated).
-9. **Sell:** Cart, CartLine, Sale, SaleLine, Tender (carts and finalize gated; preparation steps live).
-10. **Refunds:** Refund (gated) and review.
-11. **Cash:** Register, RegisterShift, CashEvent, TenderConfiguration (open shift, variance approval; close gated).
+6. **Custody:** InventoryPackage, PackageHold, InventoryEvent (readiness, lab result, release for sale, place and release holds, history; transfers, waste and counts gated).
+7. **Recall:** RecallCase, PackageHold (open a case, hold the affected packages, move through stages, close with release or destruction).
+8. **Verify customers:** Customer, EligibilityEvidence (ID check at the POS counter; online intake gated).
+9. **Sell:** Cart, CartLine, Sale, SaleLine, Tender (POS cart, price and add, take payment, cancel; pickup carts gated).
+10. **Refunds:** Refund (from the receipt, with a second approver).
+11. **Cash:** Register, RegisterShift, CashEvent, TenderConfiguration (open shift, blind count and close, variance approval).
 12. **Report and reconcile:** OutboxEvent, StateEventInbox, IntegrationInstallation, ReconciliationRun.
 13. **Incidents:** ComplianceIncident.
 14. **Audit:** AuditEvent (inspection trail).
@@ -110,11 +110,13 @@ Lists with no page of their own, by parent:
 | Rule-pack history | Authority → Sales rule versions | OK |
 | Staff: User, Role, StaffCredential | `/platform/staff` (`features/platform/staff`): people, roles, permission and activity chips, add staff, temporary password, suspend / terminate | OK |
 | Product | `/platform/menu/[id]` (`features/platform/products`): facts, edit with rule-pack categories, packages with readiness, recent sales | OK |
-| PackageHold | Inventory package detail → "Place a hold" (new `placePackageHold`) | OK (release still gated) |
-| RecallCase | `/platform/recalls` (`features/platform/recalls`): open / closed / all, held-package counts, "Open a recall" (new `openRecallCase` holds every matching package) | OK (later stages are the regulator's workflow) |
-| Customer, EligibilityEvidence | `/platform/customers` and `/[id]` (`features/platform/customers`): status tabs, search, evidence, carts, purchases | OK as a read view (intake and decisions gated) |
-| Sale, SaleLine, Tender, Refund | `/platform/sales` and `/[id]` (`features/platform/sales`): status tabs, search, refunds, receipt detail | OK as a read view (finalize and refund gated) |
-| RegisterShift, CashEvent | Cash → per-shift drawer ledger | OK |
+| PackageHold | Inventory package detail → "Place a hold" (`placePackageHold`), "Release hold" (`releasePackageHold`, second approver) | OK |
+| InventoryPackage lab result and release | Inventory package detail → "Record lab result" (`recordPackageLabResult`), "Release for sale" (`releaseCannabisPackage`) | OK |
+| RecallCase | `/platform/recalls` (`features/platform/recalls`): open / closed / all, held-package counts, "Open a recall" (new `openRecallCase` holds every matching package) and "Move to next stage" (`advanceRecallCase`; closing releases or destroys the held packages, second approver) | OK |
+| Customer, EligibilityEvidence | `/platform/customers` and `/[id]` (`features/platform/customers`): status tabs, search, evidence, carts, purchases | OK (customers are checked in at POS, `checkInCannabisCustomer`; online intake gated) |
+| Sale, SaleLine, Tender, Refund | `/platform/sales` and `/[id]` (`features/platform/sales`): status tabs, search, refunds, receipt detail | OK (refund on the receipt page) |
+| Cart, CartLine, Sale, Tender | POS → "New sale" (ID check-in and cart), per-cart price / add / take payment / cancel | OK |
+| RegisterShift, CashEvent | Cash → per-shift drawer ledger, "Count and close" (second approver) | OK |
 | TenderConfiguration | Cash → Payment types (changed in the sales-rules amendment) | OK |
 | IntegrationInstallation, StateEventInbox | Reconciliation → Integrations, Inbound state events | OK (activation gated) |
 | AuditEvent | `/platform/audit` (`features/platform/audit`): record-type track, action search | OK |
@@ -123,4 +125,4 @@ Lists with no page of their own, by parent:
 - Browse: menu with form filter, adult-use / medical filter, search, sort.
 - Detail: `/menu/[id]`.
 - Visit: `/visit` (address, directions, hours with open now, phone, ages, payment).
-- Buy, confirmation and account history: none. Online ordering, customer intake and pickup carts are capability-gated (`commerce.customer-cart`, `privacy.approved-intake`), so there is no customer account to show history for. Purchase is in store.
+- Buy, confirmation and account history: none. Online ordering, customer intake and pickup carts stay capability-gated (`commerce.customer-cart`, `privacy.approved-intake`), so there is no customer account to show history for. Purchase is in store, and the menu lists what is released and in stock.

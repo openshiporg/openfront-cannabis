@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { formatMinorUnits } from '@/features/lib/money';
-import { BandRow, Count, Dot, ListBand, MetricStrip, Notice, PillLink, SectionTitle, codeLabel, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
+import { BandRow, Count, Dot, ListBand, MetricStrip, PillLink, SectionTitle, codeLabel, sentenceCase, statusTone, Track } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type Params, type SearchParams } from '@/features/platform/operations/lib/frame';
 
@@ -21,7 +21,6 @@ export async function CustomersPage({ searchParams }: { searchParams?: SearchPar
       { label: 'Awaiting verification', value: data.counts.pending_verification, tone: data.counts.pending_verification ? 'warn' : 'muted', href: filterHref('pending_verification') },
       { label: 'Eligible', value: data.counts.eligible, tone: 'ok', href: filterHref('eligible') },
     ]} />
-    <Notice tone="muted">Customer intake and eligibility decisions unavailable</Notice>
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <nav aria-label="Customer status"><Track className="max-sm:flex-wrap max-sm:rounded-2xl">{FILTERS.map(item => <PillLink key={item.id} href={filterHref(item.id, params.search)} active={data.filter === item.id}>{item.id !== 'all' && <Dot tone={statusTone(item.id)} className="translate-y-0" />}{item.label} <Count>{data.counts[item.id]}</Count></PillLink>)}</Track></nav>
       <SearchForm basePath="/dashboard/platform/customers" params={params} label="Search customers" placeholder="Customer reference" />
