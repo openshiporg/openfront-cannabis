@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
-import { addressLines, directionsHref, openState } from '../lib/visit';
+import { addressLines, ageRule, directionsHref, openState } from '../lib/visit';
 import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings, type PublicCannabisMenu } from '../lib/data/menu';
 import { formKey } from '../lib/format';
 import { ProductTile, type TileProduct } from '../components/ProductTile';
@@ -84,70 +84,81 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
   const address = addressLines(settings.visit);
   const directions = directionsHref(settings.visit);
 
+  const ages = ageRule(settings.visit);
+
   return <StorefrontShell settings={settings} forms={forms}>
-    <section className="mx-auto max-w-7xl px-4 pb-10 pt-12 sm:px-6 sm:pt-20">
-      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-3">
-        <h1 className="cn-display min-w-0 break-words text-[44px] leading-[46px] text-cn-ink sm:text-[72px] sm:leading-[72px]">{settings.isConfigured ? name : 'Dispensary menu'}</h1>
-        <span data-testid="customer-workflows-disabled" className="inline-flex items-baseline gap-2 text-[14px] text-cn-ink-2"><span className={`cn-dot ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} aria-hidden="true" />{open ? `${open.open ? 'Open now' : 'Closed'} · in-store only` : 'In-store only'}</span>
-      </div>
-      {settings.tagline && <p className="cn-display mt-5 max-w-2xl break-words text-[22px] leading-[30px] text-cn-ink sm:text-[26px] sm:leading-[34px]">{settings.tagline}</p>}
-      {settings.description && <p className="mt-3 max-w-xl break-words text-[15px] leading-6 text-cn-ink-2">{settings.description}</p>}
-      {(address.length > 0 || open) && <p className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[14px] text-cn-ink-2">
-        {address.length > 0 && <span className="min-w-0 break-words">{address.join(', ')}</span>}
-        {open && <span className="cn-num text-[13px]">Daily {open.hours}</span>}
-        {directions && <a href={directions} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 text-cn-accent">Directions<ArrowUpRight className="size-3.5" aria-hidden="true" /></a>}
-      </p>}
-      {settings.unavailable
-        ? <p role="status" className="mt-6 inline-flex items-baseline gap-2 text-[14px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Store information unavailable</p>
-        : !settings.isConfigured && <p role="status" data-testid="unconfigured-storefront-identity" className="mt-6 inline-flex items-baseline gap-2 text-[14px] text-cn-ink-2"><span className="cn-dot bg-cn-ink-3" aria-hidden="true" />Store not set up</p>}
-    </section>
-
-    <section id="menu" aria-labelledby="menu-title" className="mx-auto max-w-7xl scroll-mt-24 px-4 pb-20 sm:px-6">
-      <div className="flex flex-col gap-4 border-t border-cn-line pt-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-baseline gap-3">
-          <h2 id="menu-title" className="cn-display text-[28px] leading-8 text-cn-ink">{showDemo && !live.length ? 'Sample menu' : 'Menu'}</h2>
-          <span className="cn-num text-[13px] text-cn-ink-3">{shown.length}</span>
-          {showDemo && !live.length && <span className="inline-flex items-baseline gap-1.5 text-[13px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Not for sale</span>}
+    <div className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-20 pt-4 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
+      <section aria-labelledby="cn-cover-title" className="lg:sticky lg:top-[80px] lg:self-start">
+        <div className="relative flex min-h-[440px] flex-col overflow-hidden rounded-[2px] bg-cn-cover px-6 pb-7 pt-12 sm:px-9 lg:min-h-[calc(100svh-112px)]">
+          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-5 bg-cn-ink/10" />
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <span className="cn-display text-[64px] leading-none text-cn-ink sm:text-[88px]">{ages.adult}+</span>
+            {ages.medical != null && <span className="text-[15px] font-semibold text-cn-ink-2">Patients {ages.medical}+</span>}
+          </div>
+          <h1 id="cn-cover-title" className="cn-display mt-auto min-w-0 break-words pt-16 text-[48px] leading-[0.95] text-cn-ink [text-wrap:balance] sm:text-[72px] xl:text-[88px]">{settings.isConfigured ? name : 'Dispensary menu'}</h1>
+          <span data-testid="customer-workflows-disabled" className="mt-5 inline-flex items-baseline gap-2 text-[16px] font-semibold text-cn-ink"><span className={`cn-dot ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} aria-hidden="true" />{open ? `${open.open ? 'Open now' : 'Closed'} · in-store only` : 'In-store only'}</span>
+          {settings.tagline && <p className="cn-display mt-5 max-w-[30ch] break-words text-[22px] leading-[28px] text-cn-ink sm:text-[24px] sm:leading-[31px]">{settings.tagline}</p>}
+          {settings.description && <p className="mt-3 max-w-[46ch] break-words text-[16px] leading-[26px] text-cn-ink-2">{settings.description}</p>}
+          {(address.length > 0 || open) && <p className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[15px] text-cn-ink-2">
+            {address.length > 0 && <span className="min-w-0 break-words">{address.join(', ')}</span>}
+            {open && <span className="cn-num">Daily {open.hours}</span>}
+            {directions && <a href={directions} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 font-semibold text-cn-ink underline decoration-cn-ink/30 decoration-2 underline-offset-4 hover:decoration-cn-ink">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
+          </p>}
+          {settings.unavailable
+            ? <p role="status" className="mt-6 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Store information unavailable</p>
+            : !settings.isConfigured && <p role="status" data-testid="unconfigured-storefront-identity" className="mt-6 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-ink-3" aria-hidden="true" />Store not set up</p>}
         </div>
-        {catalog.length > 0 && <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
-          <form action="/#menu" role="search" className="flex min-w-0 items-center gap-2">
-            {activeForm && <input type="hidden" name="form" value={activeForm} />}{channel && <input type="hidden" name="channel" value={channel} />}{sort !== 'featured' && <input type="hidden" name="sort" value={sort} />}
-            <label className="min-w-0 flex-1"><span className="sr-only">Search the menu</span><input name="q" defaultValue={q} maxLength={80} placeholder="Search the menu" className="h-11 w-full min-w-0 rounded-full border border-cn-line bg-cn-surface px-4 text-[14px] text-cn-ink outline-none placeholder:text-cn-ink-3 focus-visible:border-cn-accent sm:w-56" /></label>
-            <span className="cn-track"><button type="submit" className="cn-pill" data-active="true">Search</button></span>
-          </form>
-          {hasMedical && hasAdult && <nav aria-label="Filter by channel" className="cn-track">
-            <Link href={menuHref(state, { channel: null })} aria-current={!channel ? 'page' : undefined} className="cn-pill">Everyone</Link>
-            <Link href={menuHref(state, { channel: 'adult' })} aria-current={channel === 'adult' ? 'page' : undefined} className="cn-pill">Adult-use</Link>
-            <Link href={menuHref(state, { channel: 'medical' })} aria-current={channel === 'medical' ? 'page' : undefined} className="cn-pill">Medical</Link>
-          </nav>}
-          <nav aria-label="Filter by form" className="cn-track">
-            <Link href={menuHref(state, { form: null })} aria-current={!activeForm ? 'page' : undefined} className="cn-pill">All <span className="cn-num text-[11px] text-cn-ink-3">{catalog.length}</span></Link>
-            {forms.map(form => <Link key={form.key} href={menuHref(state, { form: form.key })} aria-current={activeForm === form.key ? 'page' : undefined} className="cn-pill">{form.label} <span className="cn-num text-[11px] text-cn-ink-3">{form.count}</span></Link>)}
-          </nav>
-          {!(showDemo && !live.length) && <nav aria-label="Sort" className="cn-track">
-            {SORTS.map(option => <Link key={option.id} href={menuHref(state, { sort: option.id })} aria-current={sort === option.id ? 'page' : undefined} className="cn-pill">{option.label}</Link>)}
-          </nav>}
+      </section>
+
+      <section id="menu" aria-labelledby="menu-title" className="min-w-0 scroll-mt-24 lg:pt-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-baseline gap-3">
+            <h2 id="menu-title" className="cn-display text-[40px] leading-none text-cn-ink sm:text-[52px]">{showDemo && !live.length ? 'Sample menu' : 'Menu'}</h2>
+            <span className="cn-num text-[15px] text-cn-ink-3">{shown.length}</span>
+            {showDemo && !live.length && <span className="inline-flex items-baseline gap-1.5 text-[14px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Not for sale</span>}
+          </div>
+          {catalog.length > 0 && <div className="flex min-w-0 flex-col gap-2">
+            <form action="/#menu" role="search" className="flex min-w-0 items-center gap-2">
+              {activeForm && <input type="hidden" name="form" value={activeForm} />}{channel && <input type="hidden" name="channel" value={channel} />}{sort !== 'featured' && <input type="hidden" name="sort" value={sort} />}
+              <label className="min-w-0 flex-1"><span className="sr-only">Search the menu</span><input name="q" defaultValue={q} maxLength={80} placeholder="Search the menu" className="h-12 w-full min-w-0 rounded-[2px] bg-cn-surface px-4 text-[16px] text-cn-ink outline-none placeholder:text-cn-ink-3 focus-visible:ring-2 focus-visible:ring-cn-ink" /></label>
+              <span className="cn-track"><button type="submit" className="cn-pill h-12" data-active="true">Search</button></span>
+            </form>
+            <nav aria-label="Filter by form" className="cn-track">
+              <Link href={menuHref(state, { form: null })} aria-current={!activeForm ? 'page' : undefined} className="cn-pill">All <span className="cn-num text-[13px] text-cn-ink-3">{catalog.length}</span></Link>
+              {forms.map(form => <Link key={form.key} href={menuHref(state, { form: form.key })} aria-current={activeForm === form.key ? 'page' : undefined} className="cn-pill">{form.label} <span className="cn-num text-[13px] text-cn-ink-3">{form.count}</span></Link>)}
+            </nav>
+            <div className="flex flex-wrap gap-2">
+              {hasMedical && hasAdult && <nav aria-label="Filter by channel" className="cn-track">
+                <Link href={menuHref(state, { channel: null })} aria-current={!channel ? 'page' : undefined} className="cn-pill">Everyone</Link>
+                <Link href={menuHref(state, { channel: 'adult' })} aria-current={channel === 'adult' ? 'page' : undefined} className="cn-pill">Adult-use</Link>
+                <Link href={menuHref(state, { channel: 'medical' })} aria-current={channel === 'medical' ? 'page' : undefined} className="cn-pill">Medical</Link>
+              </nav>}
+              {!(showDemo && !live.length) && <nav aria-label="Sort" className="cn-track">
+                {SORTS.map(option => <Link key={option.id} href={menuHref(state, { sort: option.id })} aria-current={sort === option.id ? 'page' : undefined} className="cn-pill">{option.label}</Link>)}
+              </nav>}
+            </div>
+          </div>}
+        </div>
+
+        {menu.unavailable && menu.reason !== 'not_set_up' && <div role="status" className="cn-band mt-6 flex flex-wrap items-baseline justify-between gap-3 px-5 py-4 text-[15px] text-cn-ink"><span className="inline-flex items-baseline gap-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />{menu.reason === 'sales_rules' ? 'Menu temporarily unavailable' : 'Menu unavailable'}</span>{!menu.reason && <span className="cn-track"><Link href="/" className="cn-pill" data-active="true">Try again</Link></span>}</div>}
+
+        {live.length > 0 && <div data-testid="package-backed-live-catalog" className="cn-deal mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 xl:grid-cols-3">
+          {shown.map(product => <ProductTile key={product.id} product={product} currencyCode={menu.currencyCode} />)}
         </div>}
-      </div>
 
-      {menu.unavailable && menu.reason !== 'not_set_up' && <div role="status" className="cn-band mt-6 flex flex-wrap items-baseline justify-between gap-3 px-5 py-4 text-[14px] text-cn-ink"><span className="inline-flex items-baseline gap-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />{menu.reason === 'sales_rules' ? 'Menu temporarily unavailable' : 'Menu unavailable'}</span>{!menu.reason && <span className="cn-track"><Link href="/" className="cn-pill" data-active="true">Try again</Link></span>}</div>}
+        {!live.length && showDemo && <div data-testid="demo-catalog-lane" className="cn-deal mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 xl:grid-cols-3">
+          {shown.map(product => <ProductTile key={product.id} product={product} />)}
+        </div>}
 
-      {live.length > 0 && <div data-testid="package-backed-live-catalog" className="mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 lg:grid-cols-4">
-        {shown.map(product => <ProductTile key={product.id} product={product} currencyCode={menu.currencyCode} />)}
-      </div>}
+        {catalog.length > 0 && !shown.length && filtered && <div className="cn-band mt-8 flex flex-col items-center gap-4 px-5 py-10 text-center">
+          <p className="cn-display text-[24px] text-cn-ink">Nothing matches{q ? ` “${q}”` : ''}</p>
+          <span className="cn-track"><Link href="/#menu" className="cn-pill" data-active="true">Clear filters</Link></span>
+        </div>}
 
-      {!live.length && showDemo && <div data-testid="demo-catalog-lane" className="mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 lg:grid-cols-4">
-        {shown.map(product => <ProductTile key={product.id} product={product} />)}
-      </div>}
-
-      {catalog.length > 0 && !shown.length && filtered && <div className="cn-band mt-8 flex flex-col items-center gap-4 px-5 py-10 text-center">
-        <p className="cn-display text-[22px] text-cn-ink">Nothing matches{q ? ` “${q}”` : ''}</p>
-        <span className="cn-track"><Link href="/#menu" className="cn-pill" data-active="true">Clear filters</Link></span>
-      </div>}
-
-      {!menu.unavailable && !catalog.length && <div className="cn-band mt-8 px-5 py-10 text-center">
-        <p className="cn-display text-[22px] text-cn-ink">Nothing on the menu right now</p>
-      </div>}
-    </section>
+        {!menu.unavailable && !catalog.length && <div className="cn-band mt-8 px-5 py-10 text-center">
+          <p className="cn-display text-[24px] text-cn-ink">Nothing on the menu right now</p>
+        </div>}
+      </section>
+    </div>
   </StorefrontShell>;
 }

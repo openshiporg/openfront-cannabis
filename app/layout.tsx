@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
+import { Besley, Geist, Geist_Mono, Libre_Franklin } from "next/font/google";
 import "./globals.css";
 import { getPublicCannabisStorefrontSettings } from "@/features/storefront/lib/data/menu";
 
@@ -13,15 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Storefront type: see docs/design/cannabis-redesign-2026-10-23.md.
-const fraunces = Fraunces({
-  variable: "--font-cn-fraunces",
+// Storefront type: a Clarendon for the booklet's printed names and figures,
+// a plain gothic for everything read. See .impeccable/surfaces/features-storefront.md.
+const besley = Besley({
+  variable: "--font-cn-besley",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT"],
 });
 
-const instrumentSans = Instrument_Sans({
-  variable: "--font-cn-instrument",
+const libreFranklin = Libre_Franklin({
+  variable: "--font-cn-franklin",
   subsets: ["latin"],
 });
 
@@ -44,7 +44,7 @@ export default function RootLayout({
         <link href="/favicon.svg" rel="icon" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${instrumentSans.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${besley.variable} ${libreFranklin.variable} antialiased`}
       >
         {children}
       </body>

@@ -20,14 +20,14 @@ export function AgeGate({ storeName, confirmed, adultAge, medicalAge }: { storeN
     setState('ok');
   };
 
-  return <div role="dialog" aria-modal="true" aria-labelledby="cn-age-title" className="fixed inset-0 z-[200] flex items-end justify-center bg-cn-ink/45 p-3 backdrop-blur-md sm:items-center sm:p-6">
-    <div className="w-full max-w-[420px] rounded-[28px] bg-cn-bg p-6 shadow-[0_24px_80px_rgb(24_32_27/0.38)] sm:p-8">
-      <p className="cn-num truncate text-[12px] uppercase tracking-[0.14em] text-cn-ink-2">{storeName}</p>
+  return <div role="dialog" aria-modal="true" aria-labelledby="cn-age-title" className="fixed inset-0 z-[200] flex items-end justify-center bg-cn-well/85 p-3 sm:items-center sm:p-6">
+    <div className="w-full max-w-[440px] rounded-[2px] bg-cn-cover p-6 shadow-[0_32px_80px_-20px_rgb(0_0_0/0.8)] sm:p-9">
+      <p className="cn-display truncate text-[20px] text-cn-ink">{storeName}</p>
       <div className="mt-8 flex items-baseline gap-3">
-        <span className="cn-display text-[64px] font-medium leading-none text-cn-accent">{adultAge}+</span>
-        <span className="text-[13px] font-medium text-cn-ink-2">{medicalAge != null ? `Age required · patients ${medicalAge}+` : 'Age required'}</span>
+        <span className="cn-display text-[96px] leading-none text-cn-ink">{adultAge}+</span>
+        <span className="text-[15px] font-semibold text-cn-ink-2">{medicalAge != null ? `Age required · patients ${medicalAge}+` : 'Age required'}</span>
       </div>
-      <h2 id="cn-age-title" className="cn-display mt-6 text-[24px] leading-[30px] text-cn-ink">{state === 'denied' ? `You must be ${medicalAge != null ? `${medicalAge} or older with a medical card` : `${adultAge} or older`} to enter.` : `Are you ${adultAge} or older?`}</h2>
+      <h2 id="cn-age-title" className="cn-display mt-6 text-[28px] leading-[34px] text-cn-ink">{state === 'denied' ? `You must be ${medicalAge != null ? `${medicalAge} or older with a medical card` : `${adultAge} or older`} to enter.` : `Are you ${adultAge} or older?`}</h2>
       {state === 'denied'
         ? <div className="cn-track mt-8 flex w-full"><button type="button" onClick={() => setState('ask')} data-active="true" className="cn-pill h-11 flex-1 text-[15px]">Back</button></div>
         : <div className="mt-8 space-y-2">

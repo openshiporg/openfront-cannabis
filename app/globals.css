@@ -121,94 +121,104 @@
   }
 }
 
-/* Cannabis storefront: "cure label" tokens. See docs/design/cannabis-redesign-2026-10-23.md.
+/* Cannabis storefront: "one ink on resin", after a rolling-paper booklet.
+   A resin-black ground in the store's hue, one smoke-paper ink that does the
+   text, the drawings and the button blocks, translucent paper leaves for the
+   menu items, and the booklet's cover held still beside the menu. Besley
+   (Clarendon) prints names and figures; Libre Franklin sets everything read.
+   See .impeccable/surfaces/features-storefront.md.
    --cn-h is set per store from the saved accent hue on the .storefront-theme wrapper. */
 @theme inline {
-  --color-cn-bg: #f3f0e8;
-  --color-cn-surface: #fcfbf7;
-  --color-cn-well: #e6e2d6;
-  --color-cn-ink: #18201b;
-  --color-cn-ink-2: #545b53;
-  --color-cn-ink-3: #8a8f86;
-  --color-cn-line: #d9d4c6;
-  --color-cn-accent: hsl(var(--cn-h, 152) 38% 28%);
-  --color-cn-tint: hsl(var(--cn-h, 152) 28% 88%);
-  --color-cn-ok: #2f6b45;
-  --color-cn-warn: #a2620f;
-  --color-cn-danger: #a3282b;
+  --color-cn-bg: hsl(var(--cn-h, 152) 22% 7.5%);
+  --color-cn-surface: hsl(var(--cn-h, 152) 16% 11.5%);
+  --color-cn-well: hsl(var(--cn-h, 152) 20% 5.5%);
+  --color-cn-cover: hsl(var(--cn-h, 152) 30% 13%);
+  --color-cn-ink: #ebe5d3;
+  --color-cn-ink-2: #c4bfae;
+  --color-cn-ink-3: #9a9686;
+  --color-cn-line: hsl(var(--cn-h, 152) 10% 22%);
+  --color-cn-accent: hsl(var(--cn-h, 152) 42% 70%);
+  --color-cn-tint: hsl(var(--cn-h, 152) 18% 15%);
+  --color-cn-leaf: rgb(235 229 211 / 0.07);
+  --color-cn-ok: #8fd6a6;
+  --color-cn-warn: #e9bf6d;
+  --color-cn-danger: #f08a7f;
 }
 
 /* On body, where next/font sets the font variables, so these resolve. */
 body {
-  --font-cn-display: var(--font-cn-fraunces), ui-serif, Georgia, serif;
-  --font-cn-sans: var(--font-cn-instrument), ui-sans-serif, system-ui, sans-serif;
-  --font-cn-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-cn-display: var(--font-cn-besley), ui-serif, Georgia, serif;
+  --font-cn-sans: var(--font-cn-franklin), ui-sans-serif, system-ui, sans-serif;
+  --font-cn-mono: var(--font-cn-franklin), ui-sans-serif, system-ui, sans-serif;
 }
 
 .storefront-theme {
   --cn-h: 152;
-  background-color: #f3f0e8;
-  color: #18201b;
+  --cn-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  background-color: hsl(var(--cn-h, 152) 22% 7.5%);
+  color: #ebe5d3;
+  color-scheme: dark;
   font-family: var(--font-cn-sans);
 }
+.storefront-theme ::selection {
+  background: #ebe5d3;
+  color: hsl(var(--cn-h, 152) 22% 7.5%);
+}
 
+/* Figures: tabular, in the text face. */
 .storefront-theme .cn-num {
-  font-family: var(--font-cn-mono);
+  font-family: var(--font-cn-sans);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
 
 .storefront-theme .cn-display {
   font-family: var(--font-cn-display);
-  font-optical-sizing: auto;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 @layer components {
-  /* Raised pill in a recessed track */
+  /* Track and pills: plain on the page; the chosen one is a solid ink block. */
   .cn-track {
     display: inline-flex;
     max-width: 100%;
-    gap: 2px;
-    padding: 3px;
+    gap: 4px;
     overflow-x: auto;
     scrollbar-width: none;
-    border-radius: 999px;
-    background: #e6e2d6;
-    box-shadow: inset 0 1px 2px rgb(24 32 27 / 0.09);
   }
   .cn-track::-webkit-scrollbar { display: none; }
   .cn-pill {
     display: inline-flex;
-    min-height: 36px;
+    min-height: 40px;
     flex: none;
     align-items: center;
     justify-content: center;
     gap: 6px;
     padding: 0 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #545b53;
+    border-radius: 2px;
+    background: rgb(235 229 211 / 0.07);
+    font-size: 14px;
+    font-weight: 600;
+    color: #c4bfae;
     white-space: nowrap;
-    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+    transition: background-color 160ms var(--cn-ease, ease-out), color 160ms var(--cn-ease, ease-out), transform 140ms var(--cn-ease, ease-out);
   }
-  .cn-pill:hover { color: #18201b; }
-  .cn-pill[data-active="true"], .cn-pill[aria-current="page"] {
-    background: #fcfbf7;
-    color: #18201b;
-    box-shadow: 0 1px 2px rgb(24 32 27 / 0.14), 0 0 0 0.5px rgb(24 32 27 / 0.08);
+  .cn-pill:active { transform: scale(0.97); }
+  @media (hover: hover) and (pointer: fine) {
+    .cn-pill:hover { color: #ebe5d3; background: rgb(235 229 211 / 0.12); }
   }
+  .cn-pill[data-active="true"], .cn-pill[aria-current="page"],
+  .cn-pill[data-active="true"]:hover, .cn-pill[aria-current="page"]:hover,
   .cn-pill[data-tone="ink"] {
-    background: #18201b;
-    color: #f6f4ee;
-    box-shadow: 0 1px 2px rgb(24 32 27 / 0.24);
+    background: #ebe5d3;
+    color: hsl(var(--cn-h, 152) 22% 7.5%);
   }
-  .cn-pill:focus-visible { outline: 2px solid hsl(var(--cn-h, 152) 38% 28%); outline-offset: 1px; }
+  .cn-pill[data-active="true"] .cn-num, .cn-pill[aria-current="page"] .cn-num { color: hsl(var(--cn-h, 152) 16% 30%); }
+  .cn-pill:focus-visible { outline: 2px solid #ebe5d3; outline-offset: 2px; }
   .cn-band {
-    border-radius: 20px;
-    background: #e6e2d6;
-    box-shadow: inset 0 1px 2px rgb(24 32 27 / 0.07);
+    border-radius: 2px;
+    background: rgb(235 229 211 / 0.06);
   }
   .cn-dot {
     display: inline-block;
@@ -220,6 +230,40 @@ body {
   }
   @media (max-width: 639px) {
     .cn-pill { min-height: 44px; padding: 0 16px; }
+  }
+
+  /* A paper leaf: thin, translucent, with its gummed fold along the top. */
+  .cn-leaf {
+    position: relative;
+    border-radius: 2px;
+    background: rgb(235 229 211 / 0.07);
+    transition: background-color 200ms var(--cn-ease, ease-out), transform 260ms var(--cn-ease, ease-out);
+  }
+  .cn-leaf::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 14px;
+    border-radius: 2px 2px 0 0;
+    background: rgb(235 229 211 / 0.08);
+    pointer-events: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .group:hover .cn-leaf { background: rgb(235 229 211 / 0.1); transform: translateY(-6px); }
+  }
+
+  /* Menu leaves deal in once, one after another. */
+  @media (prefers-reduced-motion: no-preference) {
+    .cn-deal > * { animation: cn-deal 560ms var(--cn-ease, ease-out) both; }
+    .cn-deal > :nth-child(2) { animation-delay: 50ms; }
+    .cn-deal > :nth-child(3) { animation-delay: 100ms; }
+    .cn-deal > :nth-child(4) { animation-delay: 150ms; }
+    .cn-deal > :nth-child(5) { animation-delay: 200ms; }
+    .cn-deal > :nth-child(6) { animation-delay: 250ms; }
+    .cn-deal > :nth-child(n + 7) { animation-delay: 300ms; }
+  }
+  @keyframes cn-deal {
+    from { opacity: 0; transform: translateY(18px); }
   }
 }
 
