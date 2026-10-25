@@ -20,7 +20,7 @@ export function AgeGate({ storeName, confirmed, adultAge, medicalAge }: { storeN
     setState('ok');
   };
 
-  return <div role="dialog" aria-modal="true" aria-labelledby="cn-age-title" className="fixed inset-0 z-[200] flex items-end justify-center bg-cn-well/85 p-3 sm:items-center sm:p-6">
+  return <div role="dialog" aria-modal="true" aria-labelledby="cn-age-title" className="fixed inset-0 z-[200] flex items-end justify-center bg-cn-well p-3 sm:items-center sm:p-6">
     <div className="w-full max-w-[440px] rounded-[2px] bg-cn-cover p-6 shadow-[0_32px_80px_-20px_rgb(0_0_0/0.8)] sm:p-9">
       <p className="cn-display truncate text-[20px] text-cn-ink">{storeName}</p>
       <div className="mt-8 flex items-baseline gap-3">

@@ -1,13 +1,16 @@
 import Link from 'next/link';
 import type React from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { getPublicCannabisStorefrontSettings } from '../lib/data/menu';
+import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings } from '../lib/data/menu';
+import { menuForms, menuItems } from './MenuPage';
 import { addressLines, ageRule, directionsHref, openState, tenderLabels } from '../lib/visit';
 import { StorefrontShell, storeName } from '../components/StorefrontShell';
 
 /** Everything a customer needs before walking in: where, when, what to bring, how to pay. */
 export async function VisitPage() {
-  const settings = await getPublicCannabisStorefrontSettings();
+  const [settings, menu] = await Promise.all([getPublicCannabisStorefrontSettings(), getPublicCannabisMenu()]);
+  const { live, demo } = menuItems(menu);
+  const forms = menuForms(live.length ? live : settings.mode === 'demo' ? demo : []);
   const visit = settings.visit;
   const open = openState(visit);
   const address = addressLines(visit);
@@ -22,16 +25,20 @@ export async function VisitPage() {
     ['Payment', tenders.length ? tenders.join(' · ') : 'Not published'],
     ['Ordering', 'In store only'],
   ];
-  return <StorefrontShell settings={settings}>
-    <section className="mx-auto max-w-[1440px] px-4 pb-20 pt-12 sm:px-6 sm:pt-20">
-            <h1 className="cn-display break-words text-[48px] leading-[48px] text-cn-ink [text-wrap:balance] sm:text-[80px] sm:leading-[78px]">{settings.isConfigured ? storeName(settings) : 'Visit'}</h1>
-      <dl className="mt-10 grid max-w-3xl gap-1 text-[16px]">
-        {rows.map(([term, value]) => <div key={term} className="grid gap-1 rounded-[2px] bg-cn-leaf px-5 py-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-6"><dt className="text-cn-ink-2">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
+  return <StorefrontShell settings={settings} forms={forms} current="visit">
+    <div className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-20 pt-4 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
+      <section aria-labelledby="cn-visit-title" className="relative flex min-h-[360px] flex-col overflow-hidden rounded-[2px] bg-cn-cover px-6 pb-7 pl-9 pt-12 sm:px-9 sm:pl-12 lg:min-h-[calc(100svh-112px)]">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-3 bg-cn-well/60" />
+        <span className="cn-display text-[64px] leading-none text-cn-ink sm:text-[88px]">{ages.adult}+</span>
+        <h1 id="cn-visit-title" className="cn-display mt-auto break-words pt-16 text-[48px] leading-[0.95] text-cn-ink [text-wrap:balance] sm:text-[72px] xl:text-[88px]">{settings.isConfigured ? storeName(settings) : 'Visit'}</h1>
+        <div className="mt-8 flex flex-wrap gap-2">
+          {directions && <span className="cn-track"><a href={directions} target="_blank" rel="noreferrer" className="cn-pill" data-tone="ink">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a></span>}
+          <span className="cn-track"><Link href="/#menu" className="cn-pill">See the menu</Link></span>
+        </div>
+      </section>
+      <dl className="grid content-start gap-y-7 self-start text-[17px] lg:pt-6">
+        {rows.map(([term, value]) => <div key={term} className="grid gap-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-6"><dt className="cn-display text-[20px] text-cn-ink-2">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
       </dl>
-      <div className="mt-8 flex flex-wrap gap-2">
-        {directions && <span className="cn-track"><a href={directions} target="_blank" rel="noreferrer" className="cn-pill" data-tone="ink">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a></span>}
-        <span className="cn-track"><Link href="/#menu" className="cn-pill" data-active="true">See the menu</Link></span>
-      </div>
-    </section>
+    </div>
   </StorefrontShell>;
 }

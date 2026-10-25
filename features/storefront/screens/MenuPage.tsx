@@ -86,11 +86,11 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
 
   const ages = ageRule(settings.visit);
 
-  return <StorefrontShell settings={settings} forms={forms}>
+  return <StorefrontShell settings={settings} forms={forms} current="menu">
     <div className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-20 pt-4 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
       <section aria-labelledby="cn-cover-title" className="lg:sticky lg:top-[80px] lg:self-start">
         <div className="relative flex min-h-[440px] flex-col overflow-hidden rounded-[2px] bg-cn-cover px-6 pb-7 pt-12 sm:px-9 lg:min-h-[calc(100svh-112px)]">
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-5 bg-cn-ink/10" />
+          <span aria-hidden="true" className="absolute inset-y-0 left-0 w-3 bg-cn-well/60" />
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <span className="cn-display text-[64px] leading-none text-cn-ink sm:text-[88px]">{ages.adult}+</span>
             {ages.medical != null && <span className="text-[15px] font-semibold text-cn-ink-2">Patients {ages.medical}+</span>}
@@ -143,7 +143,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
         {menu.unavailable && menu.reason !== 'not_set_up' && <div role="status" className="cn-band mt-6 flex flex-wrap items-baseline justify-between gap-3 px-5 py-4 text-[15px] text-cn-ink"><span className="inline-flex items-baseline gap-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />{menu.reason === 'sales_rules' ? 'Menu temporarily unavailable' : 'Menu unavailable'}</span>{!menu.reason && <span className="cn-track"><Link href="/" className="cn-pill" data-active="true">Try again</Link></span>}</div>}
 
         {live.length > 0 && <div data-testid="package-backed-live-catalog" className="cn-deal mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 xl:grid-cols-3">
-          {shown.map(product => <ProductTile key={product.id} product={product} currencyCode={menu.currencyCode} />)}
+          {shown.map(product => <ProductTile key={product.id} product={product} currencyCode={menu.currencyCode} showChannel={hasMedical && hasAdult} />)}
         </div>}
 
         {!live.length && showDemo && <div data-testid="demo-catalog-lane" className="cn-deal mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-4 xl:grid-cols-3">

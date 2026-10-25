@@ -17,13 +17,14 @@ export function storeName(settings: PublicStorefrontSettingsResult) {
 }
 
 /** Public frame: age gate, age and open-state strip, header, phone menu, and a footer with address, hours and payment. */
-export async function StorefrontShell({ settings, forms = [], children }: { settings: PublicStorefrontSettingsResult; forms?: ShellForm[]; children: ReactNode }) {
+export async function StorefrontShell({ settings, forms = [], current, children }: { settings: PublicStorefrontSettingsResult; forms?: ShellForm[]; current?: 'menu' | 'visit'; children: ReactNode }) {
   const confirmed = (await cookies()).get(AGE_COOKIE)?.value === '1';
   const brand = storeBrand(settings);
   const name = storeName(settings);
   const logo = (wrap = false) => <StoreLogo svg={brand.logoSvg} hue={brand.logoColor} name={name} wrap={wrap} />;
   const theme = { '--cn-h': brand.hue } as CSSProperties;
-  const shortcuts = forms.slice(0, 5);
+  const shortcuts = forms;
+  const navClass = (on: boolean) => `shrink-0 rounded-[2px] px-3 py-2 text-[15px] hover:bg-cn-surface hover:text-cn-ink ${on ? 'font-semibold text-cn-ink' : 'text-cn-ink-2'}`;
   const visit = settings.visit;
   const ages = ageRule(visit);
   const open = openState(visit);
@@ -42,10 +43,10 @@ export async function StorefrontShell({ settings, forms = [], children }: { sett
     <header className="sticky top-0 z-40 bg-cn-bg">
       <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" aria-label={`${name} menu`} className="inline-flex min-w-0 items-center text-cn-ink">{logo()}</Link>
-        <nav aria-label="Menu forms" className="hidden min-w-0 items-center gap-1 lg:flex">
-          <Link href="/#menu" className="rounded-[2px] px-3 py-2 text-[15px] font-semibold text-cn-ink hover:bg-cn-surface">Menu</Link>
-          <Link href="/visit" className="rounded-[2px] px-3 py-2 text-[15px] text-cn-ink-2 hover:bg-cn-surface hover:text-cn-ink">Visit</Link>
-          {shortcuts.map(form => <Link key={form.key} href={`/?form=${encodeURIComponent(form.key)}#menu`} className="rounded-[2px] px-3 py-2 text-[15px] text-cn-ink-2 hover:bg-cn-surface hover:text-cn-ink">{form.label}</Link>)}
+        <nav aria-label="Menu forms" className="no-scrollbar hidden min-w-0 items-center gap-1 overflow-x-auto lg:flex">
+          <Link href="/#menu" aria-current={current === 'menu' ? 'page' : undefined} className={navClass(current === 'menu')}>Menu</Link>
+          <Link href="/visit" aria-current={current === 'visit' ? 'page' : undefined} className={navClass(current === 'visit')}>Visit</Link>
+          {shortcuts.map(form => <Link key={form.key} href={`/?form=${encodeURIComponent(form.key)}#menu`} className={navClass(false)}>{form.label}</Link>)}
         </nav>
         <Link href="/dashboard/signin" className="hidden shrink-0 items-center gap-1.5 rounded-[2px] px-3 py-2 text-[15px] text-cn-ink-2 hover:bg-cn-surface hover:text-cn-ink sm:inline-flex">Staff sign in<ArrowUpRight className="size-4" aria-hidden="true" /></Link>
         <PhoneMenu>
