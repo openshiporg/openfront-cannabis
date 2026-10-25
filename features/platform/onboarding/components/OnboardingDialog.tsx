@@ -1,11 +1,12 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ActionTrack, Dot, inputClass, labelClass, PillButton, textareaClass, Track } from '@/features/platform/components/cannabis-ui';
 import { confirmDiscard, useUnsavedChangesGuard } from '@/features/platform/lib/useUnsavedChangesGuard';
-import { checkCannabisOnboardingStatus, installCannabisAuthorityPack } from '../actions/onboarding';
+import { checkCannabisOnboardingStatus, installCannabisAuthorityPack, stockCannabisSampleStore } from '../actions/onboarding';
+import { SAMPLE_STEPS, SAMPLE_STORE, sampleFormValues, sampleLimits, sampleTaxes } from '../lib/sample';
 import { INITIAL_ONBOARDING_STATE, REQUIRED_AUTHORITY_FIELDS, type OnboardingState } from '../lib/state';
 import { buildLimits, buildTaxes, dayStart, emptyLimit, emptyTax, localDate, REQUIRED_ACTIVITIES, TENDER_TYPES, timeToMinute, type LimitRow, type RuleErrors, type TaxRow } from '../lib/pack';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
@@ -136,13 +137,40 @@ function SetupForm({ onDirtyChange, onDone }: { onDirtyChange: (dirty: boolean) 
   const [errors, setErrors] = useState<RuleErrors>({});
   const [advanced, setAdvanced] = useState<string | null>(null);
   const [idempotencyKey] = useState(() => `onboarding:${crypto.randomUUID()}`);
+  // "Sample dispensary" fills the form from lib/seed.json; the owner still reviews and submits it.
+  const [template, setTemplate] = useState<'blank' | 'sample'>('blank');
+  const [stock, setStock] = useState<{ step: number; error?: string } | null>(null);
+  const [stocking, startStocking] = useTransition();
   const shown = checked ?? state;
   const failed = shown.status === 'invalid' || shown.status === 'not_completed' || shown.status === 'unknown';
   const built = useMemo(() => buildPack(values, limits, taxes, idempotencyKey), [values, limits, taxes, idempotencyKey]);
   const set = (name: keyof Values, value: string | boolean | string[]) => { setValues(current => ({ ...current, [name]: value })); onDirtyChange(true); };
   const stepErrors = (target: Step) => Object.keys(built.errors).filter(name => stepOf(name) === target).length;
 
-  useEffect(() => { if (shown.status === 'success') { const timer = window.setTimeout(onDone, 1200); return () => window.clearTimeout(timer); } }, [shown.status, onDone]);
+  const stocked = template === 'blank' || stock?.step === SAMPLE_STEPS.length;
+  useEffect(() => { if (shown.status === 'success' && stocked) { const timer = window.setTimeout(onDone, 1200); return () => window.clearTimeout(timer); } }, [shown.status, stocked, onDone]);
+
+  function chooseTemplate(next: 'blank' | 'sample') {
+    setTemplate(next); setErrors({}); setStep('Business'); setAdvanced(null);
+    setValues(next === 'sample' ? { ...initialValues(), ...sampleFormValues() } : initialValues());
+    setLimits(next === 'sample' ? sampleLimits() : [emptyLimit()]);
+    setTaxes(next === 'sample' ? sampleTaxes() : [emptyTax()]);
+    onDirtyChange(next === 'sample');
+  }
+
+  // After the authority pack installs, stock the sample store one step at a time, resuming after a failure.
+  function runStocking(from: number) {
+    startStocking(async () => {
+      for (let at = from; at < SAMPLE_STEPS.length; at++) {
+        setStock({ step: at });
+        const result = await stockCannabisSampleStore(at);
+        if (!result.success) { setStock({ step: at, error: result.message }); return; }
+      }
+      setStock({ step: SAMPLE_STEPS.length });
+    });
+  }
+  const stockingStarted = useRef(false);
+  useEffect(() => { if (shown.status === 'success' && template === 'sample' && !stockingStarted.current) { stockingStarted.current = true; runStocking(0); } });
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     if (advanced !== null) { setChecked(null); return; }
@@ -181,6 +209,12 @@ function SetupForm({ onDirtyChange, onDone }: { onDirtyChange: (dirty: boolean) 
     </nav>
 
     <fieldset disabled={pending || done} className="min-w-0 space-y-5">
+      <div className="space-y-2 border-b pb-4">
+        <Track label="Start from">
+          {([['sample', 'Sample dispensary'], ['blank', 'Blank']] as const).map(([value, label]) => <button key={value} type="button" data-active={template === value} onClick={() => chooseTemplate(value)} className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:data-[active=true]:bg-zinc-800">{label}</button>)}
+        </Track>
+        <p className="text-xs text-muted-foreground">{template === 'sample' ? `${SAMPLE_STORE.name}: ${SAMPLE_STORE.description}` : 'Enter your own license, premises, credential and sales rules.'}</p>
+      </div>
       {advanced !== null ? <label className={labelClass} htmlFor="authority-pack">Setup details (JSON)
         <textarea id="authority-pack" value={advanced} onChange={event => { setAdvanced(event.target.value); onDirtyChange(true); }} rows={20} spellCheck={false} className={`${textareaClass} min-h-80 font-mono text-xs leading-5`} />
         <span className="mt-1 block font-normal text-muted-foreground">Keys: {REQUIRED_AUTHORITY_FIELDS.length} required, plus optional ownerApprovalLimitCents</span>
@@ -265,8 +299,17 @@ function SetupForm({ onDirtyChange, onDone }: { onDirtyChange: (dirty: boolean) 
         </ActionTrack>
         {Object.keys(errors).length > 0 && advanced === null && <span role="alert" className="inline-flex items-baseline gap-1.5 text-xs text-destructive"><Dot tone="danger" />{Object.keys(errors).length} to fix</span>}
       </div>
-      {shown.status !== 'idle' && <p id="onboarding-result" data-testid="onboarding-result" role={failed ? 'alert' : 'status'} aria-live="polite" className={`flex items-baseline gap-2 text-sm ${failed ? 'text-destructive' : ''}`}><Dot tone={failed ? 'danger' : 'ok'} />{shown.message}</p>}
+      {shown.status !== 'idle' && !(done && template === 'sample') && <p id="onboarding-result" data-testid="onboarding-result" role={failed ? 'alert' : 'status'} aria-live="polite" className={`flex items-baseline gap-2 text-sm ${failed ? 'text-destructive' : ''}`}><Dot tone={failed ? 'danger' : 'ok'} />{shown.message}</p>}
     </fieldset>
+    {done && template === 'sample' && <div className="space-y-3 md:col-start-2" data-testid="sample-stocking">
+      <p role={stock?.error ? 'alert' : 'status'} aria-live="polite" className={`flex items-baseline gap-2 text-sm ${stock?.error ? 'text-destructive' : ''}`}>
+        <Dot tone={stock?.error ? 'danger' : stock?.step === SAMPLE_STEPS.length ? 'ok' : 'warn'} />
+        {stock?.step === SAMPLE_STEPS.length ? 'Setup complete. The sample menu is stocked and live.'
+          : stock?.error ? `Setup is installed, but stocking stopped at ${SAMPLE_STEPS[stock.step]}: ${stock.error}`
+          : `Setup installed. Stocking the menu: ${Math.min((stock?.step ?? 0) + 1, SAMPLE_STEPS.length)} of ${SAMPLE_STEPS.length}, ${SAMPLE_STEPS[stock?.step ?? 0]}`}
+      </p>
+      {stock?.error && <ActionTrack><PillButton tone="ink" disabled={stocking} onClick={() => runStocking(stock.step)}>{stocking ? 'Stocking…' : 'Try again'}</PillButton><PillButton onClick={onDone}>Finish later</PillButton></ActionTrack>}
+    </div>}
   </form>;
 }
 
