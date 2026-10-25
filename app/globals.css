@@ -251,7 +251,6 @@ body {
     height: 12px;
     border-radius: 2px 2px 0 0;
     background: rgb(214 186 120 / 0.2);
-    box-shadow: 0 3px 0 rgb(0 0 0 / 0.18);
     pointer-events: none;
   }
   @media (hover: hover) and (pointer: fine) {

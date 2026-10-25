@@ -1,0 +1,391 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T00:00:00Z",
+  "title": "Design System: Openfront Cannabis Storefront",
+  "extensions": {
+    "colorMeta": {
+      "resin-ground": {
+        "role": "neutral",
+        "displayName": "Resin Ground",
+        "canonical": "hsl(var(--cn-h, 152) 22% 7.5%)",
+        "tonalRamp": [
+          "oklch(15% 0.015 165)",
+          "oklch(26% 0.015 165)",
+          "oklch(37% 0.015 165)",
+          "oklch(48% 0.015 165)",
+          "oklch(59% 0.015 165)",
+          "oklch(70% 0.015 165)",
+          "oklch(82% 0.015 165)",
+          "oklch(95% 0.015 165)"
+        ],
+        "note": "Hue-bound: --cn-h comes from the store's saved accent hue; frontmatter value is the default hue 152 resolved."
+      },
+      "booklet-stock": {
+        "role": "neutral",
+        "displayName": "Booklet Stock",
+        "canonical": "hsl(var(--cn-h, 152) 16% 11.5%)",
+        "tonalRamp": [
+          "oklch(15% 0.016 165)",
+          "oklch(26% 0.016 165)",
+          "oklch(37% 0.016 165)",
+          "oklch(48% 0.016 165)",
+          "oklch(59% 0.016 165)",
+          "oklch(70% 0.016 165)",
+          "oklch(82% 0.016 165)",
+          "oklch(95% 0.016 165)"
+        ]
+      },
+      "gate-well": {
+        "role": "neutral",
+        "displayName": "Gate Well",
+        "canonical": "hsl(var(--cn-h, 152) 20% 5.5%)",
+        "tonalRamp": [
+          "oklch(15% 0.010 165)",
+          "oklch(26% 0.010 165)",
+          "oklch(37% 0.010 165)",
+          "oklch(48% 0.010 165)",
+          "oklch(59% 0.010 165)",
+          "oklch(70% 0.010 165)",
+          "oklch(82% 0.010 165)",
+          "oklch(95% 0.010 165)"
+        ]
+      },
+      "cover-stock": {
+        "role": "neutral",
+        "displayName": "Cover Stock",
+        "canonical": "hsl(var(--cn-h, 152) 30% 13%)",
+        "tonalRamp": [
+          "oklch(15% 0.031 163)",
+          "oklch(26% 0.031 163)",
+          "oklch(37% 0.031 163)",
+          "oklch(48% 0.031 163)",
+          "oklch(59% 0.031 163)",
+          "oklch(70% 0.031 163)",
+          "oklch(82% 0.031 163)",
+          "oklch(95% 0.031 163)"
+        ]
+      },
+      "smoke-paper-ink": {
+        "role": "primary",
+        "displayName": "Smoke-Paper Ink",
+        "canonical": "#ebe5d3",
+        "tonalRamp": [
+          "oklch(15% 0.025 92)",
+          "oklch(26% 0.025 92)",
+          "oklch(37% 0.025 92)",
+          "oklch(48% 0.025 92)",
+          "oklch(59% 0.025 92)",
+          "oklch(70% 0.025 92)",
+          "oklch(82% 0.025 92)",
+          "oklch(95% 0.025 92)"
+        ]
+      },
+      "ink-faded": {
+        "role": "neutral",
+        "displayName": "Ink Faded",
+        "canonical": "#c4bfae",
+        "tonalRamp": [
+          "oklch(15% 0.024 93)",
+          "oklch(26% 0.024 93)",
+          "oklch(37% 0.024 93)",
+          "oklch(48% 0.024 93)",
+          "oklch(59% 0.024 93)",
+          "oklch(70% 0.024 93)",
+          "oklch(82% 0.024 93)",
+          "oklch(95% 0.024 93)"
+        ]
+      },
+      "ink-ghost": {
+        "role": "neutral",
+        "displayName": "Ink Ghost",
+        "canonical": "#9a9686",
+        "tonalRamp": [
+          "oklch(15% 0.023 95)",
+          "oklch(26% 0.023 95)",
+          "oklch(37% 0.023 95)",
+          "oklch(48% 0.023 95)",
+          "oklch(59% 0.023 95)",
+          "oklch(70% 0.023 95)",
+          "oklch(82% 0.023 95)",
+          "oklch(95% 0.023 95)"
+        ]
+      },
+      "hue-accent": {
+        "role": "secondary",
+        "displayName": "Hue Accent",
+        "canonical": "hsl(var(--cn-h, 152) 42% 70%)",
+        "tonalRamp": [
+          "oklch(15% 0.078 164)",
+          "oklch(26% 0.078 164)",
+          "oklch(37% 0.078 164)",
+          "oklch(48% 0.078 164)",
+          "oklch(59% 0.078 164)",
+          "oklch(70% 0.078 164)",
+          "oklch(82% 0.078 164)",
+          "oklch(95% 0.078 164)"
+        ]
+      },
+      "leaf-paper": {
+        "role": "neutral",
+        "displayName": "Leaf Paper",
+        "canonical": "rgb(235 229 211 / 0.07)",
+        "tonalRamp": [
+          "oklch(15% 0.025 92)",
+          "oklch(26% 0.025 92)",
+          "oklch(37% 0.025 92)",
+          "oklch(48% 0.025 92)",
+          "oklch(59% 0.025 92)",
+          "oklch(70% 0.025 92)",
+          "oklch(82% 0.025 92)",
+          "oklch(95% 0.025 92)"
+        ]
+      },
+      "gum-strip": {
+        "role": "neutral",
+        "displayName": "Gum Strip",
+        "canonical": "rgb(214 186 120 / 0.2)",
+        "tonalRamp": [
+          "oklch(15% 0.090 87)",
+          "oklch(26% 0.090 87)",
+          "oklch(37% 0.090 87)",
+          "oklch(48% 0.090 87)",
+          "oklch(59% 0.090 87)",
+          "oklch(70% 0.090 87)",
+          "oklch(82% 0.090 87)",
+          "oklch(95% 0.090 87)"
+        ]
+      },
+      "open-green": {
+        "role": "status",
+        "displayName": "Open Green",
+        "canonical": "#8fd6a6",
+        "tonalRamp": [
+          "oklch(15% 0.099 154)",
+          "oklch(26% 0.099 154)",
+          "oklch(37% 0.099 154)",
+          "oklch(48% 0.099 154)",
+          "oklch(59% 0.099 154)",
+          "oklch(70% 0.099 154)",
+          "oklch(82% 0.099 154)",
+          "oklch(95% 0.099 154)"
+        ]
+      },
+      "sample-amber": {
+        "role": "status",
+        "displayName": "Sample Amber",
+        "canonical": "#e9bf6d",
+        "tonalRamp": [
+          "oklch(15% 0.112 83)",
+          "oklch(26% 0.112 83)",
+          "oklch(37% 0.112 83)",
+          "oklch(48% 0.112 83)",
+          "oklch(59% 0.112 83)",
+          "oklch(70% 0.112 83)",
+          "oklch(82% 0.112 83)",
+          "oklch(95% 0.112 83)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The store name and age rule on the cover; the age gate's age."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page heads (Menu), item names and price on the item page, 404 title."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Item names under leaves; footer, visit-term and empty-state lines."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions and read text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Pills, nav links, status lines, the age strip."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Counts, prices, hours and SKUs in tabular numerals."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-panel",
+        "value": "0 24px 48px -12px rgb(0 0 0 / 0.7)",
+        "purpose": "The open phone menu."
+      },
+      {
+        "name": "gate-card",
+        "value": "0 32px 80px -20px rgb(0 0 0 / 0.8)",
+        "purpose": "The age gate card over the well."
+      }
+    ],
+    "motion": [
+      {
+        "name": "cn-ease",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "All storefront transitions and the deal-in."
+      },
+      {
+        "name": "pill-state",
+        "value": "160ms",
+        "purpose": "Pill colour and ground changes; press scale 0.97 at 140ms."
+      },
+      {
+        "name": "leaf-lift",
+        "value": "translateY(-6px) 260ms",
+        "purpose": "Leaf lifts on hover (fine pointers only); paper rises to 10%."
+      },
+      {
+        "name": "cn-deal",
+        "value": "560ms, from opacity 0 and translateY(18px), 50ms stagger capped at 300ms",
+        "purpose": "Menu leaves deal in once; off under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ],
+    "textures": [
+      {
+        "name": "leaf-fibre",
+        "value": "inline SVG data URI: feTurbulence fractalNoise, baseFrequency 0.9 0.05, numOctaves 2, seed 7, ink-coloured via feColorMatrix, rect opacity 0.22, 160px tile",
+        "purpose": "Paper fibre on every leaf. Not a raster asset."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Resting filter, sort or action tab on leaf paper.",
+      "html": "<span class=\"ds-track\"><button class=\"ds-pill\">Flower <span class=\"ds-num\">4</span></button><button class=\"ds-pill\">Edible <span class=\"ds-num\">3</span></button></span>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-track{display:inline-flex;gap:4px;padding:16px;background:hsl(152 22% 7.5%);} .ds-pill{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:0;border-radius:2px;background:rgb(235 229 211 / 0.07);color:#c4bfae;font:600 14px 'Libre Franklin',ui-sans-serif,system-ui,sans-serif;white-space:nowrap;cursor:pointer;transition:background-color 160ms cubic-bezier(0.23,1,0.32,1),color 160ms cubic-bezier(0.23,1,0.32,1),transform 140ms cubic-bezier(0.23,1,0.32,1);} .ds-pill:hover{color:#ebe5d3;background:rgb(235 229 211 / 0.12);} .ds-pill:active{transform:scale(0.97);} .ds-pill:focus-visible{outline:2px solid #ebe5d3;outline-offset:2px;} .ds-pill .ds-num{font-size:13px;color:#9a9686;font-variant-numeric:tabular-nums;}"
+    },
+    {
+      "name": "Chosen Pill / Primary Action",
+      "kind": "button",
+      "refersTo": "pill-active",
+      "description": "The chosen tab, or a primary action: a solid ink block with resin-ground type.",
+      "html": "<span class=\"ds-track\"><button class=\"ds-pill ds-pill-on\">All <span class=\"ds-num\">12</span></button><button class=\"ds-pill ds-pill-on\">Yes, I am 21+</button></span>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-track{display:inline-flex;gap:4px;padding:16px;background:hsl(152 22% 7.5%);} .ds-pill{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:0;border-radius:2px;background:rgb(235 229 211 / 0.07);color:#c4bfae;font:600 14px 'Libre Franklin',ui-sans-serif,system-ui,sans-serif;white-space:nowrap;cursor:pointer;transition:background-color 160ms cubic-bezier(0.23,1,0.32,1),color 160ms cubic-bezier(0.23,1,0.32,1),transform 140ms cubic-bezier(0.23,1,0.32,1);} .ds-pill:hover{color:#ebe5d3;background:rgb(235 229 211 / 0.12);} .ds-pill:active{transform:scale(0.97);} .ds-pill:focus-visible{outline:2px solid #ebe5d3;outline-offset:2px;} .ds-pill .ds-num{font-size:13px;color:#9a9686;font-variant-numeric:tabular-nums;} .ds-pill-on,.ds-pill-on:hover{background:#ebe5d3;color:hsl(152 22% 7.5%);} .ds-pill-on .ds-num{color:hsl(152 16% 30%);}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Borderless search on booklet stock, paired with an ink Search pill.",
+      "html": "<div class=\"ds-search\"><input class=\"ds-input\" placeholder=\"Search the menu\"><button class=\"ds-pill ds-pill-on\">Search</button></div>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-search{display:flex;gap:8px;padding:16px;background:hsl(152 22% 7.5%);} .ds-input{flex:1;height:48px;padding:0 16px;border:0;border-radius:2px;background:hsl(152 16% 11.5%);color:#ebe5d3;font:400 16px 'Libre Franklin',ui-sans-serif,system-ui,sans-serif;outline:none;} .ds-input::placeholder{color:#9a9686;} .ds-input:focus-visible{box-shadow:0 0 0 2px #ebe5d3;} .ds-pill{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:0;border-radius:2px;background:rgb(235 229 211 / 0.07);color:#c4bfae;font:600 14px 'Libre Franklin',ui-sans-serif,system-ui,sans-serif;white-space:nowrap;cursor:pointer;transition:background-color 160ms cubic-bezier(0.23,1,0.32,1),color 160ms cubic-bezier(0.23,1,0.32,1),transform 140ms cubic-bezier(0.23,1,0.32,1);} .ds-pill:hover{color:#ebe5d3;background:rgb(235 229 211 / 0.12);} .ds-pill:active{transform:scale(0.97);} .ds-pill:focus-visible{outline:2px solid #ebe5d3;outline-offset:2px;} .ds-pill .ds-num{font-size:13px;color:#9a9686;font-variant-numeric:tabular-nums;} .ds-pill-on,.ds-pill-on:hover{height:48px;background:#ebe5d3;color:hsl(152 22% 7.5%);}"
+    },
+    {
+      "name": "Leaf",
+      "kind": "card",
+      "refersTo": "leaf",
+      "description": "Signature product tile: translucent paper with an inline SVG fibre-noise field and a gum strip; lifts on hover.",
+      "html": "<a class=\"ds-tile\" href=\"#\"><div class=\"ds-leaf\"><div class=\"ds-leaf-top\"><span>Flower</span></div><span class=\"ds-initial\">B</span><span class=\"ds-chan\">Adult-use · Medical</span></div><h3 class=\"ds-name\">Blue Mesa OG, eighth</h3><div class=\"ds-price\">$35.00</div></a>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-tile{display:block;width:220px;padding:16px;background:hsl(152 22% 7.5%);text-decoration:none;color:#ebe5d3;border-radius:2px;transition:transform 150ms;} .ds-tile:active{transform:scale(0.98);} .ds-tile:focus-visible{outline:2px solid #ebe5d3;outline-offset:4px;} .ds-leaf{position:relative;display:flex;flex-direction:column;justify-content:space-between;aspect-ratio:4/5;padding:28px 16px 16px;border-radius:2px;background-color:rgb(235 229 211 / 0.07);background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9 0.05' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.92 0 0 0 0 0.9 0 0 0 0 0.83 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.22'/%3E%3C/svg%3E\");transition:background-color 200ms cubic-bezier(0.23,1,0.32,1),transform 260ms cubic-bezier(0.23,1,0.32,1);} .ds-leaf::before{content:'';position:absolute;inset:0 0 auto;height:12px;border-radius:2px 2px 0 0;background:rgb(214 186 120 / 0.2);} .ds-tile:hover .ds-leaf{background-color:rgb(235 229 211 / 0.1);transform:translateY(-6px);} .ds-leaf-top,.ds-chan{font:600 13px 'Libre Franklin',sans-serif;color:#c4bfae;} .ds-chan{font-weight:400;} .ds-initial{font:700 96px/0.8 Besley,Georgia,serif;letter-spacing:-0.02em;} .ds-name{margin:12px 0 0;font:700 20px/25px Besley,Georgia,serif;letter-spacing:-0.02em;} .ds-price{margin-top:4px;text-align:right;font:600 14px 'Libre Franklin',sans-serif;font-variant-numeric:tabular-nums;}"
+    },
+    {
+      "name": "Cover",
+      "kind": "custom",
+      "refersTo": "cover",
+      "description": "The booklet cover: age rule, store name, open state and where, on cover stock.",
+      "html": "<section class=\"ds-cover\"><span class=\"ds-age\">21+</span><h1 class=\"ds-store\">Fernwood Cannabis Co.</h1><span class=\"ds-open\"><span class=\"ds-dot\"></span>Open now · in-store only</span><p class=\"ds-where\">2741 Larimer Street, Denver · Daily 9 AM – 10 PM · <a href=\"#\">Directions</a></p></section>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-cover{display:flex;flex-direction:column;width:360px;min-height:380px;padding:48px 24px 28px;border-radius:2px;background:hsl(152 30% 13%);color:#ebe5d3;font-family:'Libre Franklin',sans-serif;} .ds-age{font:700 64px/1 Besley,Georgia,serif;letter-spacing:-0.02em;} .ds-store{margin:auto 0 0;padding-top:48px;font:700 48px/0.95 Besley,Georgia,serif;letter-spacing:-0.02em;} .ds-open{margin-top:20px;display:inline-flex;align-items:baseline;gap:8px;font-weight:600;font-size:16px;} .ds-dot{width:8px;height:8px;border-radius:999px;background:#8fd6a6;} .ds-where{margin:24px 0 0;font-size:15px;color:#c4bfae;} .ds-where a{color:#ebe5d3;font-weight:600;text-decoration:underline;text-decoration-color:rgb(235 229 211 / 0.3);text-decoration-thickness:2px;text-underline-offset:4px;} .ds-where a:hover{text-decoration-color:#ebe5d3;}"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Ink strip over a sticky resin header with text links; current link in full ink.",
+      "html": "<div class=\"ds-strip\"><span>21+ ONLY</span><span>Open now · until 10 PM</span></div><nav class=\"ds-nav\"><span class=\"ds-logo\">Fernwood Cannabis Co.</span><span><a class=\"ds-link ds-on\" href=\"#\">Menu</a><a class=\"ds-link\" href=\"#\">Visit</a><a class=\"ds-link\" href=\"#\">Flower</a></span></nav>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-strip{display:flex;justify-content:space-between;padding:8px 24px;background:#ebe5d3;color:hsl(152 22% 7.5%);font:600 13px 'Libre Franklin',sans-serif;} .ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;background:hsl(152 22% 7.5%);} .ds-logo{font:500 19px Besley,Georgia,serif;letter-spacing:-0.015em;color:#ebe5d3;} .ds-link{padding:8px 12px;border-radius:2px;font:400 15px 'Libre Franklin',sans-serif;color:#c4bfae;text-decoration:none;} .ds-link:hover{background:hsl(152 16% 11.5%);color:#ebe5d3;} .ds-link:focus-visible{outline:2px solid #ebe5d3;outline-offset:2px;} .ds-on{font-weight:600;color:#ebe5d3;}"
+    },
+    {
+      "name": "Record Sheet",
+      "kind": "card",
+      "refersTo": "record-sheet",
+      "description": "An item's facts as term/value rows on cover stock.",
+      "html": "<dl class=\"ds-sheet\"><div><dt>Form</dt><dd>Flower</dd></div><div><dt>Sold for</dt><dd>Adult-use · Medical</dd></div><div><dt>Purchase</dt><dd>In store only</dd></div></dl>",
+      "css": ":host{--cn-h:152;--cn-ease:cubic-bezier(0.23,1,0.32,1);} .ds-sheet{display:grid;gap:12px;width:360px;margin:0;padding:20px;border-radius:2px;background:hsl(152 30% 13%);font:400 16px 'Libre Franklin',sans-serif;} .ds-sheet div{display:flex;justify-content:space-between;gap:16px;} .ds-sheet dt{color:#c4bfae;} .ds-sheet dd{margin:0;color:#ebe5d3;text-align:right;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Rolling-Paper Booklet",
+    "overview": "The storefront is printed in one ink on resin. A near-black ground tinted with the store's own accent hue carries a single smoke-paper ink (#ebe5d3) that does every job: text, the big printed initials, figures, and the solid block of a chosen control. The booklet's cover, a deeper hue-tinted stock, holds the age rule, the store name, the open state and the address still beside the menu, and each menu item is a thin translucent leaf with a gummed fold along its top edge.\n\nEverything is set in two faces. Besley, a Clarendon, prints what would be stamped on a booklet: the age, the store name, item names, prices and section names. Libre Franklin sets everything that is read or operated. Corners are square to 2px; surfaces are separated by value steps, never by drawn lines. The page is dense and quiet, and the leaves are the only thing that moves: they deal in once on load and lift when pointed at.\n\nThe whole palette re-tints per store. Every ground and the accent are `hsl(var(--cn-h) ...)`, with `--cn-h` set from the store's saved accent hue on the `.storefront-theme` wrapper (default 152). The ink, its two fades and the two status colours stay fixed so the text never shifts with the store's hue. The frontmatter values are the default hue resolved.",
+    "keyCharacteristics": [
+      "One ink (#ebe5d3) on a hue-tinted resin ground; the chosen control is an ink block with ground-coloured type.",
+      "A still cover on deeper stock beside a grid of translucent paper leaves.",
+      "Besley prints names, ages and prices; Libre Franklin sets everything read; figures are tabular.",
+      "Square 2px corners and no rule lines; depth is value steps.",
+      "The paper texture is an inline SVG noise field, not a raster asset.",
+      "Motion is one deal-in on load and a lift on hover, eased `cubic-bezier(0.23, 1, 0.32, 1)`, and off under reduced motion."
+    ],
+    "rules": [
+      {
+        "name": "The One Ink Rule",
+        "body": "Text, figures, drawings and solid controls all use the smoke-paper ink or one of its two fades. There is no second text colour and no coloured button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Store's Hue Rule",
+        "body": "Grounds and the accent come from `--cn-h`, never from a fixed hex, so every store prints the booklet in its own hue. Only the ink and the status colours are fixed.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stamp and Read Rule",
+        "body": "Besley prints names, ages, prices and section names; anything a visitor reads in sentences or operates is Libre Franklin. A leaf's printed initial (96–240px) is the largest Besley on the page.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Figure Rule",
+        "body": "Every count, price, hour and SKU uses tabular numerals in the text face so columns of figures hold.",
+        "section": "typography"
+      },
+      {
+        "name": "The Value Step Rule",
+        "body": "Depth is a step in lightness within the store's hue. Shadows belong only to layers that float over the page (the phone menu and the age gate).",
+        "section": "elevation"
+      },
+      {
+        "name": "The No Hairline Rule",
+        "body": "No borders or rule lines separate surfaces, rows or sections. Inline-link underlines (the ink at 30%, 2px on the cover) are type, not dividers, and are allowed.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do draw every ground and the accent from `hsl(var(--cn-h) ...)` so the store's hue re-tints the booklet.",
+      "Do use the smoke-paper ink (#ebe5d3) and its two fades for all text, and make the chosen control a solid ink block with resin-ground type.",
+      "Do cut every rectangle at 2px and separate surfaces by value steps.",
+      "Do set names, ages, prices and section names in Besley 700 at -0.02em, and everything read in Libre Franklin.",
+      "Do use tabular figures for counts, prices, hours and SKUs.",
+      "Do build an item's art only from real fields (form, initial, channel, Sample) when there is no photo.",
+      "Do pair every status dot with a written label.",
+      "Do keep controls at least 44px on phones and gate motion behind `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "Don't draw borders, hairlines or divider rules between surfaces or rows.",
+      "Don't use rounded cards, pill-shaped buttons or any radius other than 2px (the 8px dot excepted).",
+      "Don't add a second text colour or fill a block with the accent or a status colour.",
+      "Don't shadow anything that sits on the page; shadows are for the phone menu and the age gate only.",
+      "Don't return to the cream \"cure label\" page or the neon-green dispensary template.",
+      "Don't replace the leaf's SVG noise field with a raster texture or a stock photo."
+    ]
+  }
+}
