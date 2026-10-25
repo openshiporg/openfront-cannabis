@@ -90,7 +90,6 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
     <div className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-20 pt-4 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
       <section aria-labelledby="cn-cover-title" className="lg:sticky lg:top-[80px] lg:self-start">
         <div className="relative flex min-h-[440px] flex-col overflow-hidden rounded-[2px] bg-cn-cover px-6 pb-7 pt-12 sm:px-9 lg:min-h-[calc(100svh-112px)]">
-          <span aria-hidden="true" className="absolute inset-y-0 left-0 w-3 bg-cn-well/60" />
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <span className="cn-display text-[64px] leading-none text-cn-ink sm:text-[88px]">{ages.adult}+</span>
             {ages.medical != null && <span className="text-[15px] font-semibold text-cn-ink-2">Patients {ages.medical}+</span>}

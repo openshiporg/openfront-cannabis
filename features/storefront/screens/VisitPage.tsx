@@ -27,8 +27,7 @@ export async function VisitPage() {
   ];
   return <StorefrontShell settings={settings} forms={forms} current="visit">
     <div className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-20 pt-4 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
-      <section aria-labelledby="cn-visit-title" className="relative flex min-h-[360px] flex-col overflow-hidden rounded-[2px] bg-cn-cover px-6 pb-7 pl-9 pt-12 sm:px-9 sm:pl-12 lg:min-h-[calc(100svh-112px)]">
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-3 bg-cn-well/60" />
+      <section aria-labelledby="cn-visit-title" className="relative flex min-h-[360px] flex-col overflow-hidden rounded-[2px] bg-cn-cover px-6 pb-7 pt-12 sm:px-9 lg:min-h-[calc(100svh-112px)]">
         <span className="cn-display text-[64px] leading-none text-cn-ink sm:text-[88px]">{ages.adult}+</span>
         <h1 id="cn-visit-title" className="cn-display mt-auto break-words pt-16 text-[48px] leading-[0.95] text-cn-ink [text-wrap:balance] sm:text-[72px] xl:text-[88px]">{settings.isConfigured ? storeName(settings) : 'Visit'}</h1>
         <div className="mt-8 flex flex-wrap gap-2">

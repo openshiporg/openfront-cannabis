@@ -255,7 +255,7 @@ body {
     pointer-events: none;
   }
   @media (hover: hover) and (pointer: fine) {
-    .group:hover .cn-leaf { background: rgb(235 229 211 / 0.1); transform: translateY(-6px); }
+    .group:hover .cn-leaf { background-color: rgb(235 229 211 / 0.1); transform: translateY(-6px); }
   }
 
   /* Menu leaves deal in once, one after another. */

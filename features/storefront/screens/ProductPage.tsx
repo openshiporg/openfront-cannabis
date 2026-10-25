@@ -49,7 +49,7 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
       </article>
       {related.length > 0 && <section aria-labelledby="related-title" className="mt-24">
         <div className="flex items-baseline gap-3"><h2 id="related-title" className="cn-display text-[32px] text-cn-ink">More {product.form.toLowerCase()}</h2><span className="cn-num text-[15px] text-cn-ink-3">{related.length}</span></div>
-        <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 lg:grid-cols-4">{related.map(item => <ProductTile key={item.id} product={item} currencyCode={menu.currencyCode} />)}</div>
+        <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 lg:grid-cols-4">{related.map(item => <ProductTile key={item.id} product={item} currencyCode={menu.currencyCode} showChannel={catalog.some(entry => entry.medicalEligible) && catalog.some(entry => entry.adultUseEligible)} />)}</div>
       </section>}
     </div>
   </StorefrontShell>;
