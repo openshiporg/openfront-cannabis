@@ -24,7 +24,6 @@ export function ProductArt({ product, currencyCode, large = false }: { product: 
     <span className={cn('cn-display self-start leading-[0.8]', large ? 'text-[180px] sm:text-[240px]' : 'text-[96px] sm:text-[120px]')}>{initial}</span>
     <div className="flex items-end justify-between gap-2">
       <span className={cn('text-cn-ink-2', large ? 'text-[15px]' : 'text-[13px]')}>{[product.adultUseEligible && 'Adult-use', product.medicalEligible && 'Medical'].filter(Boolean).join(' · ') || (product.demo ? 'Not for sale' : '')}</span>
-      {product.priceCents != null && <span className={cn('cn-num font-semibold', large ? 'text-[17px]' : 'text-[14px]')}>{formatPrice(product.priceCents, currencyCode)}</span>}
     </div>
   </div>;
 }
