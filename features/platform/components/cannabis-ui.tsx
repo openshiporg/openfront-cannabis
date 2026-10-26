@@ -138,12 +138,12 @@ export function SectionTitle({ children, meta, action, id }: { children: ReactNo
 
 /** Bordered surface for a table or list. */
 export function Frame({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cn('min-w-0 overflow-hidden rounded-md border border-border bg-card', className)}>{children}</div>;
+  return <div {...props} className={cn('min-w-0 overflow-hidden rounded-[6px] border border-border bg-card', className)}>{children}</div>;
 }
 
 /** A bordered list with ruled rows. */
 export function ListBand({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cn('min-w-0 divide-y divide-border overflow-hidden rounded-md border border-border bg-card', className)}>{children}</div>;
+  return <div {...props} className={cn('min-w-0 divide-y divide-border overflow-hidden rounded-[6px] border border-border bg-card', className)}>{children}</div>;
 }
 
 /** A list row: title line with its status, a muted detail line, and an aside on the right on wide screens. */
@@ -172,7 +172,7 @@ export function BandEmpty({ children }: { children: ReactNode }) {
 
 /** A dense table in a bordered frame; scrolls sideways on a phone instead of squeezing columns. */
 export function Table({ label, className, children, minWidth = 640 }: { label?: string; className?: string; children: ReactNode; minWidth?: number }) {
-  return <div className={cn('min-w-0 overflow-x-auto rounded-md border border-border bg-card', className)}>
+  return <div className={cn('min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card', className)}>
     <table aria-label={label} className="w-full border-collapse text-[13px]" style={{ minWidth }}>{children}</table>
   </div>;
 }
@@ -203,7 +203,7 @@ export function TEmpty({ colSpan, children }: { colSpan: number; children: React
  * a header row on wide screens, labelled cells on a phone, and an action area under each row.
  */
 export function RecordList({ columns, headers, label, children, className }: { columns: string; headers: Array<{ label: string; align?: 'right' }>; label?: string; children: ReactNode; className?: string }) {
-  return <div role="list" aria-label={label} className={cn('min-w-0 overflow-hidden rounded-md border border-border bg-card', className)}>
+  return <div role="list" aria-label={label} className={cn('min-w-0 overflow-hidden rounded-[6px] border border-border bg-card', className)}>
     <div aria-hidden="true" className="hidden h-8 items-center gap-4 border-b border-border bg-muted/50 px-3 text-xs font-medium text-muted-foreground md:grid" style={{ gridTemplateColumns: columns }}>
       {headers.map(header => <span key={header.label} className={cn('truncate', header.align === 'right' && 'text-right')}>{header.label}</span>)}
     </div>
@@ -239,7 +239,7 @@ export type MetricItem = { label: string; value: ReactNode; href?: string; tone?
 
 /** Compact counts in one ruled strip; each links to its filtered list when it has one. */
 export function MetricStrip({ items, className }: { items: MetricItem[]; className?: string }) {
-  return <div className={cn('overflow-hidden rounded-md border border-border bg-card', className)}><div className={cn('-mb-px -mr-px grid', METRIC_COLUMNS[Math.min(items.length, 6)])}>
+  return <div className={cn('overflow-hidden rounded-[6px] border border-border bg-card', className)}><div className={cn('-mb-px -mr-px grid', METRIC_COLUMNS[Math.min(items.length, 6)])}>
     {items.map(item => {
       const body = <>
         <span className="flex items-baseline gap-1.5 text-xs text-muted-foreground">{item.tone && <Dot tone={item.tone} />}{item.label}</span>
@@ -264,7 +264,7 @@ const NOTICE_TONES: Record<DotTone, string> = {
 
 /** A state line: the reason a page is read-only, a missing connection, a blocked step. */
 export function Notice({ tone = 'warn', children, action, className }: { tone?: DotTone; children: ReactNode; action?: ReactNode; className?: string }) {
-  return <div role="status" className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border px-3 py-2.5 text-[13px]', NOTICE_TONES[tone], className)}>
+  return <div role="status" className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[6px] border px-3 py-2.5 text-[13px]', NOTICE_TONES[tone], className)}>
     <span className="inline-flex min-w-0 items-baseline gap-2 font-medium text-foreground"><Dot tone={tone} /><span className="min-w-0 break-words">{children}</span></span>
     {action}
   </div>;
@@ -272,7 +272,7 @@ export function Notice({ tone = 'warn', children, action, className }: { tone?: 
 
 /** A form or detail surface: a bordered block with a header bar. */
 export function Panel({ title, meta, children, className, ...props }: { title?: ReactNode; meta?: ReactNode } & Omit<React.HTMLAttributes<HTMLElement>, 'title'>) {
-  return <section {...props} className={cn('min-w-0 rounded-md border border-border bg-card', className)}>
+  return <section {...props} className={cn('min-w-0 rounded-[6px] border border-border bg-card', className)}>
     {title && <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2"><h2 className="text-[13px] font-semibold text-foreground">{title}</h2>{meta && <span className="text-xs tabular-nums text-muted-foreground">{meta}</span>}</div>}
     <div className="p-4">{children}</div>
   </section>;
@@ -287,7 +287,7 @@ export function SubHeading({ children, meta }: { children: ReactNode; meta?: Rea
 export function Disclosure({ label, children, open, className }: { label: ReactNode; children: ReactNode; open?: boolean; className?: string }) {
   return <details open={open} className={cn('group min-w-0', className)}>
     <summary className={buttonClass('default', 'list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>{label}</summary>
-    <div className="mt-3 rounded-md border border-border bg-card p-4">{children}</div>
+    <div className="mt-3 rounded-[6px] border border-border bg-card p-4">{children}</div>
   </details>;
 }
 

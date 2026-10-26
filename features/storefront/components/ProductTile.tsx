@@ -37,16 +37,18 @@ export function CatalogEntry({ product, currencyCode, showChannel = true }: { pr
   </Link>;
 }
 
-/** The item's plate: its photo when there is one, otherwise the chapter's ink with the form and name printed on it. */
-export function ProductPlate({ product, className }: { product: TileProduct; className?: string }) {
+/** The item's plate: its photo when there is one, otherwise its chapter's ink with the item's record printed on it. */
+export function ProductPlate({ product, specs, className }: { product: TileProduct; specs: Array<[string, string]>; className?: string }) {
   if (product.imageUrl) {
     return <div className={cn('aspect-[4/5] w-full overflow-hidden rounded-[4px] bg-cn-raise', className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={product.imageUrl} alt="" className="size-full object-cover" loading="eager" />
     </div>;
   }
-  return <div aria-hidden="true" style={{ background: chapterInk(product.form) }} className={cn('flex aspect-[4/3] w-full flex-col justify-between overflow-hidden rounded-[4px] p-5 text-cn-on-ink sm:p-8 lg:aspect-square', className)}>
-    <span className="flex items-baseline justify-between gap-3 text-[15px] font-semibold"><span>{product.form}</span>{product.demo && <span>Sample</span>}</span>
-    <span className="cn-display break-words text-[56px] [text-wrap:balance] sm:text-[88px] lg:text-[104px]">{product.name}</span>
-  </div>;
+  return <dl aria-label="Item record" style={{ background: chapterInk(product.form) }} className={cn('grid w-full content-end overflow-hidden rounded-[4px] p-5 text-cn-on-ink sm:p-8 lg:aspect-square', className)}>
+    {specs.map(([term, value]) => <div key={term} className="grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-4 border-t border-cn-on-ink/25 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
+      <dt className="text-[15px] font-semibold">{term}</dt>
+      <dd className="cn-display cn-num min-w-0 break-words text-[30px] sm:text-[44px]">{value}</dd>
+    </div>)}
+  </dl>;
 }

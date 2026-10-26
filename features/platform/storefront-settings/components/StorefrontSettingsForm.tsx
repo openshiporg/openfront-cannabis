@@ -82,7 +82,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
         <DotLabel tone={published ? 'ok' : setup.values ? 'warn' : 'muted'}>{statusLabel}</DotLabel>
         {dirty && <DotLabel tone="info" className="text-muted-foreground">Unsaved changes</DotLabel>}
       </div>
-      {!setup.canSave && <p role="status" className="flex items-baseline gap-2 rounded-md border border-red-300/70 bg-red-50 px-3 py-2.5 text-[13px] dark:border-red-900/70 dark:bg-red-950/30"><Dot tone="danger" />Saving unavailable until the premises license and your staff credential are current.</p>}
+      {!setup.canSave && <p role="status" className="flex items-baseline gap-2 rounded-[6px] border border-red-300/70 bg-red-50 px-3 py-2.5 text-[13px] dark:border-red-900/70 dark:bg-red-950/30"><Dot tone="danger" />Saving unavailable until the premises license and your staff credential are current.</p>}
 
       <fieldset disabled={!setup.canSave || status.kind === 'unknown'} className="space-y-6">
         <Panel title="Business">
@@ -149,7 +149,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
 
     <aside aria-label="Storefront preview" className="xl:sticky xl:top-4">
       <p className="mb-2 text-[13px] font-semibold">Preview</p>
-      <div className="storefront-theme overflow-hidden rounded-md border border-border" style={{ '--cn-h': values.brandHue } as React.CSSProperties}>
+      <div className="storefront-theme overflow-hidden rounded-[6px] border border-border" style={{ '--cn-h': values.brandHue } as React.CSSProperties}>
         <div className="flex items-center justify-between bg-cn-ink px-3 py-1 text-[11px] font-semibold text-cn-on-ink"><span>{previewStrip?.age ?? '21+ ONLY'}</span><span className="truncate pl-3">{previewStrip?.hours ?? 'In-store purchase only'}</span></div>
         <div className="border-b border-cn-line px-3 py-1.5 text-cn-ink"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
         <div className="relative h-36 bg-cn-raise">

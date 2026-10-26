@@ -30,7 +30,7 @@ function PackageDetail({ pkg, release, timezone }: { pkg: CustodyPackage; releas
   return <Panel id="package-detail" aria-label={`Package ${pkg.packageUid}`} data-testid="package-detail-drill-in" className="xl:sticky xl:top-4" title={<span className="flex flex-wrap items-baseline gap-x-3"><Ref className="break-all text-[13px]">{pkg.packageUid}</Ref><StatusText tone={packageTone(pkg)} className="text-xs">{sentenceCase(pkg.status)}</StatusText></span>}>
     <div className="space-y-5">
     <p className="text-[13px] text-muted-foreground">{pkg.product ? <>{pkg.product.name} · <Ref>{pkg.product.sku}</Ref></> : 'Product not recorded'} · Lot <Ref>{pkg.lotNumber}</Ref></p>
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-md border border-border p-3 text-[13px]">
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border py-3 text-[13px]">
       <div className="col-span-2"><dt className="text-xs text-muted-foreground">Quantity</dt><dd className="mt-0.5"><Quantity pkg={pkg} /></dd></div>
       <div><dt className="text-xs text-muted-foreground">Lab result</dt><dd className="mt-0.5"><DotLabel tone={statusTone(pkg.testStatus)} >{sentenceCase(pkg.testStatus)}</DotLabel></dd></div>
       <div><dt className="text-xs text-muted-foreground">Usable through</dt><dd className="mt-0.5">{formatUsableThrough(pkg.expiresAt, timezone)}</dd></div>
@@ -75,17 +75,17 @@ export function InventoryWorkbenchClient({ data, params }: Props) {
       <Tabs label="Package filters">{FILTERS.map(item => <TabLink key={item.id} href={filterHref(item.id)} active={data.filter === item.id} count={data.counts[item.id]}>{item.tone && <Dot tone={item.tone} />}{item.label}</TabLink>)}</Tabs>
     </TabBar>
     <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]" aria-label="Packages">
-      <div className="min-w-0 overflow-hidden rounded-md border border-border bg-card">
-        <div aria-hidden="true" className="hidden h-8 grid-cols-[9rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4 border-b border-border bg-muted/50 px-3 text-xs font-medium text-muted-foreground md:grid"><span>Status</span><span>Package</span><span>Product and lot</span><span className="text-right">Quantity</span></div>
-        <div role="listbox" aria-label="Packages" aria-controls="package-detail" className="divide-y divide-border/70">{packages.length ? packages.map(pkg => <button type="button" role="option" aria-selected={selected?.id === pkg.id} key={pkg.id} onClick={() => setSelectedId(pkg.id)} className="grid w-full gap-1 px-3 py-2 text-left text-[13px] transition-colors hover:bg-muted/40 aria-selected:bg-muted md:grid-cols-[9rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-baseline md:gap-4">
+      <div className="min-w-0 overflow-hidden rounded-[6px] border border-border bg-card">
+        <div aria-hidden="true" className="hidden h-8 grid-cols-[8.5rem_minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1fr)] items-center gap-4 border-b border-border bg-muted/50 px-3 text-xs font-medium text-muted-foreground md:grid"><span>Status</span><span>Package</span><span>Product and lot</span><span className="text-right">Quantity</span></div>
+        <div role="listbox" aria-label="Packages" aria-controls="package-detail" className="divide-y divide-border/70">{packages.length ? packages.map(pkg => <button type="button" role="option" aria-selected={selected?.id === pkg.id} key={pkg.id} onClick={() => setSelectedId(pkg.id)} className="grid w-full gap-1 px-3 py-2 text-left text-[13px] transition-colors hover:bg-muted/40 aria-selected:bg-muted md:grid-cols-[8.5rem_minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1fr)] md:items-baseline md:gap-4">
           <StatusText tone={packageTone(pkg)}>{pkg.readiness.ready ? 'Ready to sell' : hasDiscrepancy(pkg) ? 'Discrepancy' : sentenceCase(pkg.status)}</StatusText>
-          <Ref className="truncate font-medium">{pkg.packageUid}</Ref>
-          <span className="truncate text-xs text-muted-foreground">{pkg.product?.name || 'Product not recorded'} · Lot {pkg.lotNumber}</span>
-          <span className="text-xs md:text-right"><Quantity pkg={pkg} /></span>
+          <Ref className="break-all font-medium">{pkg.packageUid}</Ref>
+          <span className="text-xs text-muted-foreground">{pkg.product?.name || 'Product not recorded'} · Lot {pkg.lotNumber}</span>
+          <span className="whitespace-nowrap text-xs md:text-right"><Quantity pkg={pkg} /></span>
         </button>) : <p className="px-3 py-10 text-center text-[13px] text-muted-foreground">{params.search || data.filter !== 'all' ? 'No packages match.' : 'No packages yet.'}</p>}</div>
         <Pager basePath="/dashboard/platform/inventory" params={params} nextCursor={data.packages.nextCursor} shown={packages.length} total={data.packages.total} noun="packages" />
       </div>
-      {selected ? <PackageDetail pkg={selected} release={data.actions.release} timezone={data.timezone} /> : <aside className="rounded-md border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">No package selected</aside>}
+      {selected ? <PackageDetail pkg={selected} release={data.actions.release} timezone={data.timezone} /> : <aside className="rounded-[6px] border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">No package selected</aside>}
     </section>
     {!packages.length && !params.search && data.filter === 'all' && <ButtonLink href="/dashboard/platform/receiving" tone="primary">Receive a package</ButtonLink>}
   </div>;

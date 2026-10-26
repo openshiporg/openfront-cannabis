@@ -15,7 +15,7 @@ export function formatWhen(value: string | null | undefined, timeZone?: string |
 export function WorkspaceStateNotice({ result, retryHref }: { result: WorkspaceClosedState; retryHref: string }) {
   const copy = WORKSPACE_STATE_COPY[result.state];
   const tone: DotTone = result.state === 'unavailable' || result.state === 'operating_closed' ? 'danger' : result.state === 'setup_required' ? 'info' : 'warn';
-  return <div data-testid={`workspace-${result.state}`} role="status" className="mx-4 max-w-2xl rounded-md border border-border bg-card md:mx-6">
+  return <div data-testid={`workspace-${result.state}`} role="status" className="mx-4 max-w-2xl rounded-[6px] border border-border bg-card md:mx-6">
     <p className="flex items-baseline gap-2 border-b border-border px-4 py-2.5 text-[13px] font-semibold text-foreground"><Dot tone={tone} />{copy.title}</p>
     <div className="space-y-1 px-4 py-3 text-[13px] text-muted-foreground">
       <p>{result.state === 'operating_closed' ? result.reason : copy.detail}</p>

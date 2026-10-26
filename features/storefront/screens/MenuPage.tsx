@@ -100,12 +100,14 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
 
   return <StorefrontShell settings={settings} forms={forms} current="menu">
     <section aria-labelledby="cn-cover-title" className="mx-auto grid max-w-[1440px] lg:min-h-[calc(100svh-var(--cn-header)-30px)] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-      <figure className="relative min-h-[300px] overflow-hidden bg-cn-raise sm:min-h-[460px] lg:min-h-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={COVER_PHOTO.src} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover [object-position:36%_42%]" />
-        <figcaption className="absolute bottom-0 left-0 max-w-[calc(100%-2rem)] bg-cn-bg px-4 pb-4 pt-4 sm:max-w-[min(92%,760px)] sm:px-7 sm:pb-6 sm:pt-6">
+      <figure className="relative flex min-w-0 flex-col bg-cn-bg lg:min-h-0">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-cn-raise lg:absolute lg:inset-0 lg:aspect-auto">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={COVER_PHOTO.src} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover [object-position:36%_42%]" />
+        </div>
+        <figcaption className="relative px-4 pb-6 pt-5 sm:px-7 lg:absolute lg:inset-x-0 lg:bottom-0 lg:bg-cn-bg/80 lg:pb-7 lg:pt-6">
           <h1 id="cn-cover-title" className="cn-display break-words text-[56px] text-cn-ink [text-wrap:balance] sm:text-[88px] xl:text-[112px]">{settings.isConfigured ? name : 'Dispensary menu'}</h1>
-          {settings.tagline && <p className="cn-name mt-3 max-w-[34ch] break-words text-[18px] leading-[24px] text-cn-ink-2 sm:text-[21px] sm:leading-[27px]">{settings.tagline}</p>}
+          {settings.tagline && <p className="cn-name mt-3 max-w-[40ch] break-words text-[18px] leading-[24px] text-cn-ink-2 sm:text-[21px] sm:leading-[27px]">{settings.tagline}</p>}
         </figcaption>
       </figure>
       <div className="flex min-w-0 flex-col gap-7 bg-cn-page px-4 py-7 sm:px-8 sm:py-9 lg:px-10">

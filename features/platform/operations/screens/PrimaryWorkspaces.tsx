@@ -10,7 +10,7 @@ import {
 import { Empty, formatUsableThrough, formatWhen, Pager, SearchForm, Workboard } from '../components/WorkspaceKit';
 import { CartPanel, CheckInForm, CloseShiftForm } from '../components/SaleForms';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
-import { AmendProductForm, ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
+import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
 
 import { frame, readParams, type SearchParams } from '../lib/frame';
 
@@ -25,7 +25,8 @@ const CAPACITY_LABEL: Record<string, string> = { adult_use: 'adult-use', patient
 function describeLimit(rule: Record<string, unknown>) {
   const max = typeof rule.maxEquivalencyMicrounits === 'number' ? formatMicrounits(rule.maxEquivalencyMicrounits) : '?';
   const window = rule.window === 'rolling' ? `${rule.windowDays} days` : String(rule.window ?? '?');
-  return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${max} per ${window}`;
+  // Limits are counted in the jurisdiction's limit equivalency; the rule stores no other unit.
+  return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${max} limit equivalency per ${window}`;
 }
 function describeTax(rule: Record<string, unknown>) {
   const rate = typeof rule.basisPoints === 'number' ? `${rule.basisPoints / 100}%` : '?';
@@ -103,8 +104,8 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
             <THead><Th>Package</Th><Th>Product</Th><Th align="right">Free</Th><Th align="right">Usable through</Th></THead>
             <tbody>{data.inventory.ready.length ? data.inventory.ready.map(pkg => <Tr key={pkg.id}>
               <Td><Link href={`/dashboard/platform/inventory?search=${encodeURIComponent(pkg.packageUid)}`} className="underline-offset-4 hover:underline"><Ref>{pkg.packageUid}</Ref></Link></Td>
-              <Td className="text-muted-foreground">{pkg.product?.name || 'Product not recorded'}</Td>
-              <Td align="right">{formatMicrounits(pkg.quantityOnHandMicrounits - pkg.reservedMicrounits, pkg.unitOfMeasure)}</Td>
+              <Td className="min-w-48 text-muted-foreground">{pkg.product?.name || 'Product not recorded'}</Td>
+              <Td align="right" className="whitespace-nowrap">{formatMicrounits(pkg.quantityOnHandMicrounits - pkg.reservedMicrounits, pkg.unitOfMeasure)}</Td>
               <Td align="right" className="whitespace-nowrap text-muted-foreground">{formatUsableThrough(pkg.expiresAt, data.timezone)}</Td>
             </Tr>) : <TEmpty colSpan={4}>No packages are ready to sell.</TEmpty>}</tbody>
           </Table>
@@ -123,7 +124,7 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
       </Split>
       <section aria-labelledby="workspaces-title">
         <SectionTitle id="workspaces-title">Your workspaces</SectionTitle>
-        <div className="grid gap-x-6 gap-y-5 rounded-md border border-border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-x-6 gap-y-5 rounded-[6px] border border-border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
           {groups.map(group => <div key={group.title} className="min-w-0">
             <h3 className="text-xs font-medium text-muted-foreground">{group.title}</h3>
             <ul className="mt-1.5 space-y-0.5">{group.items.map(item => <li key={item.href}>
@@ -139,10 +140,10 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
   });
 }
 
-const LICENSE_COLUMNS = 'minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,1fr)';
-const LICENSE_HEADERS = [{ label: 'License' }, { label: 'Type and regulator' }, { label: 'Valid' }, { label: 'Status' }];
-const CREDENTIAL_COLUMNS = 'minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,0.7fr) minmax(0,1fr)';
-const CREDENTIAL_HEADERS = [{ label: 'Person' }, { label: 'Credential' }, { label: 'Valid' }, { label: 'Approval limit', align: 'right' as const }, { label: 'Status' }];
+const LICENSE_COLUMNS = '11rem minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr)';
+const LICENSE_HEADERS = [{ label: 'Status' }, { label: 'License' }, { label: 'Type and regulator' }, { label: 'Valid' }];
+const CREDENTIAL_COLUMNS = '11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,0.7fr)';
+const CREDENTIAL_HEADERS = [{ label: 'Status' }, { label: 'Person' }, { label: 'Credential' }, { label: 'Valid' }, { label: 'Approval limit', align: 'right' as const }];
 
 export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
@@ -157,10 +158,10 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
         <SectionTitle meta={data.licenses.total}>Licenses</SectionTitle>
         <RecordList label="Licenses" columns={LICENSE_COLUMNS} headers={LICENSE_HEADERS}>
           {data.licenses.items.length ? data.licenses.items.map(license => <RecordRow key={license.id} columns={LICENSE_COLUMNS} headers={LICENSE_HEADERS} cells={[
+            <StatusText key="s" tone={intervalTone(license)}>{license.intervalState === 'current' ? sentenceCase(license.status) : INTERVAL_LABEL[license.intervalState]}</StatusText>,
             <Ref key="n" className="font-medium">{license.licenseNumber}</Ref>,
             <span key="t">{license.licenseType} <span className="text-muted-foreground">· {license.regulatorName}</span></span>,
-            <span key="v" className="text-muted-foreground">{formatWhen(license.effectiveAt, data.timezone)} – {formatWhen(license.expiresAt, data.timezone)}</span>,
-            <StatusText key="s" tone={intervalTone(license)}>{license.intervalState === 'current' ? sentenceCase(license.status) : INTERVAL_LABEL[license.intervalState]}</StatusText>,
+            <span key="v" className="whitespace-nowrap text-muted-foreground">{formatUsableThrough(license.effectiveAt, data.timezone)} – {formatUsableThrough(license.expiresAt, data.timezone)}</span>,
           ]}>
             {['expired', 'expiring_soon'].includes(license.intervalState) && <RenewAuthorityForm kind="license" id={license.id} />}
           </RecordRow>) : <Empty>No licenses are recorded.</Empty>}
@@ -177,13 +178,13 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
               ['expired', 'expiring_soon', 'inactive'].includes(credential.intervalState) && credential.status !== 'terminated' && <RenewAuthorityForm key="n" kind="credential" id={credential.id} />,
             ].filter(Boolean);
             return <RecordRow key={credential.id} columns={CREDENTIAL_COLUMNS} headers={CREDENTIAL_HEADERS} cells={[
+              <StatusText key="s" tone={intervalTone(credential)}>{credential.intervalState === 'current' ? sentenceCase(credential.status) : INTERVAL_LABEL[credential.intervalState]}</StatusText>,
               <span key="n" className="font-medium">{credential.user?.name || 'Unassigned'}{credential.id === data.self.credentialId && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</span>,
               <span key="t" className="text-muted-foreground">{credential.credentialType}</span>,
-              <span key="v" className="text-muted-foreground">{formatWhen(credential.effectiveAt, data.timezone)} – {formatWhen(credential.expiresAt, data.timezone)}</span>,
+              <span key="v" className="whitespace-nowrap text-muted-foreground">{formatUsableThrough(credential.effectiveAt, data.timezone)} – {formatUsableThrough(credential.expiresAt, data.timezone)}</span>,
               <span key="l">{formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</span>,
-              <StatusText key="s" tone={intervalTone(credential)}>{credential.intervalState === 'current' ? sentenceCase(credential.status) : INTERVAL_LABEL[credential.intervalState]}</StatusText>,
             ]}>
-              {actions.length > 0 && <div className="mt-2 flex flex-wrap items-start gap-2">{actions}</div>}
+              {actions.length > 0 && <div className="mt-2 flex flex-wrap items-start gap-2 md:pl-[calc(11rem+1rem)]">{actions}</div>}
             </RecordRow>;
           }) : <Empty>No staff credentials are recorded.</Empty>}
           <Pager basePath="/dashboard/platform/authority" params={params} nextCursor={data.credentials.nextCursor} shown={data.credentials.items.length} total={data.credentials.total} noun="credentials" />
@@ -285,8 +286,8 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
   });
 }
 
-const MENU_COLUMNS = 'minmax(0,2fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.6fr) minmax(0,1fr) minmax(0,1.1fr)';
-const MENU_HEADERS = [{ label: 'Product' }, { label: 'Form' }, { label: 'Channel' }, { label: 'Price', align: 'right' as const }, { label: 'Free stock', align: 'right' as const }, { label: 'Status' }];
+const MENU_COLUMNS = '9.5rem minmax(0,2.2fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1fr) 4rem';
+const MENU_HEADERS = [{ label: 'Status' }, { label: 'Product' }, { label: 'Form' }, { label: 'Channel' }, { label: 'Price', align: 'right' as const }, { label: 'Free stock', align: 'right' as const }, { label: 'Edit', align: 'right' as const }];
 
 export async function MenuWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
@@ -303,18 +304,14 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
             const missing = [!data.categories.limit.includes(product.categoryCode) && `No purchase limit for ${product.categoryCode}`, !data.categories.tax.includes(product.taxCategoryCode) && `No tax rule for ${product.taxCategoryCode}`].filter(Boolean).join(' · ');
             const tone: DotTone = missing ? 'danger' : product.readyPackageCount > 0 ? 'ok' : product.status === 'active' ? 'warn' : 'muted';
             return <RecordRow key={product.id} columns={MENU_COLUMNS} headers={MENU_HEADERS} cells={[
-              <span key="n" className="block min-w-0"><Link href={`/dashboard/platform/menu/${encodeURIComponent(product.id)}`} className="font-medium underline-offset-4 hover:underline">{product.name}</Link><span className="block text-xs text-muted-foreground"><Ref>{product.sku}</Ref> · limit {product.categoryCode} · tax {product.taxCategoryCode}</span></span>,
+              <StatusText key="t" tone={tone}>{missing ? 'Rule missing' : product.readyPackageCount > 0 ? 'Ready to sell' : product.status === 'active' ? 'Not ready' : sentenceCase(product.status)}</StatusText>,
+              <span key="n" className="block min-w-0"><Link href={`/dashboard/platform/menu/${encodeURIComponent(product.id)}`} className="font-medium underline-offset-4 hover:underline">{product.name}</Link><span className="block truncate text-xs text-muted-foreground">{missing || <><Ref>{product.sku}</Ref> · limit {product.categoryCode} · tax {product.taxCategoryCode}</>}</span></span>,
               <span key="f">{product.form}</span>,
               <span key="c" className="text-muted-foreground">{[product.adultUseEligible && 'Adult-use', product.medicalEligible && 'Medical'].filter(Boolean).join(', ') || 'None'}</span>,
               <span key="p" className="font-medium">{formatMinorUnits(product.priceCents, data.currencyCode)}</span>,
-              <span key="s" className={product.readyPackageCount > 0 ? '' : 'text-muted-foreground'}>{product.readyPackageCount > 0 ? <>{formatMicrounits(product.availableMicrounits, product.unitOfMeasure)} <span className="text-xs text-muted-foreground">· {product.readyPackageCount}{product.readyCountComplete ? '' : '+'} pkg</span></> : 'None'}</span>,
-              <StatusText key="t" tone={tone}>{missing || (product.readyPackageCount > 0 ? 'Ready to sell' : product.status === 'active' ? 'Not ready' : sentenceCase(product.status))}</StatusText>,
-            ]}>
-              {data.operating.open && <details className="group mt-1.5">
-                <summary className="inline-flex cursor-pointer list-none items-center text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Edit</summary>
-                <div className="mt-2 rounded-md border border-border bg-background p-3"><AmendProductForm product={product} limitCategories={data.categories.limit} taxCategories={data.categories.tax} /></div>
-              </details>}
-            </RecordRow>;
+              <span key="s" className={product.readyPackageCount > 0 ? 'whitespace-nowrap' : 'text-muted-foreground'}>{product.readyPackageCount > 0 ? <>{formatMicrounits(product.availableMicrounits, product.unitOfMeasure)} <span className="text-xs text-muted-foreground">· {product.readyPackageCount}{product.readyCountComplete ? '' : '+'} pkg</span></> : 'None'}</span>,
+              data.operating.open ? <ButtonLink key="e" href={`/dashboard/platform/menu/${encodeURIComponent(product.id)}#edit`} tone="quiet" className="min-h-7 px-2">Edit</ButtonLink> : <span key="e" />,
+            ]} />;
           }) : <Empty>{params.search ? 'No products match this search.' : 'No active products yet.'}</Empty>}
           <Pager basePath="/dashboard/platform/menu" params={params} nextCursor={data.products.nextCursor} shown={data.products.items.length} total={data.products.total} noun="products" />
         </RecordList>
@@ -390,7 +387,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
             {shift.status === 'open' && shift.operator?.id === data.actorId && data.operating.open && <div className="mt-2"><CloseShiftForm shiftId={shift.id} /></div>}
             {shift.cashEvents.length > 0 && <details className="mt-1.5"><summary className="inline-flex cursor-pointer list-none text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Drawer ledger ({shift.cashEvents.length})</summary>
-              <ul className="mt-2 divide-y divide-border/70 rounded-md border border-border text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 px-2.5 py-1.5"><span>{sentenceCase(event.type)} · {codeLabel(event.reasonCode)} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="tabular-nums">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
+              <ul className="mt-2 divide-y divide-border/70 rounded-[6px] border border-border text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 px-2.5 py-1.5"><span>{sentenceCase(event.type)} · {codeLabel(event.reasonCode)} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="tabular-nums">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
             </details>}
           </RecordRow>) : <Empty>No shifts yet.</Empty>}
           <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
@@ -503,8 +500,8 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
   </Workboard>, data => data.exceptions.total ? { tone: 'danger', state: `${data.exceptions.total} failed report${data.exceptions.total === 1 ? '' : 's'}` } : data.pending.total ? { tone: 'warn', state: `${data.pending.total} waiting to send` } : operatingState(data.operating));
 }
 
-const INCIDENT_COLUMNS = 'minmax(0,0.9fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,1.4fr)';
-const INCIDENT_HEADERS = [{ label: 'Incident' }, { label: 'Type' }, { label: 'Severity' }, { label: 'Status' }, { label: 'Notification' }];
+const INCIDENT_COLUMNS = 'minmax(0,1.3fr) minmax(0,0.9fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,0.9fr)';
+const INCIDENT_HEADERS = [{ label: 'Notification' }, { label: 'Incident' }, { label: 'Type' }, { label: 'Severity' }, { label: 'Status' }];
 
 export async function IncidentsWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
@@ -521,11 +518,11 @@ export async function IncidentsWorkspacePage({ searchParams }: { searchParams?: 
       </div>
       <RecordList label="Incidents" columns={INCIDENT_COLUMNS} headers={INCIDENT_HEADERS}>
         {data.incidents.items.length ? data.incidents.items.map(incident => <RecordRow id={`incident-${incident.id}`} key={incident.id} className="scroll-mt-20 target:bg-muted/60" columns={INCIDENT_COLUMNS} headers={INCIDENT_HEADERS} cells={[
+          <span key="n"><StatusText tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'}>{NOTIFICATION_LABEL[incident.notificationState] || sentenceCase(incident.notificationState)}</StatusText>{incident.notificationDueAt && <span className="block text-xs text-muted-foreground">by {formatWhen(incident.notificationDueAt, data.timezone)}</span>}</span>,
           <Ref key="r" className="font-medium">{incident.reference}</Ref>,
           <span key="t">{sentenceCase(incident.type)}<span className="block text-xs text-muted-foreground">occurred {formatWhen(incident.occurredAt, data.timezone)}</span></span>,
           <StatusText key="v" tone={SEVERITY_TONE[incident.severity] || 'muted'}>{sentenceCase(incident.severity)}</StatusText>,
           <span key="s">{sentenceCase(incident.status)}</span>,
-          <span key="n"><StatusText tone={NOTIFICATION_TONE[incident.notificationState] || 'muted'}>{NOTIFICATION_LABEL[incident.notificationState] || sentenceCase(incident.notificationState)}</StatusText>{incident.notificationDueAt && <span className="block text-xs text-muted-foreground">by {formatWhen(incident.notificationDueAt, data.timezone)}</span>}</span>,
         ]}>
           <p className="mt-2 max-w-3xl whitespace-pre-line break-words text-[13px] text-foreground">{incident.description}</p>
           {data.operating.open && <IncidentTransitionForm incident={incident} />}

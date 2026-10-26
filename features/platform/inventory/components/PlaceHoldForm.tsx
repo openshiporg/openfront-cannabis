@@ -1,7 +1,7 @@
 'use client';
 
 import { FieldError, fieldProps } from '@/features/platform/lib/formErrors';
-import { Actions, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
+import { Actions, buttonClass, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
 import { placeHoldFromDesk } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from '@/features/platform/operations/components/useCommand';
 
@@ -11,9 +11,9 @@ const TYPES: Array<[string, string]> = [['quarantine', 'Quarantine'], ['test_hol
 export function PlaceHoldForm({ packageId, packageUid }: { packageId: string; packageUid: string }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(placeHoldFromDesk);
   const errors = state.fieldErrors;
-  return <details className="rounded-[5px] border border-border bg-muted/20">
-    <summary className="flex cursor-pointer list-none items-center px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">Place a hold</summary>
-    <form onSubmit={onSubmit(() => window.confirm(`Hold package ${packageUid}? It can't be sold until the hold is released.`))} onChange={markDirty} className="space-y-3 px-3 pb-3" aria-label={`Place a hold on ${packageUid}`}>
+  return <details className="group">
+    <summary className={buttonClass('danger', 'cursor-pointer list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>Place a hold</summary>
+    <form onSubmit={onSubmit(() => window.confirm(`Hold package ${packageUid}? It can't be sold until the hold is released.`))} onChange={markDirty} className="mt-3 space-y-3 rounded-[6px] border border-border p-3" aria-label={`Place a hold on ${packageUid}`}>
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="packageId" value={packageId} />
       <fieldset disabled={pending} className="grid gap-3">
         <label className={labelClass}>Hold type<select {...fieldProps('type', errors)} required defaultValue="" className={inputClass}><option value="" disabled>Choose</option>{TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><FieldError name="type" errors={errors} /></label>

@@ -26,7 +26,7 @@ export function LogoPicker({ value, hue, onChange, onDraftPendingChange }: {
       <span id="logo-picker-label" className="text-xs font-medium text-foreground">Logo</span>
       <span className="text-xs text-muted-foreground">{custom ? 'Custom SVG' : selected?.name}</span>
     </div>
-    <div role="radiogroup" aria-labelledby="logo-picker-label" className="grid grid-cols-6 gap-1 rounded-md border border-border p-1 sm:grid-cols-8 lg:grid-cols-10">
+    <div role="radiogroup" aria-labelledby="logo-picker-label" className="grid grid-cols-6 gap-1 rounded-[6px] border border-border p-1 sm:grid-cols-8 lg:grid-cols-10">
       {LOGO_ICONS.map(icon => {
         const active = !custom && selected?.id === icon.id;
         return <button key={icon.id} type="button" role="radio" aria-checked={active} aria-label={icon.name} title={icon.name} onClick={() => choose(icon.lightSvg)}
@@ -36,7 +36,7 @@ export function LogoPicker({ value, hue, onChange, onDraftPendingChange }: {
       })}
       <button type="button" role="radio" aria-checked={custom} onClick={() => setCustom(true)} className={cn('col-span-2 flex items-center justify-center rounded-[4px] border border-transparent px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring', custom && 'border-foreground bg-muted text-foreground')}>Custom SVG</button>
     </div>
-    {custom && <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+    {custom && <div className="space-y-3 rounded-[6px] border border-border bg-muted/20 p-3">
       <label className="block text-xs font-medium">Custom SVG
         <textarea aria-label="Custom SVG" className={`${textareaClass} min-h-32 font-mono text-xs`} maxLength={100000} value={draft} onChange={event => setDraft(event.target.value)} aria-invalid={Boolean(draft && !safe)} />
       </label>

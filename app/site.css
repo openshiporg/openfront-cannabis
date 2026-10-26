@@ -126,11 +126,11 @@
    (form) used only for its band, its index mark and its item plate. Bricolage Grotesque,
    condensed and heavy, prints names, prices and chapter titles; Albert Sans sets the rest.
    See .impeccable/surfaces/features-storefront.md. --cn-h is the store's saved accent hue,
-   set on the .storefront-theme wrapper; it tints the ground and the primary action. */
+   set on the .storefront-theme wrapper; it tints the accent only. The ground stays warm catalog black. */
 @theme inline {
-  --color-cn-bg: hsl(var(--cn-h, 152) 10% 5.5%);
-  --color-cn-page: hsl(var(--cn-h, 152) 8% 9%);
-  --color-cn-raise: hsl(var(--cn-h, 152) 7% 13%);
+  --color-cn-bg: #0d0f0c;
+  --color-cn-page: #161a14;
+  --color-cn-raise: #1f241c;
   --color-cn-ink: #ece8dc;
   --color-cn-ink-2: #bdb9ac;
   --color-cn-ink-3: #8d8a7f;
@@ -153,7 +153,7 @@ body {
   --cn-ease: cubic-bezier(0.23, 1, 0.32, 1);
   --cn-header: 64px;
   --cn-rail: 48px;
-  background-color: hsl(var(--cn-h, 152) 10% 5.5%);
+  background-color: #0d0f0c;
   color: #ece8dc;
   color-scheme: dark;
   font-family: var(--font-cn-sans);
@@ -256,7 +256,7 @@ body {
     min-width: 0;
     border-radius: 4px;
     border: 1px solid rgb(236 232 220 / 0.22);
-    background: hsl(var(--cn-h, 152) 8% 9%);
+    background: #161a14;
     padding: 0 14px;
     font-size: 16px;
     color: #ece8dc;

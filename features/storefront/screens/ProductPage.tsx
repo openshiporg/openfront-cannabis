@@ -24,8 +24,6 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
   const directions = directionsHref(settings.visit);
   const formHref = `/?form=${encodeURIComponent(formKey(product.form))}#menu`;
   const specs: Array<[string, string]> = [
-    ['Form', product.form],
-    ...(channels ? [['Sold for', channels] as [string, string]] : []),
     ...(source?.sku ? [['SKU', source.sku] as [string, string]] : []),
     ['Purchase', product.demo ? 'Sample · not for sale' : 'In store only, after an ID check'],
     ...(open ? [['Store', open.label] as [string, string]] : []),
@@ -39,7 +37,7 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
         <Link href={formHref} className="inline-flex min-h-11 min-w-0 items-center truncate hover:text-cn-ink">{product.form}</Link>
       </nav>
       <article className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:gap-14">
-        <div className="lg:sticky lg:top-[calc(var(--cn-header)+24px)] lg:self-start"><ProductPlate product={product} /></div>
+        <div className="order-last lg:order-none lg:sticky lg:top-[calc(var(--cn-header)+24px)] lg:self-start"><ProductPlate product={product} specs={[['Form', product.form], ...(product.priceCents != null ? [['Price', formatPrice(product.priceCents, menu.currencyCode)] as [string, string]] : []), ['Sold for', channels || (product.demo ? 'Sample' : '—')], ['Buy', 'In store']]} /></div>
         <div className="min-w-0 lg:pt-2">
           <h1 className="cn-display break-words text-[52px] text-cn-ink [text-wrap:balance] sm:text-[80px]">{product.name}</h1>
           <div className="mt-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-y border-cn-line py-4">

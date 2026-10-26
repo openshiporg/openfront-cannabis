@@ -48,7 +48,7 @@ export async function ProductDetailPage({ params: routeParams, searchParams }: {
           <SectionTitle>Product record</SectionTitle>
           <ListBand><dl className="divide-y divide-border/70 text-[13px]">{facts.map(([term, value]) => <div key={term} className="grid gap-1 px-3 py-2 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted-foreground">{term}</dt><dd className="min-w-0 break-words">{value}</dd></div>)}</dl></ListBand>
         </section>
-        {data.operating.open ? <Panel title="Edit product"><AmendProductForm product={product} limitCategories={data.categories.limit} taxCategories={data.categories.tax} /></Panel> : null}
+        {data.operating.open ? <Panel id="edit" className="scroll-mt-20" title="Edit product"><AmendProductForm product={product} limitCategories={data.categories.limit} taxCategories={data.categories.tax} /></Panel> : null}
       </div>
       <section>
         <SectionTitle meta={data.saleLines.length}>Recent sales</SectionTitle>

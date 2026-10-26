@@ -41,7 +41,7 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
     if (!data.customer) return null;
     const customer = data.customer;
     return <div className="space-y-6 px-4 pb-28 md:px-6">
-      <dl className="grid overflow-hidden rounded-md border border-border bg-card text-[13px] sm:grid-cols-4">
+      <dl className="grid overflow-hidden rounded-[6px] border border-border bg-card text-[13px] sm:grid-cols-4">
         {([['Capacity', sentenceCase(customer.capacity)], ['Status', <StatusText key="s" tone={statusTone(customer.status)}>{sentenceCase(customer.status)}</StatusText>], ['Since', formatWhen(customer.createdAt, data.timezone)], ['Marketing consent', customer.marketingConsent ? 'Yes' : 'No']] as Array<[string, React.ReactNode]>).map(([term, value]) => <div key={term} className="border-b border-border px-3 py-2 sm:border-b-0 sm:border-r sm:last:border-r-0"><dt className="text-xs text-muted-foreground">{term}</dt><dd className="mt-0.5 font-medium">{value}</dd></div>)}
       </dl>
       <section>

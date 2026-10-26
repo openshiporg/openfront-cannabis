@@ -38,7 +38,7 @@ export async function VisitPage() {
           <Link href="/#menu" className="cn-btn">See the menu</Link>
         </div>
         <dl className="mt-8 border-t border-cn-line text-[17px]">
-          {rows.map(([term, value]) => <div key={term} className="grid gap-1 border-b border-cn-line py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6"><dt className="cn-name text-[19px] text-cn-ink-2">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
+          {rows.map(([term, value]) => <div key={term} className="grid gap-1 border-b border-cn-line py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6"><dt className="text-cn-ink-3">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
         </dl>
       </section>
     </div>

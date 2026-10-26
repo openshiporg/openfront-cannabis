@@ -240,7 +240,7 @@ export function RegisterStatusForm({ register }: { register: { id: string; statu
 export function RenewAuthorityForm({ kind, id }: { kind: 'license' | 'credential'; id: string }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(renewAuthorityFromDesk);
   const errors = state.fieldErrors;
-  return <details className="group mt-3"><summary className={buttonClass('default', 'cursor-pointer list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>Renew (owner)</summary>
+  return <details className="group"><summary className={buttonClass('default', 'cursor-pointer list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>Renew (owner)</summary>
     <form onSubmit={onSubmit()} onChange={markDirty} className="mt-3 space-y-3 rounded-[5px] border border-border bg-background p-3">
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="kind" value={kind} /><input type="hidden" name="id" value={id} />
       <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3">
@@ -256,8 +256,8 @@ export function RenewAuthorityForm({ kind, id }: { kind: 'license' | 'credential
 
 export function TemporaryPasswordForm({ userId, name }: { userId: string; name: string }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(setTemporaryPasswordFromDesk);
-  return <details className="mt-2">
-    <summary className="inline-flex cursor-pointer list-none text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Set temporary password</summary>
+  return <details className="group">
+    <summary className={buttonClass('default', 'cursor-pointer list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>Set temporary password</summary>
     <form onSubmit={onSubmit()} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2" aria-label={`Set a temporary password for ${name}`}>
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="userId" value={userId} />
       <Field name="temporaryPassword" title="Temporary password" type="password" errors={state.fieldErrors} required minLength={10} autoComplete="new-password" disabled={pending} />
