@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Besley, Geist, Geist_Mono, Libre_Franklin } from "next/font/google";
-import "./globals.css";
+import { Albert_Sans, Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import "./site.css";
 import { getPublicCannabisStorefrontSettings } from "@/features/storefront/lib/data/menu";
 
 const geistSans = Geist({
@@ -13,15 +13,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Storefront type: a Clarendon for the booklet's printed names and figures,
-// a plain gothic for everything read. See .impeccable/surfaces/features-storefront.md.
-const besley = Besley({
-  variable: "--font-cn-besley",
+// Storefront type: Bricolage Grotesque, condensed and heavy, prints the catalog's names, prices
+// and chapter titles; Albert Sans sets everything read. See .impeccable/surfaces/features-storefront.md.
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-cn-bricolage",
   subsets: ["latin"],
+  axes: ["opsz", "wdth"],
 });
 
-const libreFranklin = Libre_Franklin({
-  variable: "--font-cn-franklin",
+const albertSans = Albert_Sans({
+  variable: "--font-cn-albert",
   subsets: ["latin"],
 });
 
@@ -44,7 +45,7 @@ export default function RootLayout({
         <link href="/favicon.svg" rel="icon" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${besley.variable} ${libreFranklin.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} ${albertSans.variable} antialiased`}
       >
         {children}
       </body>

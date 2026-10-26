@@ -1,7 +1,7 @@
 'use client';
 
 import { FieldError, fieldProps } from '@/features/platform/lib/formErrors';
-import { ActionTrack, inputClass, labelClass, PillButton, textareaClass } from '@/features/platform/components/cannabis-ui';
+import { Actions, inputClass, labelClass, Button, textareaClass } from '@/features/platform/components/cannabis-ui';
 import { openRecallFromDesk } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from '@/features/platform/operations/components/useCommand';
 
@@ -16,7 +16,7 @@ export function OpenRecallForm() {
       <label className={labelClass}>Package UIDs (one per line)<textarea {...fieldProps('packageUids', errors)} rows={3} placeholder="1A4060300002EE1000012345" className={`${textareaClass} font-mono`} /><FieldError name="packageUids" errors={errors} /></label>
       <label className={labelClass}>Production batches (one per line)<textarea {...fieldProps('batchNumbers', errors)} rows={3} placeholder="BATCH-2026-114" className={`${textareaClass} font-mono`} /><FieldError name="batchNumbers" errors={errors} /></label>
     </fieldset>
-    <ActionTrack><PillButton type="submit" tone="danger" disabled={pending}>{pending ? 'Opening…' : 'Open recall and hold packages'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Opening…' : 'Open recall and hold packages'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }

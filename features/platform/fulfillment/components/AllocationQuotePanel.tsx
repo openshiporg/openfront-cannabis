@@ -1,6 +1,6 @@
 'use client';
 import { useState, useTransition } from 'react';
-import { ActionTrack, inputClass, labelClass, PillButton } from '@/features/platform/components/cannabis-ui';
+import { Actions, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quantity';
 import { formatInstant } from '@/features/platform/lib/time';
@@ -32,21 +32,21 @@ export function AllocationQuotePanel({ cartId, products, productsHasMore, timezo
     });
   }
   const money = (cents: number) => formatMinorUnits(cents, quote?.currencyCode);
-  return <section className="space-y-3 rounded-lg bg-muted/40 p-3 ring-1 ring-inset ring-border/60" aria-label="Price quote">
-    <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Price quote</h4>
+  return <section className="space-y-3 rounded-[5px] border border-border bg-muted/20 p-3" aria-label="Price quote">
+    <h4 className="text-xs font-semibold text-foreground">Price quote</h4>
     {productsHasMore && <p className="text-xs text-muted-foreground">First 100 active products shown</p>}
     {!products.length ? <p className="text-sm text-muted-foreground">No active products.</p> : <form onSubmit={event => { event.preventDefault(); load(new FormData(event.currentTarget)); }} className="grid gap-3 sm:grid-cols-2" onChange={() => setQuote(null)}>
       <input type="hidden" name="cartId" value={cartId} />
       <label className={`${labelClass} sm:col-span-2`}>Product<select name="productId" required disabled={pending} value={productId} onChange={event => setProductId(event.target.value)} className={inputClass}>{products.map(entry => <option key={entry.id} value={entry.id}>{entry.name} · {entry.sku} · {entry.form} ({entry.unitOfMeasure})</option>)}</select></label>
       <label className={labelClass}>Quantity{product ? ` (${product.unitOfMeasure})` : ''}<input name="quantity" inputMode="decimal" required disabled={pending} placeholder={product ? formatMicrounits(product.unitQuantityMicrounits) : ''} className={`${inputClass} font-mono`} /></label>
       <label className={labelClass}>Promotion code (optional)<input name="promotionCode" maxLength={100} disabled={pending} className={inputClass} /></label>
-      <div className="sm:col-span-2"><ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Getting quote…' : 'Get quote'}</PillButton></ActionTrack></div>
+      <div className="sm:col-span-2"><Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Getting quote…' : 'Get quote'}</Button></Actions></div>
     </form>}
-    {product && <p className="text-xs text-muted-foreground">Increment <span className="font-mono">{formatMicrounits(product.unitQuantityMicrounits, product.unitOfMeasure)}</span></p>}
+    {product && <p className="text-xs text-muted-foreground">Increment <span className="tabular-nums">{formatMicrounits(product.unitQuantityMicrounits, product.unitOfMeasure)}</span></p>}
     {message && <p role="status" className="text-sm">{message}</p>}
     {quote && <div className="space-y-2 text-sm">
-      <p className="text-xs text-muted-foreground"><span className="font-mono text-foreground">{formatMicrounits(quote.quantityMicrounits, quote.unitOfMeasure)}</span> · package <span className="font-mono">{quote.packageId}</span> · policy <span className="font-mono">{quote.rulePackVersion}</span></p>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 rounded-lg bg-background p-3 font-mono text-sm shadow-xs sm:max-w-sm [&_dt]:font-sans [&_dd]:text-right">
+      <p className="text-xs text-muted-foreground"><span className="tabular-nums text-foreground">{formatMicrounits(quote.quantityMicrounits, quote.unitOfMeasure)}</span> · package <span className="font-mono">{quote.packageId}</span> · policy <span className="font-mono">{quote.rulePackVersion}</span></p>
+      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 rounded-[5px] bg-background p-3 font-mono text-sm shadow-xs sm:max-w-sm [&_dt]:font-sans [&_dd]:text-right">
         <dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{money(quote.subtotalCents)}</dd>
         <dt className="text-muted-foreground">Discount</dt><dd className="tabular-nums">{money(quote.discountCents)}</dd>
         <dt className="text-muted-foreground">Tax</dt><dd className="tabular-nums">{money(quote.taxCents)}</dd>

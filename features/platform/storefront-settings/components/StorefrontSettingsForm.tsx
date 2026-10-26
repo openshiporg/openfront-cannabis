@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ActionTrack, Dot, DotLabel, inputClass, labelClass, Panel, PillButton, textareaClass } from '@/features/platform/components/cannabis-ui';
+import { Actions, Dot, DotLabel, inputClass, labelClass, Panel, Button, textareaClass } from '@/features/platform/components/cannabis-ui';
 import { StoreLogo } from '@/features/storefront/components/StoreLogo';
 import { CANNABIS_ACCENT_HUE, CANNABIS_LOGO_COLOR, CANNABIS_LOGO_ICON, isDefaultMark } from '@/features/storefront/lib/brand';
 import { FieldError, fieldProps, useFocusFirstError, type FieldErrors, type FormState } from '@/features/platform/lib/formErrors';
@@ -82,7 +82,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
         <DotLabel tone={published ? 'ok' : setup.values ? 'warn' : 'muted'}>{statusLabel}</DotLabel>
         {dirty && <DotLabel tone="info" className="text-muted-foreground">Unsaved changes</DotLabel>}
       </div>
-      {!setup.canSave && <p role="status" className="flex items-baseline gap-2 rounded-xl bg-muted/40 px-4 py-3 text-sm ring-1 ring-inset ring-border/60"><Dot tone="danger" />Saving unavailable until the premises license and your staff credential are current.</p>}
+      {!setup.canSave && <p role="status" className="flex items-baseline gap-2 rounded-md border border-red-300/70 bg-red-50 px-3 py-2.5 text-[13px] dark:border-red-900/70 dark:bg-red-950/30"><Dot tone="danger" />Saving unavailable until the premises license and your staff credential are current.</p>}
 
       <fieldset disabled={!setup.canSave || status.kind === 'unknown'} className="space-y-6">
         <Panel title="Business">
@@ -97,7 +97,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
             </label>
             <label className={labelClass} htmlFor="field-description">Description <span className="font-normal text-muted-foreground">(optional)</span>
               <textarea {...fieldProps('description', fieldErrors)} maxLength={240} rows={3} value={values.description} onChange={event => update('description', event.target.value)} className={textareaClass} />
-              <span className="mt-1 block text-right font-mono font-normal text-muted-foreground">{values.description.length}/240</span>
+              <span className="mt-1 block text-right font-normal tabular-nums text-muted-foreground">{values.description.length}/240</span>
               <FieldError name="description" errors={fieldErrors} />
             </label>
           </div>
@@ -113,7 +113,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
                 <label htmlFor="logo-colour-range" className="sr-only">Logo colour (slider)</label>
                 <input id="logo-colour-range" type="range" min="0" max="359" step="1" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className="h-2 w-full cursor-pointer accent-foreground" />
                 <label htmlFor="field-logoColor" className="sr-only">Logo colour (degrees)</label>
-                <input {...fieldProps('logoColor', fieldErrors)} type="number" min="0" max="359" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className={`${inputClass} mt-0 w-24 font-mono`} />
+                <input {...fieldProps('logoColor', fieldErrors)} type="number" min="0" max="359" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className={`${inputClass} mt-0 w-24 tabular-nums`} />
               </div>
               <FieldError name="logoColor" errors={fieldErrors} />
             </div>
@@ -125,8 +125,8 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
             <label htmlFor="accent-hue-range" className="sr-only">Accent hue (slider)</label>
             <input id="accent-hue-range" type="range" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className="h-2 w-full cursor-pointer" style={{ accentColor: accent(34) }} />
             <label htmlFor="field-brandHue" className="sr-only">Accent hue (degrees)</label>
-            <input {...fieldProps('brandHue', fieldErrors)} type="number" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className={`${inputClass} mt-0 w-24 font-mono`} />
-            <span className="size-9 shrink-0 rounded-full ring-1 ring-inset ring-black/10" aria-hidden="true" style={{ backgroundColor: accent(28) }} />
+            <input {...fieldProps('brandHue', fieldErrors)} type="number" min="0" max="359" step="1" value={values.brandHue} onChange={event => update('brandHue', Number(event.target.value))} className={`${inputClass} mt-0 w-24 tabular-nums`} />
+            <span className="size-9 shrink-0 rounded-[5px] border border-black/10" aria-hidden="true" style={{ backgroundColor: accent(28) }} />
           </div>
           <FieldError name="brandHue" errors={fieldErrors} />
         </Panel>
@@ -136,36 +136,35 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
         {status.kind === 'saved' && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="ok" />{status.recovered ? 'Your earlier save was recorded. Store Settings are published.' : 'Saved and published.'}</p>}
         {status.kind === 'invalid' && <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />Fix the highlighted fields.</p>}
         {status.kind === 'rejected' && <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />Store Settings could not be saved. Check your access and try again.</p>}
-        {status.kind === 'conflict' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2 text-destructive"><Dot tone="danger" />Store Settings changed since you opened them. Your changes are still shown; reload to see the latest version.</p><ActionTrack><PillButton onClick={reload}>Reload</PillButton></ActionTrack></div>}
-        {status.kind === 'unknown' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2"><Dot tone="warn" />We couldn&apos;t confirm whether your save went through.</p><ActionTrack>
-          <PillButton disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, checkStoreSettingsSave)}>Check save status</PillButton>
-          <PillButton tone="ink" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, saveStoreSettings)}>Retry same save</PillButton>
-        </ActionTrack></div>}
+        {status.kind === 'conflict' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2 text-destructive"><Dot tone="danger" />Store Settings changed since you opened them. Your changes are still shown; reload to see the latest version.</p><Actions><Button onClick={reload}>Reload</Button></Actions></div>}
+        {status.kind === 'unknown' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2"><Dot tone="warn" />We couldn&apos;t confirm whether your save went through.</p><Actions>
+          <Button disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, checkStoreSettingsSave)}>Check save status</Button>
+          <Button tone="primary" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, saveStoreSettings)}>Retry same save</Button>
+        </Actions></div>}
         {logoDraftPending && <p role="status" className="flex items-baseline gap-2 text-sm text-muted-foreground"><Dot tone="warn" />Apply or discard the custom logo before saving.</p>}
       </div>
 
-      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending || !setup.canSave || logoDraftPending || status.kind === 'unknown' || (!dirty && Boolean(setup.values) && published)}>{pending ? 'Saving…' : 'Save and publish'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone="primary" disabled={pending || !setup.canSave || logoDraftPending || status.kind === 'unknown' || (!dirty && Boolean(setup.values) && published)}>{pending ? 'Saving…' : 'Save and publish'}</Button></Actions>
     </div>
 
     <aside aria-label="Storefront preview" className="xl:sticky xl:top-4">
-      <p className="mb-2.5 text-sm font-semibold">Preview</p>
-      <div className="overflow-hidden rounded-xl text-[#18201b] shadow-sm ring-1 ring-black/10" style={{ backgroundColor: '#f3f0e8' }}>
-        <div className="flex items-center justify-between bg-[#18201b] px-4 py-1.5 font-mono text-[10px] tracking-[0.12em] text-[#f6f4ee]"><span>{previewStrip?.age ?? '21+ ONLY'}</span><span className="font-sans tracking-normal opacity-75">{previewStrip?.hours ?? 'In-store purchase only'}</span></div>
-        <div className="border-b border-[#d9d4c6] px-4 py-2"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
-        <div className="space-y-3 px-4 pb-5 pt-6">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <p className="min-w-0 break-words font-[family-name:var(--font-cn-display)] text-[30px] leading-[32px] tracking-[-0.02em]">{values.businessName || 'Business name'}</p>
-            <span className="inline-flex items-baseline gap-1.5 text-xs text-[#545b53]"><span className="inline-block size-2 translate-y-[-0.1em] rounded-full" style={{ backgroundColor: accent(28) }} />In-store only</span>
-          </div>
-          {values.tagline && <p className="break-words font-[family-name:var(--font-cn-display)] text-[17px] leading-6">{values.tagline}</p>}
-          {values.description && <p className="break-words text-[13px] leading-5 text-[#545b53]">{values.description}</p>}
-          {previewItems.length > 0 && <div className="grid grid-cols-2 gap-2 pt-2">
-            {previewItems.map(item => <div key={item.name} className="flex aspect-[4/5] min-w-0 flex-col justify-between rounded-[14px] p-3" style={{ backgroundColor: accent(88, 28), color: accent(28) }}>
-              <span className="truncate font-mono text-[9px] uppercase tracking-[0.14em]">{item.form}</span>
-              <span className="font-[family-name:var(--font-cn-display)] text-[56px] leading-none">{item.name.charAt(0).toUpperCase()}</span>
-            </div>)}
-          </div>}
+      <p className="mb-2 text-[13px] font-semibold">Preview</p>
+      <div className="storefront-theme overflow-hidden rounded-md border border-border" style={{ '--cn-h': values.brandHue } as React.CSSProperties}>
+        <div className="flex items-center justify-between bg-cn-ink px-3 py-1 text-[11px] font-semibold text-cn-on-ink"><span>{previewStrip?.age ?? '21+ ONLY'}</span><span className="truncate pl-3">{previewStrip?.hours ?? 'In-store purchase only'}</span></div>
+        <div className="border-b border-cn-line px-3 py-1.5 text-cn-ink"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
+        <div className="relative h-36 bg-cn-raise">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/storefront/cover-silver-star-haze.jpg" alt="" className="absolute inset-0 size-full object-cover [object-position:36%_42%]" />
+          <p className="cn-display absolute bottom-0 left-0 max-w-[90%] break-words bg-cn-bg px-3 pb-2 pt-2 text-[30px] text-cn-ink">{values.businessName || 'Business name'}</p>
         </div>
+        <div className="space-y-2 bg-cn-page px-3 py-3">
+          {values.tagline && <p className="cn-name break-words text-[14px] leading-5 text-cn-ink-2">{values.tagline}</p>}
+          {values.description && <p className="break-words text-[12px] leading-[18px] text-cn-ink-3">{values.description}</p>}
+          <span className="inline-flex items-baseline gap-1.5 text-[12px] text-cn-ink-2"><span className="cn-dot" style={{ backgroundColor: accent(60, 46) }} />In-store only</span>
+        </div>
+        {previewItems.length > 0 && <div className="px-3 pb-3">
+          {previewItems.map(item => <div key={item.name} className="flex items-baseline justify-between gap-3 border-t border-cn-line py-2 text-cn-ink"><span className="cn-name truncate text-[15px]">{item.name}</span><span className="shrink-0 text-[11px] text-cn-ink-3">{item.form}</span></div>)}
+        </div>}
       </div>
     </aside>
   </form>;

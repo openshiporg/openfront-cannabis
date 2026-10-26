@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ActionTrack, inputClass, labelClass, PillButton } from '@/features/platform/components/cannabis-ui';
+import { Actions, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
 import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quantity';
@@ -21,11 +21,11 @@ function Select({ name, title, errors, children, ...rest }: { name: string; titl
 }
 
 function Check({ name, title, errors }: { name: string; title: string; errors?: FieldErrors }) {
-  return <div><label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" name={name} id={`field-${name}`} className="size-4 accent-green-700 dark:accent-green-400" />{title}</label><FieldError name={name} errors={errors} /></div>;
+  return <div><label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[5px] border bg-background px-3 text-sm has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" name={name} id={`field-${name}`} className="size-4 accent-green-700 dark:accent-green-400" />{title}</label><FieldError name={name} errors={errors} /></div>;
 }
 
 function Disclosure({ label, children }: { label: string; children: React.ReactNode }) {
-  return <details className="rounded-lg bg-muted/40 ring-1 ring-inset ring-border/60">
+  return <details className="rounded-[5px] border border-border bg-muted/20">
     <summary className="flex cursor-pointer list-none items-center px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">{label}</summary>
     <div className="px-3 pb-3">{children}</div>
   </details>;
@@ -33,7 +33,7 @@ function Disclosure({ label, children }: { label: string; children: React.ReactN
 
 /** The second person signs for this one action on the same screen; nothing is signed in. */
 function ApproverFields({ errors, role }: { errors?: FieldErrors; role: string }) {
-  return <fieldset className="grid gap-3 rounded-lg bg-background/70 p-3 ring-1 ring-inset ring-border/60 sm:grid-cols-2">
+  return <fieldset className="grid gap-3 rounded-[5px] border border-border bg-background p-3 sm:grid-cols-2">
     <legend className="px-1 text-xs font-medium">Second approver ({role})</legend>
     <Field name="approverEmail" title="Approver email" type="email" autoComplete="off" errors={errors} required />
     <Field name="approverPassword" title="Approver password" type="password" autoComplete="off" errors={errors} required />
@@ -52,7 +52,7 @@ export function LabResultForm({ packageId, packageUid, labName, labResultReferen
         <Field name="labResultReference" title="Result reference" errors={errors} defaultValue={labResultReference ?? ''} required className="font-mono" />
         <Field name="coaReference" title="COA reference" errors={errors} defaultValue={coaReference ?? ''} required className="font-mono" />
       </fieldset>
-      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Saving…' : 'Save lab result'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Save lab result'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;
@@ -62,7 +62,7 @@ export function ReleasePackageForm({ packageId, packageUid }: { packageId: strin
   const { state, onSubmit, pending, key, summary } = useCommand(releasePackageFromDesk);
   return <form onSubmit={onSubmit(() => window.confirm(`Release ${packageUid} for sale?`))} className="space-y-2" aria-label={`Release ${packageUid}`}>
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="packageId" value={packageId} />
-    <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Releasing…' : 'Release for sale'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Releasing…' : 'Release for sale'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -80,7 +80,7 @@ export function ReleaseHoldForm({ holdId, label }: { holdId: string; label: stri
         </div>
         <ApproverFields errors={errors} role="compliance" />
       </fieldset>
-      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Releasing…' : 'Release hold'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Releasing…' : 'Release hold'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;
@@ -108,7 +108,7 @@ export function AdvanceRecallForm({ recallId, reference, status }: { recallId: s
           <ApproverFields errors={errors} role="compliance" />
         </>}
       </fieldset>
-      <ActionTrack><PillButton type="submit" tone={closing ? 'danger' : 'ink'} disabled={pending}>{pending ? 'Saving…' : closing ? 'Close recall' : 'Move stage'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone={closing ? 'danger' : 'primary'} disabled={pending}>{pending ? 'Saving…' : closing ? 'Close recall' : 'Move stage'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;
@@ -145,7 +145,7 @@ export function CheckInForm({ shifts, medicalEnabled }: { shifts: Array<{ id: st
       </div>
     </fieldset>
     <p className="text-xs text-muted-foreground">ID and card numbers are stored only as a one-way code.</p>
-    <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Checking…' : 'Check in and start sale'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Checking…' : 'Check in and start sale'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -181,14 +181,14 @@ function AddLineForm({ cartId, products, currencyCode }: { cartId: string; produ
     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-end">
       <label className={labelClass}>Product<select value={productId} onChange={event => { setProductId(event.target.value); setQuote(null); }} className={inputClass}>{products.map(entry => <option key={entry.id} value={entry.id}>{entry.name} · {entry.form}</option>)}</select></label>
       <label className={labelClass}>Quantity{product ? ` (${product.unitOfMeasure})` : ''}<input value={quantity} onChange={event => { setQuantity(event.target.value); setQuote(null); }} inputMode="decimal" placeholder={product ? formatMicrounits(product.unitQuantityMicrounits) : ''} className={`${inputClass} font-mono`} /></label>
-      <ActionTrack><PillButton onClick={price} disabled={quoting}>{quoting ? 'Pricing…' : 'Price'}</PillButton></ActionTrack>
+      <Actions><Button onClick={price} disabled={quoting}>{quoting ? 'Pricing…' : 'Price'}</Button></Actions>
     </div>
     {message && <p role="status" className="text-sm">{message}</p>}
     {quote && <form onSubmit={onSubmit()} className="flex flex-wrap items-center gap-3" aria-label="Add to cart">
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="cartId" value={cartId} /><input type="hidden" name="productId" value={quote.productId} />
       <input type="hidden" name="quantityMicrounits" value={quote.micro} /><input type="hidden" name="expectedCartVersion" value={quote.data.cartVersion} /><input type="hidden" name="reviewedQuoteHash" value={quote.data.quoteHash} />
-      <span className="font-mono text-sm">{formatMicrounits(quote.micro, quote.data.unitOfMeasure)} · {formatMinorUnits(quote.data.totalCents, quote.data.currencyCode ?? currencyCode)} <span className="text-muted-foreground">incl. tax {formatMinorUnits(quote.data.taxCents, quote.data.currencyCode ?? currencyCode)}</span></span>
-      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Adding…' : 'Add to cart'}</PillButton></ActionTrack>
+      <span className="tabular-nums text-sm">{formatMicrounits(quote.micro, quote.data.unitOfMeasure)} · {formatMinorUnits(quote.data.totalCents, quote.data.currencyCode ?? currencyCode)} <span className="text-muted-foreground">incl. tax {formatMinorUnits(quote.data.taxCents, quote.data.currencyCode ?? currencyCode)}</span></span>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Adding…' : 'Add to cart'}</Button></Actions>
     </form>}
     <CommandStatus state={state} summary={summary} />
   </div>;
@@ -205,8 +205,8 @@ export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId }
   const mine = cart.shift?.operator?.id === actorId;
   const open = ['preliminarily_eligible', 'reserved'].includes(cart.status);
   return <div className="space-y-4">
-    {cart.lines.length ? <ul className="divide-y divide-border overflow-hidden rounded-lg bg-background ring-1 ring-inset ring-border/60">{cart.lines.map(line => <li key={line.id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm"><span className="min-w-0">{line.titleSnapshot} <span className="font-mono text-xs text-muted-foreground">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)}</span></span><span className="font-mono">{money(line.totalCents)}</span></li>)}
-      <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-xs text-muted-foreground"><span>Subtotal {money(cart.subtotalCents)} · tax {money(cart.taxCents)}{cart.discountCents ? ` · discount ${money(cart.discountCents)}` : ''}</span><span className="font-mono text-sm font-medium text-foreground">{money(cart.totalCents)}</span></li>
+    {cart.lines.length ? <ul className="divide-y divide-border overflow-hidden rounded-[5px] border border-border bg-background">{cart.lines.map(line => <li key={line.id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm"><span className="min-w-0">{line.titleSnapshot} <span className="tabular-nums text-xs text-muted-foreground">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)}</span></span><span className="tabular-nums">{money(line.totalCents)}</span></li>)}
+      <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-xs text-muted-foreground"><span>Subtotal {money(cart.subtotalCents)} · tax {money(cart.taxCents)}{cart.discountCents ? ` · discount ${money(cart.discountCents)}` : ''}</span><span className="tabular-nums text-sm font-medium text-foreground">{money(cart.totalCents)}</span></li>
     </ul> : <p className="text-sm text-muted-foreground">No items yet.</p>}
     {!mine ? <p className="text-sm text-muted-foreground">Rung up on another person’s shift.</p> : open ? <>
       <AddLineForm cartId={cart.id} products={products} currencyCode={currencyCode} />
@@ -221,7 +221,7 @@ function PayForm({ cart, tenderTypes, money }: { cart: PosCart; tenderTypes: Arr
   const errors = state.fieldErrors;
   const [type, setType] = useState(tenderTypes[0]?.type ?? '');
   if (!tenderTypes.length) return <p className="text-sm text-muted-foreground">No payment types are in effect.</p>;
-  return <form onSubmit={onSubmit(() => window.confirm(`Take ${money(cart.totalCents)} and complete the sale?`))} onChange={markDirty} className="space-y-3 rounded-lg bg-background/70 p-3 ring-1 ring-inset ring-border/60" aria-label={`Take payment for ${cart.reference}`}>
+  return <form onSubmit={onSubmit(() => window.confirm(`Take ${money(cart.totalCents)} and complete the sale?`))} onChange={markDirty} className="space-y-3 rounded-[5px] border border-border bg-background p-3" aria-label={`Take payment for ${cart.reference}`}>
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="cartId" value={cart.id} /><input type="hidden" name="totalCents" value={cart.totalCents} />
     <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
       <Select name="tenderType" title="Payment" errors={errors} value={type} onChange={event => setType(event.target.value)}>{tenderTypes.map(tender => <option key={tender.type} value={tender.type}>{tender.displayName}</option>)}</Select>
@@ -230,7 +230,7 @@ function PayForm({ cart, tenderTypes, money }: { cart: PosCart; tenderTypes: Arr
         : <Field name="providerReference" title="Terminal approval code" errors={errors} required autoComplete="off" className="font-mono" />}
       {cart.customer?.capacity === 'caregiver' && <div className="sm:col-span-2"><Check name="representedPatientVerified" title="Caregiver authority checked again at payment" errors={errors} /></div>}
     </fieldset>
-    <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Completing…' : `Complete sale · ${money(cart.totalCents)}`}</PillButton></ActionTrack>
+    <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Completing…' : `Complete sale · ${money(cart.totalCents)}`}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -239,7 +239,7 @@ function CancelCartForm({ cartId, reference }: { cartId: string; reference: stri
   const { state, onSubmit, pending, key, summary } = useCommand(cancelCartFromDesk);
   return <form onSubmit={onSubmit(() => window.confirm(`Cancel ${reference} and put its items back?`))} className="space-y-2" aria-label={`Cancel ${reference}`}>
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="cartId" value={cartId} />
-    <ActionTrack><PillButton type="submit" tone="danger" disabled={pending}>{pending ? 'Cancelling…' : 'Cancel cart'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Cancelling…' : 'Cancel cart'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -254,7 +254,7 @@ export function CloseShiftForm({ shiftId }: { shiftId: string }) {
         <Field name="actualCash" title="Cash counted in the drawer" errors={errors} required inputMode="decimal" className="font-mono" />
         <ApproverFields errors={errors} role="finance" />
       </fieldset>
-      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Closing…' : 'Close shift'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Closing…' : 'Close shift'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;
@@ -279,7 +279,7 @@ export function RefundForm({ saleId, tenders, remainingCents, currencyCode }: { 
         {tender && tender.typeSnapshot !== 'cash' && <Field name="providerReference" title="Terminal refund reference" errors={errors} required autoComplete="off" className="font-mono" />}
       </fieldset>
       <ApproverFields errors={errors} role="finance" />
-      <ActionTrack><PillButton type="submit" tone="danger" disabled={pending}>{pending ? 'Refunding…' : 'Record refund'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Refunding…' : 'Record refund'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;

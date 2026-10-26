@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState, type ReactNode } from 'react';
-import { ActionTrack, inputClass, labelClass, PillButton, Track } from '@/features/platform/components/cannabis-ui';
+import { Actions, buttonClass, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
 import { amendRulePackFromDesk } from '@/features/platform/workspaces/actions/workflows';
 import { LimitsEditor, TaxEditor } from '@/features/platform/onboarding/components/RuleEditors';
@@ -56,9 +56,9 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
         <label className={labelClass}>Your variance approval limit<input value={limit} onChange={event => setLimit(event.target.value)} inputMode="decimal" className={`${inputClass} font-mono`} />{err('limit')}</label>
       </div>
       <div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
-        <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm"><input type="checkbox" checked={medical} onChange={event => setMedical(event.target.checked)} className="size-4 accent-green-700 dark:accent-green-400" />Medical sales</label>
+        <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[5px] border bg-background px-3 text-sm"><input type="checkbox" checked={medical} onChange={event => setMedical(event.target.checked)} className="size-4 accent-green-700 dark:accent-green-400" />Medical sales</label>
         <fieldset className="space-y-2"><legend className="text-xs font-medium">Payment types</legend>
-          <div className="flex flex-wrap gap-2">{TENDER_TYPES.map(option => <label key={option.value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 text-sm has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" checked={tenders.includes(option.value)} onChange={event => setTenders(current => event.target.checked ? [...current, option.value] : current.filter(type => type !== option.value))} className="size-4 accent-green-700 dark:accent-green-400" />{option.label}</label>)}</div>
+          <div className="flex flex-wrap gap-2">{TENDER_TYPES.map(option => <label key={option.value} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-[5px] border bg-background px-3 text-sm has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" checked={tenders.includes(option.value)} onChange={event => setTenders(current => event.target.checked ? [...current, option.value] : current.filter(type => type !== option.value))} className="size-4 accent-green-700 dark:accent-green-400" />{option.label}</label>)}</div>
           {err('tenders')}
         </fieldset>
       </div>
@@ -66,7 +66,7 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
       <section className="space-y-2"><h3 className="text-xs font-medium">Tax rules</h3><TaxEditor rows={taxes} onChange={setTaxes} errors={errors} /></section>
     </fieldset>
     <div className="flex flex-wrap items-center gap-3">
-      <ActionTrack><PillButton type="submit" tone="ink" disabled={pending}>{pending ? 'Saving…' : 'Save as new version'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Save as new version'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </div>
   </form>;
@@ -76,8 +76,8 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
 export function AmendRulesDisclosure({ initiallyOpen, label = 'Amend sales rules', children }: { initiallyOpen: boolean; label?: string; children: ReactNode }) {
   const [open, setOpen] = useState(initiallyOpen);
   const id = useId();
-  return <div className="bg-background/50">
-    <div className="px-4 py-3"><Track><button type="button" aria-expanded={open} aria-controls={id} data-active={open} onClick={() => setOpen(value => !value)} className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:data-[active=true]:bg-zinc-800">{open ? 'Close' : label}</button></Track></div>
+  return <div className="bg-muted/30">
+    <div className="px-3 py-2.5"><button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)} className={buttonClass(open ? 'quiet' : 'default')}>{open ? 'Close' : label}</button></div>
     <div id={id} hidden={!open} className="px-4 pb-4">{children}</div>
   </div>;
 }

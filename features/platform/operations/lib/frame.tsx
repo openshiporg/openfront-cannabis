@@ -4,7 +4,7 @@ import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { getCannabisWorkspace, type WorkspaceOptions } from '@/features/platform/workspaces/actions/workspaces';
 import type { CannabisWorkspaceResult } from '@/features/platform/workspaces/lib/boundary';
 import type { WorkspaceData, WorkspaceSection } from '@/features/platform/workspaces/lib/contract';
-import { Notice, operatingState, PageTitle, PillLink, Track, type DotTone } from '@/features/platform/components/cannabis-ui';
+import { ButtonLink, Notice, operatingState, PageTitle, type DotTone } from '@/features/platform/components/cannabis-ui';
 import { AsOf, WorkspaceStateNotice } from '../components/WorkspaceKit';
 
 export type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -34,9 +34,9 @@ export async function frame<S extends WorkspaceSection>(section: S, path: string
   const data = result.data;
   if (extra.missing?.(data)) notFound();
   const { tone, state } = titleState ? titleState(data) : operatingState(data.operating);
-  const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} />{data.jurisdictionCode && <span className="font-mono">{data.jurisdictionCode}</span>}</span>;
+  const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} />{data.jurisdictionCode && <span>{data.jurisdictionCode}</span>}</span>;
   const rulesNotice = data.salesRules.problem && section !== 'authority'
-    ? <div className="mb-6 px-4 md:px-6"><Notice tone="danger" action={<Track><PillLink href="/dashboard/platform/authority#sales-rules" active>Fix sales rules</PillLink></Track>}>Sales rules invalid: {data.salesRules.problem}. Menu and sales unavailable.</Notice></div>
+    ? <div className="mb-4 px-4 md:px-6"><Notice tone="danger" action={<ButtonLink href="/dashboard/platform/authority#sales-rules" tone="primary">Fix sales rules</ButtonLink>}>Sales rules invalid: {data.salesRules.problem}. Menu and sales unavailable.</Notice></div>
     : null;
   return <PageContainer header={<PageTitle title={extra.heading?.(data) ?? title} tone={tone} state={state} meta={meta} />} breadcrumbs={breadcrumbs}>{rulesNotice}{render(data)}</PageContainer>;
 }

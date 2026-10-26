@@ -121,155 +121,160 @@
   }
 }
 
-/* Cannabis storefront: "one ink on resin", after a rolling-paper booklet.
-   A resin-black ground in the store's hue, one smoke-paper ink that does the
-   text, the drawings and the button blocks, translucent paper leaves for the
-   menu items, and the booklet's cover held still beside the menu. Besley
-   (Clarendon) prints names and figures; Libre Franklin sets everything read.
-   See .impeccable/surfaces/features-storefront.md.
-   --cn-h is set per store from the saved accent hue on the .storefront-theme wrapper. */
+/* Cannabis storefront: the store's house catalog, printed like a seed-bank catalog.
+   Warm catalog black with a lifted page, bone ink for text, one process ink per chapter
+   (form) used only for its band, its index mark and its item plate. Bricolage Grotesque,
+   condensed and heavy, prints names, prices and chapter titles; Albert Sans sets the rest.
+   See .impeccable/surfaces/features-storefront.md. --cn-h is the store's saved accent hue,
+   set on the .storefront-theme wrapper; it tints the ground and the primary action. */
 @theme inline {
-  --color-cn-bg: hsl(var(--cn-h, 152) 22% 7.5%);
-  --color-cn-surface: hsl(var(--cn-h, 152) 16% 11.5%);
-  --color-cn-well: hsl(var(--cn-h, 152) 20% 5.5%);
-  --color-cn-cover: hsl(var(--cn-h, 152) 30% 13%);
-  --color-cn-ink: #ebe5d3;
-  --color-cn-ink-2: #c4bfae;
-  --color-cn-ink-3: #9a9686;
-  --color-cn-line: hsl(var(--cn-h, 152) 10% 22%);
-  --color-cn-accent: hsl(var(--cn-h, 152) 42% 70%);
-  --color-cn-tint: hsl(var(--cn-h, 152) 18% 15%);
-  --color-cn-leaf: rgb(235 229 211 / 0.07);
-  --color-cn-ok: #8fd6a6;
-  --color-cn-warn: #e9bf6d;
+  --color-cn-bg: hsl(var(--cn-h, 152) 10% 5.5%);
+  --color-cn-page: hsl(var(--cn-h, 152) 8% 9%);
+  --color-cn-raise: hsl(var(--cn-h, 152) 7% 13%);
+  --color-cn-ink: #ece8dc;
+  --color-cn-ink-2: #bdb9ac;
+  --color-cn-ink-3: #8d8a7f;
+  --color-cn-line: rgb(236 232 220 / 0.13);
+  --color-cn-accent: hsl(var(--cn-h, 152) 46% 64%);
+  --color-cn-ok: #6fd39a;
+  --color-cn-warn: #f0bd5c;
   --color-cn-danger: #f08a7f;
+  --color-cn-on-ink: #10120e;
 }
 
 /* On body, where next/font sets the font variables, so these resolve. */
 body {
-  --font-cn-display: var(--font-cn-besley), ui-serif, Georgia, serif;
-  --font-cn-sans: var(--font-cn-franklin), ui-sans-serif, system-ui, sans-serif;
-  --font-cn-mono: var(--font-cn-franklin), ui-sans-serif, system-ui, sans-serif;
+  --font-cn-display: var(--font-cn-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-cn-sans: var(--font-cn-albert), ui-sans-serif, system-ui, sans-serif;
 }
 
 .storefront-theme {
   --cn-h: 152;
   --cn-ease: cubic-bezier(0.23, 1, 0.32, 1);
-  background-color: hsl(var(--cn-h, 152) 22% 7.5%);
-  color: #ebe5d3;
+  --cn-header: 64px;
+  --cn-rail: 48px;
+  background-color: hsl(var(--cn-h, 152) 10% 5.5%);
+  color: #ece8dc;
   color-scheme: dark;
   font-family: var(--font-cn-sans);
+  font-size: 16px;
 }
-.storefront-theme ::selection {
-  background: #ebe5d3;
-  color: hsl(var(--cn-h, 152) 22% 7.5%);
-}
+.storefront-theme ::selection { background: #ece8dc; color: #10120e; }
+.storefront-theme :focus-visible { outline: 2px solid #ece8dc; outline-offset: 2px; }
 
-/* Figures: tabular, in the text face. */
-.storefront-theme .cn-num {
-  font-family: var(--font-cn-sans);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
+/* Display: the catalog's condensed heavy voice. */
 .storefront-theme .cn-display {
   font-family: var(--font-cn-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-stretch: 75%;
+  font-variation-settings: "wdth" 75;
+  letter-spacing: -0.01em;
+  line-height: 0.92;
 }
+.storefront-theme .cn-name {
+  font-family: var(--font-cn-display);
+  font-weight: 700;
+  font-variation-settings: "wdth" 82;
+  letter-spacing: -0.005em;
+}
+.storefront-theme .cn-num { font-variant-numeric: tabular-nums lining-nums; }
 
 @layer components {
-  /* Track and pills: plain on the page; the chosen one is a solid ink block. */
-  .cn-track {
+  /* Buttons: a bone block for the one action, a ruled outline for the rest. 4px corners. */
+  .cn-btn {
     display: inline-flex;
-    max-width: 100%;
-    gap: 4px;
-    overflow-x: auto;
-    scrollbar-width: none;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border-radius: 4px;
+    border: 1px solid rgb(236 232 220 / 0.28);
+    font-size: 15px;
+    font-weight: 600;
+    color: #ece8dc;
+    white-space: nowrap;
+    transition: background-color 160ms var(--cn-ease), border-color 160ms var(--cn-ease), transform 140ms var(--cn-ease);
   }
-  .cn-track::-webkit-scrollbar { display: none; }
-  .cn-pill {
+  .cn-btn:active { transform: scale(0.98); }
+  .cn-btn[data-tone="ink"] { background: #ece8dc; border-color: #ece8dc; color: #10120e; }
+  @media (hover: hover) and (pointer: fine) {
+    .cn-btn:hover { border-color: rgb(236 232 220 / 0.6); background: rgb(236 232 220 / 0.06); }
+    .cn-btn[data-tone="ink"]:hover { background: #fff; border-color: #fff; }
+  }
+
+  /* Text tabs: sort, channel, chapter rail. The current one is underlined in bone. */
+  .cn-tab {
+    position: relative;
     display: inline-flex;
     min-height: 40px;
     flex: none;
     align-items: center;
-    justify-content: center;
     gap: 6px;
-    padding: 0 14px;
-    border-radius: 2px;
-    background: rgb(235 229 211 / 0.07);
-    font-size: 14px;
-    font-weight: 600;
-    color: #c4bfae;
+    font-size: 15px;
+    font-weight: 500;
+    color: #bdb9ac;
     white-space: nowrap;
-    transition: background-color 160ms var(--cn-ease, ease-out), color 160ms var(--cn-ease, ease-out), transform 140ms var(--cn-ease, ease-out);
+    transition: color 160ms var(--cn-ease);
   }
-  .cn-pill:active { transform: scale(0.97); }
-  @media (hover: hover) and (pointer: fine) {
-    .cn-pill:hover { color: #ebe5d3; background: rgb(235 229 211 / 0.12); }
-  }
-  .cn-pill[data-active="true"], .cn-pill[aria-current="page"],
-  .cn-pill[data-active="true"]:hover, .cn-pill[aria-current="page"]:hover,
-  .cn-pill[data-tone="ink"] {
-    background: #ebe5d3;
-    color: hsl(var(--cn-h, 152) 22% 7.5%);
-  }
-  .cn-pill[data-active="true"] .cn-num, .cn-pill[aria-current="page"] .cn-num { color: hsl(var(--cn-h, 152) 16% 30%); }
-  .cn-pill:focus-visible { outline: 2px solid #ebe5d3; outline-offset: 2px; }
-  .cn-band {
-    border-radius: 2px;
-    background: rgb(235 229 211 / 0.06);
-  }
-  .cn-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    flex: none;
-    border-radius: 999px;
-    transform: translateY(-0.1em);
-  }
-  @media (max-width: 639px) {
-    .cn-pill { min-height: 44px; padding: 0 16px; }
-  }
-
-  /* A paper leaf: thin, translucent, with its gummed fold along the top. */
-  .cn-leaf {
-    position: relative;
-    border-radius: 2px;
-    background: rgb(235 229 211 / 0.07);
-    transition: background-color 200ms var(--cn-ease, ease-out), transform 260ms var(--cn-ease, ease-out);
-  }
-  /* Paper fibre: a fine noise field drawn once as SVG, printed in the ink at low strength. */
-  .cn-leaf {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9 0.05' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.92 0 0 0 0 0.9 0 0 0 0 0.83 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.22'/%3E%3C/svg%3E");
-  }
-  /* The gum strip: warmer and denser than the leaf, held off by a value step. */
-  .cn-leaf::before {
+  .cn-tab::after {
     content: "";
     position: absolute;
-    inset: 0 0 auto;
-    height: 12px;
-    border-radius: 2px 2px 0 0;
-    background: rgb(214 186 120 / 0.2);
-    pointer-events: none;
+    inset: auto 0 4px;
+    height: 2px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 220ms var(--cn-ease);
   }
-  @media (hover: hover) and (pointer: fine) {
-    .group:hover .cn-leaf { background-color: rgb(235 229 211 / 0.1); transform: translateY(-6px); }
+  .cn-tab[aria-current="page"], .cn-tab[aria-current="true"] { color: #ece8dc; font-weight: 600; }
+  .cn-tab[aria-current="page"]::after, .cn-tab[aria-current="true"]::after { transform: scaleX(1); }
+  @media (hover: hover) and (pointer: fine) { .cn-tab:hover { color: #ece8dc; } }
+
+  .cn-dot { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 999px; transform: translateY(-0.1em); }
+
+  /* Chapter band: solid process ink, pinned under the header and the rail while its entries scroll. */
+  .cn-band {
+    position: sticky;
+    top: calc(var(--cn-header) + var(--cn-rail));
+    z-index: 20;
+    background: var(--chapter);
+    color: #10120e;
   }
 
-  /* Menu leaves deal in once, one after another. */
+  /* A catalog entry: one ruled row, name and price on one baseline. */
+  .cn-entry { border-top: 1px solid rgb(236 232 220 / 0.13); transition: background-color 180ms var(--cn-ease); }
+  .cn-entry .cn-entry-name { text-decoration-line: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 5px; transition: text-decoration-color 180ms var(--cn-ease); }
+  @media (hover: hover) and (pointer: fine) {
+    .cn-entry:hover { background: rgb(236 232 220 / 0.035); }
+    .cn-entry:hover .cn-entry-name { text-decoration-color: var(--chapter); }
+  }
+
+  .cn-field {
+    height: 48px;
+    width: 100%;
+    min-width: 0;
+    border-radius: 4px;
+    border: 1px solid rgb(236 232 220 / 0.22);
+    background: hsl(var(--cn-h, 152) 8% 9%);
+    padding: 0 14px;
+    font-size: 16px;
+    color: #ece8dc;
+    outline: none;
+  }
+  .cn-field::placeholder { color: #8d8a7f; }
+  .cn-field:focus-visible { border-color: #ece8dc; outline: none; }
+
+  .cn-scroll { scrollbar-width: none; }
+  .cn-scroll::-webkit-scrollbar { display: none; }
+
+  /* Chapters print in once as the page opens. */
   @media (prefers-reduced-motion: no-preference) {
-    .cn-deal > * { animation: cn-deal 560ms var(--cn-ease, ease-out) both; }
-    .cn-deal > :nth-child(2) { animation-delay: 50ms; }
-    .cn-deal > :nth-child(3) { animation-delay: 100ms; }
-    .cn-deal > :nth-child(4) { animation-delay: 150ms; }
-    .cn-deal > :nth-child(5) { animation-delay: 200ms; }
-    .cn-deal > :nth-child(6) { animation-delay: 250ms; }
-    .cn-deal > :nth-child(n + 7) { animation-delay: 300ms; }
+    .cn-print > * { animation: cn-print 520ms var(--cn-ease) both; }
+    .cn-print > :nth-child(2) { animation-delay: 60ms; }
+    .cn-print > :nth-child(n + 3) { animation-delay: 120ms; }
   }
-  @keyframes cn-deal {
-    from { opacity: 0; transform: translateY(18px); }
-  }
+  @keyframes cn-print { from { opacity: 0; transform: translateY(12px); } }
 }
 
 @media (prefers-reduced-motion: reduce) {

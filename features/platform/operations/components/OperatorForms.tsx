@@ -1,6 +1,6 @@
 'use client';
 
-import { ActionTrack, inputClass, labelClass, PillButton, textareaClass } from '@/features/platform/components/cannabis-ui';
+import { Actions, buttonClass, inputClass, labelClass, Button, textareaClass } from '@/features/platform/components/cannabis-ui';
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
 import {
   amendProductFromMenu, amendRegisterFromDesk, approveVarianceFromDesk, renewAuthorityFromDesk, configureProductFromMenu, configureRegisterFromDesk, openShiftFromDesk,
@@ -21,7 +21,7 @@ function Select({ name, title, errors, children, ...rest }: { name: string; titl
 }
 
 function Check({ name, title, defaultChecked }: { name: string; title: string; defaultChecked?: boolean }) {
-  return <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm transition-colors has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" name={name} id={`field-${name}`} defaultChecked={defaultChecked} className="size-4 accent-green-700 dark:accent-green-400" />{title}</label>;
+  return <label className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[5px] border bg-background px-3 text-sm transition-colors has-[:checked]:border-foreground/30 has-[:checked]:bg-muted/60"><input type="checkbox" name={name} id={`field-${name}`} defaultChecked={defaultChecked} className="size-4 accent-green-700 dark:accent-green-400" />{title}</label>;
 }
 
 function CategoryField({ name, title, errors, options, current }: { name: string; title: string; errors?: FieldErrors; options: string[]; current?: string }) {
@@ -55,7 +55,7 @@ export function NewProductForm({ limitCategories = [], taxCategories = [] }: { l
       <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2"><Check name="adultUseEligible" title="Adult-use" defaultChecked /><Check name="medicalEligible" title="Medical" /><FieldError name="adultUseEligible" errors={errors} /></div>
       <label className={`${label} sm:col-span-2`}>Public description (optional)<textarea name="publicDescription" maxLength={1000} className={textareaClass} /></label>
     </fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Adding…' : 'Add product'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Adding…' : 'Add product'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -75,7 +75,7 @@ export function AmendProductForm({ product, limitCategories = [], taxCategories 
       <label className={`${label} sm:col-span-3`}>Public description<textarea name="publicDescription" defaultValue={product.publicDescription || ''} maxLength={1000} className={textareaClass} /></label>
     </fieldset>
     <p className="text-xs text-muted-foreground">Unit, increment and SKU are fixed.</p>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Saving…' : 'Save product'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Saving…' : 'Save product'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -104,7 +104,7 @@ export function RecordIncidentForm({ timezone }: { timezone: string | null }) {
       <label className={`${label} sm:col-span-2`}>What happened<textarea {...fieldProps('description', errors)} required minLength={4} maxLength={5000} className={textareaClass} /><FieldError name="description" errors={errors} /></label>
       <Field name="authorityReference" title="Regulator or police reference (optional)" errors={errors} />
     </fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Recording…' : 'Record incident'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Recording…' : 'Record incident'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -122,14 +122,14 @@ export function IncidentTransitionForm({ incident }: { incident: { id: string; r
   const options = NEXT_INCIDENT[incident.status] || [];
   if (!options.length) return null;
   const errors = state.fieldErrors;
-  return <form onSubmit={onSubmit()} onChange={markDirty} className="mt-3 space-y-3 rounded-lg bg-background/70 p-3 ring-1 ring-inset ring-border/60" aria-label={`Update ${incident.reference}`}>
+  return <form onSubmit={onSubmit()} onChange={markDirty} className="mt-3 space-y-3 rounded-[5px] border border-border bg-background p-3" aria-label={`Update ${incident.reference}`}>
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="incidentId" value={incident.id} /><input type="hidden" name="expectedStatus" value={incident.status} />
     <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3">
       <Select name="nextStatus" title="Next step" errors={errors}>{options.map(option => <option key={option.status} value={option.status}>{option.label}</option>)}</Select>
       <Field name="reasonCode" title="Reason code" errors={errors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="contained_on_site" />
       <Field name="authorityReference" title="Report reference (when reporting)" errors={errors} />
     </fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Saving…' : 'Update incident'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Saving…' : 'Update incident'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -138,7 +138,7 @@ export function RetryOutboxButton({ eventId }: { eventId: string }) {
   const { state, onSubmit, pending, key, summary } = useCommand(retryOutboxEventFromDesk);
   return <form onSubmit={onSubmit()} className="flex flex-wrap items-center gap-2">
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="outboxEventId" value={eventId} />
-    <ActionTrack><PillButton type="submit" disabled={pending || Boolean(state.success)} tone="raised">{pending ? 'Requeuing…' : 'Requeue'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending || Boolean(state.success)}>{pending ? 'Requeuing…' : 'Requeue'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -151,7 +151,7 @@ export function RegisterForm() {
       <Field name="code" title="Register code" errors={state.fieldErrors} required placeholder="REG-1" />
       <Field name="name" title="Register name" errors={state.fieldErrors} required placeholder="Front counter" />
     </fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Adding…' : 'Add register'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Adding…' : 'Add register'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -166,7 +166,7 @@ export function OpenShiftForm({ registers }: { registers: Array<{ id: string; co
       <Select name="registerId" title="Register" errors={state.fieldErrors} required defaultValue=""><option value="" disabled>Select register</option>{active.map(register => <option key={register.id} value={register.id}>{register.name} · {register.code}</option>)}</Select>
       <Field name="openingFloat" title="Counted opening float" errors={state.fieldErrors} required inputMode="decimal" placeholder="200.00" />
     </fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Opening…' : 'Open shift'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Opening…' : 'Open shift'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -176,7 +176,7 @@ export function ApproveVarianceForm({ shiftId }: { shiftId: string }) {
   return <form onSubmit={onSubmit()} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2">
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="shiftId" value={shiftId} />
     <Field name="reasonCode" title="Variance reason code" errors={state.fieldErrors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="counting_error" disabled={pending} />
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Approving…' : 'Approve variance'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Approving…' : 'Approve variance'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -200,9 +200,9 @@ export function ProvisionStaffForm() {
       <Field name="expiresAt" title="Valid until" type="date" errors={errors} required />
       <Field name="approvalLimit" title="Approval limit (optional)" errors={errors} inputMode="decimal" placeholder="0.00" />
     </fieldset>
-    <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2"><legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Permissions</legend>{PERMISSIONS.map(([permission, title]) => <Check key={permission} name={`permission:${permission}`} title={title} />)}</fieldset>
-    <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3" aria-describedby={errors?.activities ? 'field-activities-error' : undefined}><legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Credential activities</legend>{ACTIVITIES.map(activity => <Check key={activity} name={`activity:${activity}`} title={sentence(activity)} />)}<span id="field-activities" tabIndex={-1} /><FieldError name="activities" errors={errors} /></fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Adding…' : 'Add staff member'}</PillButton></ActionTrack>
+    <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2"><legend className="mb-1.5 text-xs font-semibold text-foreground">Permissions</legend>{PERMISSIONS.map(([permission, title]) => <Check key={permission} name={`permission:${permission}`} title={title} />)}</fieldset>
+    <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3" aria-describedby={errors?.activities ? 'field-activities-error' : undefined}><legend className="mb-1.5 text-xs font-semibold text-foreground">Credential activities</legend>{ACTIVITIES.map(activity => <Check key={activity} name={`activity:${activity}`} title={sentence(activity)} />)}<span id="field-activities" tabIndex={-1} /><FieldError name="activities" errors={errors} /></fieldset>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Adding…' : 'Add staff member'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -221,7 +221,7 @@ export function RevokeCredentialForm({ credentialId, status, name }: { credentia
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="credentialId" value={credentialId} />
       <Select name="nextStatus" title="Change to" errors={state.fieldErrors} disabled={pending} required defaultValue=""><option value="" disabled>Choose</option>{status !== 'suspended' && <option value="suspended">Suspended</option>}<option value="terminated">Terminated</option></Select>
       <Field name="reasonCode" title="Reason code" errors={state.fieldErrors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="reason_code" disabled={pending} />
-      <ActionTrack><PillButton type="submit" disabled={pending} tone="danger">{pending ? 'Saving…' : 'Update credential'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" disabled={pending} tone="danger">{pending ? 'Saving…' : 'Update credential'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </details>;
@@ -231,8 +231,8 @@ export function RegisterStatusForm({ register }: { register: { id: string; statu
   const { state, onSubmit, pending, key, summary } = useCommand(amendRegisterFromDesk);
   return <form onSubmit={onSubmit()} className="flex flex-wrap items-center gap-2">
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="registerId" value={register.id} />
-    <select name="status" defaultValue={register.status} aria-label="Register status" disabled={pending} className="h-9 rounded-full border bg-background px-3 text-xs"><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="raised">{pending ? 'Saving…' : 'Save'}</PillButton></ActionTrack>
+    <select name="status" defaultValue={register.status} aria-label="Register status" disabled={pending} className="h-8 rounded-[5px] border border-input bg-background px-2 text-xs"><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select>
+    <Actions><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
@@ -240,15 +240,15 @@ export function RegisterStatusForm({ register }: { register: { id: string; statu
 export function RenewAuthorityForm({ kind, id }: { kind: 'license' | 'credential'; id: string }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(renewAuthorityFromDesk);
   const errors = state.fieldErrors;
-  return <details className="group mt-3"><summary className="inline-flex min-h-8 cursor-pointer list-none items-center rounded-full bg-muted p-[3px] text-[13px] font-medium shadow-[inset_0_1px_2px_rgb(0_0_0/0.07)] [&::-webkit-details-marker]:hidden"><span className="inline-flex min-h-7 items-center rounded-full bg-background px-3 shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:bg-zinc-800">Renew (owner)</span></summary>
-    <form onSubmit={onSubmit()} onChange={markDirty} className="mt-3 space-y-3 rounded-lg bg-background/70 p-3 ring-1 ring-inset ring-border/60">
+  return <details className="group mt-3"><summary className={buttonClass('default', 'cursor-pointer list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>Renew (owner)</summary>
+    <form onSubmit={onSubmit()} onChange={markDirty} className="mt-3 space-y-3 rounded-[5px] border border-border bg-background p-3">
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="kind" value={kind} /><input type="hidden" name="id" value={id} />
       <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3">
         <Field name="reference" title={kind === 'license' ? 'Renewal reference' : 'Credential number'} errors={errors} required />
         <Field name="effectiveAt" title="Valid from" type="date" errors={errors} required />
         <Field name="expiresAt" title="Valid until" type="date" errors={errors} required />
       </fieldset>
-      <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Renewing…' : 'Renew'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Renewing…' : 'Renew'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </details>;
@@ -261,7 +261,7 @@ export function TemporaryPasswordForm({ userId, name }: { userId: string; name: 
     <form onSubmit={onSubmit()} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2" aria-label={`Set a temporary password for ${name}`}>
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="userId" value={userId} />
       <Field name="temporaryPassword" title="Temporary password" type="password" errors={state.fieldErrors} required minLength={10} autoComplete="new-password" disabled={pending} />
-      <ActionTrack><PillButton type="submit" disabled={pending} tone="raised">{pending ? 'Saving…' : 'Set password'}</PillButton></ActionTrack>
+      <Actions><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Set password'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </details>;
@@ -280,7 +280,7 @@ export function PremisesDetailsForm({ premises }: { premises: { line1: string | 
       <Field name="country" title="Country" errors={errors} defaultValue={premises.country ?? ''} autoComplete="country" />
       <Field name="phone" title="Phone" type="tel" errors={errors} defaultValue={premises.phone ?? ''} autoComplete="tel" />
     </fieldset>
-    <ActionTrack><PillButton type="submit" disabled={pending} tone="ink">{pending ? 'Saving…' : 'Save address and phone'}</PillButton></ActionTrack>
+    <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Saving…' : 'Save address and phone'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }
