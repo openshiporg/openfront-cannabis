@@ -45,7 +45,7 @@ export function ProductPlate({ product, className }: { product: TileProduct; cla
       <img src={product.imageUrl} alt="" className="size-full object-cover" loading="eager" />
     </div>;
   }
-  return <div aria-hidden="true" style={{ background: chapterInk(product.form) }} className={cn('flex aspect-[4/3] w-full flex-col justify-between overflow-hidden rounded-[4px] p-5 text-cn-on-ink sm:p-8 lg:aspect-[4/5]', className)}>
+  return <div aria-hidden="true" style={{ background: chapterInk(product.form) }} className={cn('flex aspect-[4/3] w-full flex-col justify-between overflow-hidden rounded-[4px] p-5 text-cn-on-ink sm:p-8 lg:aspect-square', className)}>
     <span className="flex items-baseline justify-between gap-3 text-[15px] font-semibold"><span>{product.form}</span>{product.demo && <span>Sample</span>}</span>
     <span className="cn-display break-words text-[56px] [text-wrap:balance] sm:text-[88px] lg:text-[104px]">{product.name}</span>
   </div>;

@@ -25,8 +25,13 @@ export function ChapterRail({ chapters }: { chapters: Chapter[] }) {
     return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, [chapters]);
 
+  // Keep the current chapter visible inside the rail by scrolling the rail only, never the page.
   useEffect(() => {
-    rail.current?.querySelector<HTMLElement>('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const strip = rail.current?.firstElementChild as HTMLElement | null;
+    const item = strip?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!strip || !item) return;
+    const left = item.offsetLeft - strip.offsetLeft;
+    if (left < strip.scrollLeft || left + item.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: Math.max(0, left - 16) });
   }, [current]);
 
   if (chapters.length < 2) return null;

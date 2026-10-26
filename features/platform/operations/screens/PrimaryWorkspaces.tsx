@@ -65,7 +65,7 @@ const SEVERITY_TONE: Record<string, DotTone> = { low: 'info', medium: 'warn', hi
 
 /** Two columns on wide screens: the main work on the left, the reference on the right. */
 function Split({ children, side = '22rem' }: { children: React.ReactNode; side?: string }) {
-  return <div className="grid items-start gap-6 xl:[grid-template-columns:minmax(0,1fr)_var(--side)]" style={{ '--side': side } as React.CSSProperties}>{children}</div>;
+  return <div className="grid items-start gap-6 [&>*]:min-w-0 xl:[grid-template-columns:minmax(0,1fr)_var(--side)]" style={{ '--side': side } as React.CSSProperties}>{children}</div>;
 }
 
 export async function ControlRoomPage({ searchParams }: { searchParams?: SearchParams }) {
