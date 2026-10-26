@@ -91,7 +91,7 @@ export function Actions({ className, children, label }: { className?: string; ch
 
 /** Underline tab bar for filters and page switches. */
 export function Tabs({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
-  return <nav aria-label={label} className={cn('-mb-px flex min-w-0 gap-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>{children}</nav>;
+  return <nav aria-label={label} className={cn('relative -mb-px flex min-w-0 gap-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>{children}</nav>;
 }
 
 export function TabLink({ href, active, count, className, children }: { href: string; active?: boolean; count?: ReactNode; className?: string; children: ReactNode }) {
@@ -172,7 +172,7 @@ export function BandEmpty({ children }: { children: ReactNode }) {
 
 /** A dense table in a bordered frame; scrolls sideways on a phone instead of squeezing columns. */
 export function Table({ label, className, children, minWidth = 640 }: { label?: string; className?: string; children: ReactNode; minWidth?: number }) {
-  return <div className={cn('min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card', className)}>
+  return <div className={cn('relative min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card', className)}>
     <table aria-label={label} className="w-full border-collapse text-[13px]" style={{ minWidth }}>{children}</table>
   </div>;
 }
