@@ -25,7 +25,7 @@ function assertMoney(amount: number, currency: string) {
   if (!Number.isSafeInteger(amount) || amount < 0 || currency.toUpperCase() !== "USD") throw new Error("Aeropay requires non-negative integer cents in USD");
 }
 export async function createPaymentFunction({ amount = 0, currency = "USD", idempotencyKey }: Input) {
-  assertMoney(amount, currency);
+  assertMoney(amount, currency); if (!configured()) throw new Error("Aeropay is not configured"); if (!idempotencyKey) throw new Error("Idempotency key is required");
   return request("/v2/preauthTransaction", { merchantId: process.env.AEROPAY_MERCHANT_ID, amount, currency: "USD" }, idempotencyKey);
 }
 export async function capturePaymentFunction({ paymentId, amount = 0, currency = "USD", idempotencyKey }: Input) {
