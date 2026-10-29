@@ -32,7 +32,7 @@ export function CatalogEntry({ product, currencyCode, showChannel = true }: { pr
         {channel && <span>{channel}</span>}
         <span className="text-cn-ink-3">{product.demo ? 'Not for sale' : 'In store'}</span>
       </span>
-      {product.description && <span className="mt-1.5 line-clamp-2 block max-w-[60ch] text-[15px] leading-[22px] text-cn-ink-3">{product.description}</span>}
+      {product.description && <span className="mt-1.5 line-clamp-2 block max-w-[60ch] text-[15px] [text-wrap:pretty] leading-[22px] text-cn-ink-3">{product.description}</span>}
     </span>
   </Link>;
 }
@@ -45,10 +45,17 @@ export function ProductPlate({ product, specs, className }: { product: TileProdu
       <img src={product.imageUrl} alt="" className="size-full object-cover" loading="eager" />
     </div>;
   }
-  return <dl aria-label="Item record" style={{ background: chapterInk(product.form) }} className={cn('grid w-full content-end overflow-hidden rounded-[4px] p-5 text-cn-on-ink sm:p-8 lg:aspect-square', className)}>
-    {specs.map(([term, value]) => <div key={term} className="grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-4 border-t border-cn-on-ink/25 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
-      <dt className="text-[15px] font-semibold">{term}</dt>
-      <dd className="cn-display cn-num min-w-0 break-words text-[30px] sm:text-[44px]">{value}</dd>
-    </div>)}
-  </dl>;
+  // No photo: the plate is printed like the jar's label. On a wide screen the square's top carries the item's name so it never reads as an empty frame.
+  return <div style={{ background: chapterInk(product.form) }} className={cn('flex w-full flex-col justify-between gap-10 overflow-hidden rounded-[4px] p-5 text-cn-on-ink sm:p-8 lg:aspect-square', className)}>
+    <div aria-hidden="true" className="hidden min-w-0 lg:block">
+      <p className="text-[15px] font-semibold">{product.form}</p>
+      <p className="cn-display mt-3 max-w-[14ch] break-words text-[64px] [text-wrap:balance] xl:text-[80px]">{product.name}</p>
+    </div>
+    <dl aria-label="Item record">
+      {specs.map(([term, value]) => <div key={term} className="grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-4 border-t border-cn-on-ink/25 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)]">
+        <dt className="text-[15px] font-semibold">{term}</dt>
+        <dd className="cn-display cn-num min-w-0 break-words text-[30px] sm:text-[44px]">{value}</dd>
+      </div>)}
+    </dl>
+  </div>;
 }

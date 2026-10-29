@@ -47,7 +47,7 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
           <dl className="mt-2 text-[16px]">
             {specs.map(([term, value]) => <div key={term} className="grid gap-1 border-b border-cn-line py-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-6"><dt className="text-cn-ink-3">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
           </dl>
-          {product.description && <p className="mt-6 max-w-prose whitespace-pre-line break-words text-[17px] leading-[28px] text-cn-ink-2">{product.description}</p>}
+          {product.description && <p className="mt-6 max-w-prose whitespace-pre-line break-words text-[17px] [text-wrap:pretty] leading-[28px] text-cn-ink-2">{product.description}</p>}
           <div className="mt-8 flex flex-wrap gap-2">
             {directions && <a href={directions} target="_blank" rel="noreferrer" data-tone="ink" className="cn-btn">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
             <Link href={formHref} className="cn-btn">More {product.form.toLowerCase()}</Link>
@@ -59,7 +59,7 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
       <div className="bg-[var(--chapter)] text-cn-on-ink">
         <div className="mx-auto flex max-w-[1440px] items-baseline justify-between gap-4 px-4 py-2.5 sm:px-6">
           <h2 id="related-title" className="cn-display text-[36px] sm:text-[44px]">More {product.form.toLowerCase()}</h2>
-          <span className="cn-num text-[15px] font-semibold">{related.length}</span>
+          <span className="cn-num text-[15px] font-semibold">{related.length} {related.length === 1 ? 'item' : 'items'}</span>
         </div>
       </div>
       <div className="mx-auto grid max-w-[1440px] gap-x-14 px-4 sm:px-6 lg:grid-cols-2">{related.map(item => <CatalogEntry key={item.id} product={item} currencyCode={menu.currencyCode} showChannel={catalog.some(entry => entry.medicalEligible) && catalog.some(entry => entry.adultUseEligible)} />)}</div>
