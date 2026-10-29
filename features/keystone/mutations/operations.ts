@@ -1,5 +1,6 @@
 import type { Context } from ".keystone/types";
 import { requireRuntimeCapability } from "../domain/runtimeCapabilities";
+import { refundPayment } from "../utils/paymentProviderAdapter";
 import { verifySecondApprover, withApprover } from "./approval";
 import { validateReconciliationSubmission } from "../domain/reconciliationEvidence";
 import { assertProviderEventScopeMatch } from "../domain/providerEventScope";
@@ -99,10 +100,10 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
     });
     const tenderIds = getRefundEvidenceTenderIds(refundRows, originalTenderId);
     if (!tenderIds) throw new Error("Refund allocation evidence is incomplete or ambiguous");
-    const tenderRows = await sudo.query.Tender.findMany({
+    const tenderRows = await (sudo.query.Tender as any).findMany({
       where: { id: { in: tenderIds } },
       take: MAX_REFUND_ALLOCATION_EVIDENCE_ROWS + 1,
-      query: "id amountCents typeSnapshot status sale { id } organization { id } premises { id }",
+      query: "id amountCents typeSnapshot status providerReference sale { id } organization { id } premises { id } configuration { paymentProvider { id code isInstalled refundPaymentFunction credentials } }",
     });
     const allocation = evaluateRefundAllocationEvidence({
       saleId: sale.id,
@@ -115,9 +116,17 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
       tenders: tenderRows,
     });
     if (!allocation.ok) throw new Error(allocation.reason === "limit" ? "Refund exceeds the remaining original tender allocation" : "Refund allocation evidence is incomplete or ambiguous");
-    const originalTender = allocation.originalTender;
-    // Cash leaves the drawer now; a card refund runs on the terminal and its reference is recorded.
-    const providerReference = originalTender.typeSnapshot === "cash" ? "" : assertText(input.providerReference, "Terminal refund reference", 2, 200);
+    const originalTender = tenderRows.find((tender: any) => tender.id === originalTenderId);
+    if (!originalTender) throw new Error("Original tender details are unavailable");
+    // Cash leaves the drawer now; non-cash refunds are confirmed by the configured adapter.
+    let providerReference = "";
+    if (originalTender.typeSnapshot !== "cash") {
+      const provider = originalTender.configuration?.paymentProvider;
+      if (!provider || !provider.isInstalled) throw new Error("Tender payment provider is unavailable");
+      const result = await refundPayment({ provider, paymentId: originalTender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:refund`, refundId: `${sale.id}:${originalTender.id}:${amount}` });
+      if (Number(result?.amount) !== amount || String(result?.currency || "USD").toUpperCase() !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase() || !["refunded", "succeeded"].includes(result?.status)) throw new Error("Payment refund outcome is ambiguous; reconcile before retrying");
+      providerReference = String(result.paymentIntentId || result.transactionId || originalTender.providerReference);
+    }
     const evidenceHash = stableHash(input.evidence || {});
     const refund = await sudo.query.Refund.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, amountCents: amount, reasonCode: assertText(input.reasonCode, "Refund reason"), inventoryDisposition: input.inventoryDisposition, status: "completed", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, originalTenderReference: originalTender.id, providerReference, occurredAt: new Date(), evidenceHash }, query: "id status" });
     const refundedCents = sale.refundedCents + amount; const saleStatus = refundedCents === sale.totalCents ? "refunded" : "partially_refunded";

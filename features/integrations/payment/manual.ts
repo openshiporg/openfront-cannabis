@@ -4,11 +4,11 @@ export async function createPaymentFunction({ amount = 0, currency = "USD" }: In
 }
 export async function capturePaymentFunction({ amount = 0, paymentId }: Input) {
   if (!paymentId) throw new Error("Staff receipt evidence is required to capture manual payment");
-  return { status: "captured", paymentIntentId: paymentId, amount };
+  return { status: "captured", paymentIntentId: paymentId, amount, currency: "USD" };
 }
 export async function refundPaymentFunction({ amount = 0, paymentId }: Input) {
   if (!paymentId) throw new Error("Original manual tender is required");
-  return { status: "refunded", paymentIntentId: paymentId, amount };
+  return { status: "refunded", paymentIntentId: paymentId, amount, currency: "USD" };
 }
 export async function getPaymentStatusFunction({ paymentId }: Input) {
   return { status: "pending", paymentIntentId: paymentId };

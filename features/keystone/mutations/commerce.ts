@@ -10,6 +10,8 @@ import { calculateAllocationQuote, type AllocationQuotePackage } from "../domain
 import { assertInteger, assertText, requireOperationalAuthority, requireRulePack, runControlledOperation, stableHash } from "./workflow";
 
 import { serializableTransaction } from '../domain/transaction.ts';
+import { capturePayment } from "../utils/paymentProviderAdapter";
+import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -374,8 +376,20 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       if (tender.type !== "cash" && (tenderedCents !== amount || changeCents !== 0)) throw new Error("Non-cash tender must match its applied amount exactly");
       // Card and ACH run on the store's own terminal; its approval reference is the capture evidence.
       if (tender.type !== "cash") tender.providerReference = assertText(tender.providerReference, "Terminal approval reference", 2, 200);
-      const configurations = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, type: { equals: tender.type }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id code type providerCode" });
-      if (configurations.length !== 1) throw new Error("Exactly one current tender configuration is required"); tenderConfigs.push(configurations[0]);
+      const configurations = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, type: { equals: tender.type }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id code type providerCode paymentProvider { id code isInstalled capturePaymentFunction refundPaymentFunction credentials }" });
+      if (configurations.length !== 1) throw new Error("Exactly one current tender configuration is required");
+      if (tender.type !== "cash") {
+        const config = configurations[0]; const provider = config.paymentProvider;
+        if (!provider || !provider.isInstalled || !isPaymentProviderConfigured(provider.code)) throw new Error("Configured payment provider is not installed or configured");
+        const result = await capturePayment({ provider, paymentId: tender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:capture:${tenderConfigs.length}` });
+        const resultAmount = Number(result?.amount); const resultCurrency = String(result?.currency || authority.actor.premises?.currencyCode || "USD").toUpperCase();
+        if (resultAmount !== amount || resultCurrency !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase()) throw new Error("Payment provider capture amount or currency mismatch");
+        if (result.status !== "captured" && result.status !== "succeeded") throw new Error("Payment capture is ambiguous; sale must be reconciled before retrying");
+        tender.providerReference = String(result.paymentIntentId || result.transactionId || tender.providerReference);
+        tender.providerStatus = result.status;
+        tender.paymentProviderId = provider.id;
+      }
+      tenderConfigs.push(configurations[0]);
     }
     if (tenderTotal !== cart.totalCents) throw new Error("Tender total must exactly equal sale total in integer cents");
     const salePackageSnapshots = new Map<string, FinalSalePackageSnapshot>();
@@ -434,7 +448,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       const saleLine = await sudo.query.SaleLine.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, package: { connect: { id: line.package.id } }, titleSnapshot: line.titleSnapshot, skuSnapshot: line.skuSnapshot, categoryCodeSnapshot: line.categoryCodeSnapshot, packageUidSnapshot: line.packageUidSnapshot, batchSnapshot: line.batchSnapshot, coaReferenceSnapshot: pkg.coaReference, potencySnapshot: line.potencySnapshot, quantityMicrounits: line.quantityMicrounits, equivalencyMicrounits: line.equivalencyMicrounits, unitPriceCents: line.unitPriceCents, discountCents: line.discountCents, discountSnapshot: line.discountSnapshot, taxCents: line.taxCents, totalCents: line.totalCents }, query: "id" });
       await sudo.query.InventoryEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, package: { connect: { id: line.package.id } }, eventType: "sale", quantityDeltaMicrounits: -line.quantityMicrounits, beforeQuantityMicrounits: balance.before, afterQuantityMicrounits: balance.after, reasonCode: "sale", actor: { connect: { id: authority.actor.id } }, sourceType: "SaleLine", sourceId: saleLine.id, idempotencyKey: `${correlationId}:line:${index}`, occurredAt: now, evidenceHash: stableHash({ saleId: sale.id, saleLineId: saleLine.id, packageId: line.package.id, before: balance.before, after: balance.after }), stateReportStatus: "queued" }, query: "id" });
     }
-    for (const [index, tender] of tenders.entries()) await sudo.query.Tender.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, configuration: { connect: { id: tenderConfigs[index].id } }, typeSnapshot: tender.type, amountCents: tender.amountCents, tenderedCents: tender.tenderedCents ?? tender.amountCents, changeCents: tender.changeCents ?? 0, status: tender.type === "cash" ? "received" : "captured", providerReference: tender.type === "cash" ? "" : tender.providerReference, idempotencyKey: `${correlationId}:tender:${index}`, evidenceHash: stableHash(tender) }, query: "id" });
+    for (const [index, tender] of tenders.entries()) await sudo.query.Tender.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, configuration: { connect: { id: tenderConfigs[index].id } }, typeSnapshot: tender.type, amountCents: tender.amountCents, tenderedCents: tender.tenderedCents ?? tender.amountCents, changeCents: tender.changeCents ?? 0, status: tender.type === "cash" ? "received" : tender.providerStatus, providerReference: tender.type === "cash" ? "" : tender.providerReference, idempotencyKey: `${correlationId}:tender:${index}`, evidenceHash: stableHash(tender) }, query: "id" });
     await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: cart.shift.id } }, type: "sale", amountCents: tenders.filter((t: any) => t.type === "cash").reduce((sum: number, tender: any) => sum + tender.amountCents, 0), reasonCode: "sale", actor: { connect: { id: authority.actor.id } }, occurredAt: now, idempotencyKey: `${correlationId}:cash`, evidenceHash: stableHash({ saleId: sale.id }) }, query: "id" });
     const cartFence = await sudo.query.Cart.findOne({ where: { id: cart.id }, query: "id status version" });
     if (!cartFence) throw new Error("Reserved cart is missing during finalization");

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlertTriangle, BadgeCheck, Banknote, Boxes, ClipboardCheck, IdCard, LayoutDashboard, PackageCheck, Palette, Receipt, ReceiptText, Scale, ScrollText, ShieldAlert, ShoppingBasket, Store, Users } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Banknote, Boxes, ClipboardCheck, CreditCard, IdCard, LayoutDashboard, PackageCheck, Palette, Receipt, ReceiptText, Scale, ScrollText, ShieldAlert, ShoppingBasket, Store, Users } from 'lucide-react';
 
 export interface PlatformNavItem {
   title: string;
@@ -34,6 +34,7 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'POS', href: '/platform/pos', color: 'blue', description: 'Carts, order preparation and receipts.', icon: ReceiptText, group: 'operations' },
   { title: 'Sales', href: '/platform/sales', color: 'blue', description: 'Receipts, state reporting and refunds.', icon: Receipt, group: 'operations' },
   { title: 'Cash', href: '/platform/cash', color: 'yellow', description: 'Registers, shifts and cash variances.', icon: Banknote, group: 'operations' },
+  { title: 'Payment providers', href: '/platform/payment-providers', color: 'indigo', description: 'Cash, debit and bank payment adapters.', icon: CreditCard, group: 'operations' },
   { title: 'Reconciliation', href: '/platform/reconciliation', color: 'indigo', description: 'Reconciliation runs and state reporting queue.', icon: Scale, group: 'operations' },
   { title: 'Incidents', href: '/platform/incidents', color: 'red', description: 'Compliance incidents and notification deadlines.', icon: AlertTriangle, group: 'operations' },
   { title: 'Audit log', href: '/platform/audit', color: 'slate', description: 'Who did what, and when.', icon: ScrollText, group: 'operations' },
