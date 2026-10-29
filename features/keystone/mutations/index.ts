@@ -6,7 +6,7 @@ import { cannabisCommandReceipt, cannabisSaleReceipt } from "./receipts";
 import { receiveCannabisPackage, postCannabisInventoryEvent, releasePackageHold } from "./inventory";
 import { publicCannabisMenu, publicCannabisStorefrontSettings, submitCannabisCustomerIntake, recordEligibilityDecision } from "./public";
 import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabisCart, addCannabisCartLine, cancelCannabisCart, finalizeCannabisSale } from "./commerce";
-import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, retryStateOutboxEvent, recordReconciliationRun, approveReconciliationRun } from "./operations";
+import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, retryStateOutboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
 import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings } from "./storefrontSettings";
@@ -65,6 +65,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         finalizeCannabisSale(input: JSON!): JSON!
         configureCannabisProduct(input: JSON!): JSON!
         configureRegister(input: JSON!): JSON!
+        linkTenderPaymentProvider(input: JSON!): JSON!
         openRegisterShift(input: JSON!): JSON!
         closeRegisterShift(input: JSON!): JSON!
         approveCashVariance(input: JSON!): JSON!
@@ -111,6 +112,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         finalizeCannabisSale,
         configureCannabisProduct,
         configureRegister,
+        linkTenderPaymentProvider,
         openRegisterShift,
         closeRegisterShift,
         approveCashVariance,

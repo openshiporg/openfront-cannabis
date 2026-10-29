@@ -1,6 +1,7 @@
 import type { Context } from ".keystone/types";
 import { requireRuntimeCapability } from "../domain/runtimeCapabilities";
 import { refundPayment } from "../utils/paymentProviderAdapter";
+import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { verifySecondApprover, withApprover } from "./approval";
 import { validateReconciliationSubmission } from "../domain/reconciliationEvidence";
 import { assertProviderEventScopeMatch } from "../domain/providerEventScope";
@@ -18,6 +19,19 @@ export async function configureCannabisProduct(_root: unknown, args: { input: an
     const sudo = tx.sudo(); const existing = await sudo.query.Product.findOne({ where: { sku: assertText(input.sku, "SKU") }, query: "id name" }); if (existing) throw new Error(`SKU ${input.sku.trim()} is already used by ${existing.name}`);
     const product = await sudo.query.Product.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sku: input.sku, name: assertText(input.name, "Product name"), brand: input.brand ? assertText(input.brand, "Brand", 1, 200) : "", form: assertText(input.form, "Product form"), categoryCode: assertText(input.categoryCode, "Category code"), unitOfMeasure: assertText(input.unitOfMeasure, "Unit of measure"), unitQuantityMicrounits: input.unitQuantityMicrounits, equivalencyMicrounits: input.equivalencyMicrounits, priceCents: input.priceCents, taxCategoryCode: assertText(input.taxCategoryCode, "Tax category"), adultUseEligible: input.adultUseEligible === true, medicalEligible: input.medicalEligible === true, status: "active", publicDescription: input.publicDescription ? assertText(input.publicDescription, "Public description", 1, 1000) : "", publicImageUrl: "" }, query: "id sku status" });
     return { id: product.id, status: product.status, reference: product.sku };
+  });
+}
+
+export async function linkTenderPaymentProvider(_root: unknown, args: { input: any }, context: Context) {
+  const input = args.input || {};
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "linkTenderPaymentProvider", resourceType: "TenderConfiguration", action: "tender.provider.linked", emitStateEvent: false, lockKeys: [String(input.tenderConfigurationId)] }, async (tx, authority) => {
+    const sudo = tx.sudo();
+    const tender = await sudo.query.TenderConfiguration.findOne({ where: { id: assertText(input.tenderConfigurationId, "Tender configuration") }, query: "id type organization { id } premises { id }" });
+    const provider = await sudo.query.PaymentProvider.findOne({ where: { id: assertText(input.paymentProviderId, "Payment provider") }, query: "id code isInstalled" });
+    if (!tender || tender.organization?.id !== authority.organizationId || tender.premises?.id !== authority.premisesId || tender.type === "cash") throw new Error("Tender configuration is outside finance authority or cannot accept a provider");
+    if (!provider || !provider.isInstalled || !isPaymentProviderConfigured(provider.code)) throw new Error("Payment provider is not installed and configured");
+    await sudo.query.TenderConfiguration.updateOne({ where: { id: tender.id }, data: { paymentProvider: { connect: { id: provider.id } }, providerCode: provider.code }, query: "id" });
+    return { id: tender.id, status: "linked", reference: provider.code };
   });
 }
 

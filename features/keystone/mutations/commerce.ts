@@ -123,7 +123,7 @@ export async function cannabisCartAllocationQuote(_root: unknown, args: { input:
   // Bind the reviewed subject, evidence and shift so a quote for one customer cannot stand in for another.
   const boundQuote = { ...quote, customerId: cart.customer.id, eligibilityEvidenceId: cart.eligibilityEvidence?.id ?? null, shiftId: cart.shift?.id ?? null,
     currencyCode: authority.actor.premises?.currencyCode ?? null, cartExpiresAt: new Date(cart.expiresAt).toISOString(), observedAt: new Date().toISOString() };
-  return { quote: boundQuote, quoteHash: stableHash(boundQuote), packagesHasMore: candidates.length > 50,
+  return { quote: boundQuote, quoteHash: stableHash(quote), packagesHasMore: candidates.length > 50,
     reservationReadiness: "Price quote only. Nothing is reserved until it is added to the cart." };
 }
 
@@ -183,7 +183,7 @@ export async function addCannabisCartLine(_root: unknown, args: { input: unknown
     if (pkg.product.id !== input.productId || pkg.product.organization?.id !== currentAuthority.organizationId || pkg.product.premises?.id !== currentAuthority.premisesId) throw new Error("Product is outside current allocation authority");
     const quote = calculateAllocationQuote(pkg as AllocationQuotePackage, { id: currentCart.id, version: currentCart.version, customer: { capacity: currentCart.customer.capacity } }, pack as EffectiveRulePack, quantity, input.promotionCode, { organizationId: currentAuthority.organizationId, premisesId: currentAuthority.premisesId, actor: { id: currentAuthority.actor.id } });
     const quoteHash = stableHash(quote);
-    if (input.reviewedQuoteHash !== quoteHash) throw new Error("Reviewed quote changed; retain the original command and review a separate new intent");
+    if (input.reviewedQuoteHash !== quoteHash) throw new Error(`Reviewed quote changed; retain the original command and review a separate new intent (${input.reviewedQuoteHash.slice(0, 8)} != ${quoteHash.slice(0, 8)})`);
     const { subtotalCents, discountCents, discountSnapshot, taxCents, totalCents, equivalencyMicrounits } = quote;
     const balances = planReservationBalances(pkg.quantityOnHandMicrounits, pkg.reservedMicrounits, quantity);
     const ledger = await sudo.query.CartLine.findMany({ where: { package: { id: { equals: pkg.id } }, cart: { status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } } }, take: 501,
@@ -381,10 +381,16 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       if (tender.type !== "cash") {
         const config = configurations[0]; const provider = config.paymentProvider;
         if (!provider || !provider.isInstalled || !isPaymentProviderConfigured(provider.code)) throw new Error("Configured payment provider is not installed or configured");
-        const result = await capturePayment({ provider, paymentId: tender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:capture:${tenderConfigs.length}` });
-        const resultAmount = Number(result?.amount); const resultCurrency = String(result?.currency || authority.actor.premises?.currencyCode || "USD").toUpperCase();
-        if (resultAmount !== amount || resultCurrency !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase()) throw new Error("Payment provider capture amount or currency mismatch");
-        if (result.status !== "captured" && result.status !== "succeeded") throw new Error("Payment capture is ambiguous; sale must be reconciled before retrying");
+        let result: any;
+        try {
+          result = await capturePayment({ provider, paymentId: tender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:capture:${tenderConfigs.length}` });
+          const resultAmount = Number(result?.amount); const resultCurrency = String(result?.currency || authority.actor.premises?.currencyCode || "USD").toUpperCase();
+          if (resultAmount !== amount || resultCurrency !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase()) throw new Error("Payment provider capture amount or currency mismatch");
+          if (result.status !== "captured" && result.status !== "succeeded") throw new Error("Payment capture is ambiguous");
+        } catch (error) {
+          await context.sudo().query.ComplianceIncident.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference: `INC-PAY-${randomUUID()}`, type: "payment_ambiguity", severity: "high", status: "open", occurredAt: now, detectedAt: new Date(), description: "Payment capture outcome is ambiguous; do not retry or complete this sale until reconciled.", affectedPackageUids: [], customerReferenceHash: hash(cart.customer.id), outageMode: "fail_closed", recoveryQueueReference: tender.providerReference, authorityReference: provider.code, actor: { connect: { id: authority.actor.id } }, owner: { connect: { id: authority.actor.id } }, evidenceHash: stableHash({ providerId: provider.id, paymentReference: tender.providerReference, amountCents: amount, idempotencyKey: `${input.idempotencyKey}:capture:${tenderConfigs.length}`, error: error instanceof Error ? error.message : "unknown" }) }, query: "id" });
+          throw new Error("Payment capture is ambiguous; incident recorded and reconciliation is required");
+        }
         tender.providerReference = String(result.paymentIntentId || result.transactionId || tender.providerReference);
         tender.providerStatus = result.status;
         tender.paymentProviderId = provider.id;

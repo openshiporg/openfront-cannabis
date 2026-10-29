@@ -1,6 +1,6 @@
 export function isPaymentProviderConfigured(code: string): boolean {
   if (code.startsWith("pp_manual")) return true;
-  if (code.startsWith("pp_aeropay")) return Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID && process.env.AEROPAY_WEBHOOK_SECRET);
+  if (code.startsWith("pp_aeropay")) return Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID && process.env.AEROPAY_WEBHOOK_SECRET && process.env.AEROPAY_BANK_ACCOUNT_ID);
   return false;
 }
 export function getPublicPaymentProviderConfig(code: string): null {

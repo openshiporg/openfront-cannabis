@@ -5,13 +5,13 @@ let tokenCache: { scope: string; token: string; expiresAt: number } | undefined;
 const configured = () => Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID);
 async function token() {
   if (!configured()) throw new Error("Aeropay is not configured");
-  const scope = `${process.env.AEROPAY_ENV || "sandbox"}:${process.env.AEROPAY_MERCHANT_ID}`;
+  const scope = `${process.env.AEROPAY_ENV || "sandbox"}:merchant:${process.env.AEROPAY_MERCHANT_ID}`;
   if (tokenCache?.scope === scope && tokenCache.expiresAt > Date.now() + 30_000) return tokenCache.token;
-  const response = await fetch(`${base()}/v2/token`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: process.env.AEROPAY_API_KEY, apiSecret: process.env.AEROPAY_API_SECRET, merchantId: process.env.AEROPAY_MERCHANT_ID }) });
+  const response = await fetch(`${base()}/v2/token`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: process.env.AEROPAY_API_KEY, apiSecret: process.env.AEROPAY_API_SECRET, scope: "merchant", id: process.env.AEROPAY_MERCHANT_ID }) });
   if (!response.ok) throw new Error("Aeropay authentication failed");
   const result: any = await response.json();
   if (typeof result.token !== "string" || !result.token) throw new Error("Aeropay returned an invalid token");
-  tokenCache = { scope, token: result.token, expiresAt: Date.now() + Number(result.expiresIn || 3600) * 1000 };
+  tokenCache = { scope, token: result.token, expiresAt: Date.now() + Number(result.TTL || 1800) * 1000 };
   return tokenCache.token;
 }
 const base = () => process.env.AEROPAY_ENV === "production" ? "https://api.aeropay.com" : "https://api.sandbox-pay.aero.inc";
@@ -24,19 +24,23 @@ async function request(path: string, body: unknown, key?: string, method = "POST
 function assertMoney(amount: number, currency: string) {
   if (!Number.isSafeInteger(amount) || amount < 0 || currency.toUpperCase() !== "USD") throw new Error("Aeropay requires non-negative integer cents in USD");
 }
-export async function createPaymentFunction({ amount = 0, currency = "USD", idempotencyKey }: Input) {
+export async function createPaymentFunction({ amount = 0, currency = "USD", idempotencyKey, provider }: Input) {
   assertMoney(amount, currency); if (!configured()) throw new Error("Aeropay is not configured"); if (!idempotencyKey) throw new Error("Idempotency key is required");
-  return request("/v2/preauthTransaction", { merchantId: process.env.AEROPAY_MERCHANT_ID, amount, currency: "USD" }, idempotencyKey);
+  const bankAccountId = provider?.credentials?.bankAccountId || process.env.AEROPAY_BANK_ACCOUNT_ID;
+  if (!bankAccountId) throw new Error("Aeropay bank account is not configured");
+  return request("/v2/preauthTransaction", { bankAccountId, merchantId: process.env.AEROPAY_MERCHANT_ID, amount: { amount, currency: "USD" }, referenceId: idempotencyKey }, idempotencyKey);
 }
 export async function capturePaymentFunction({ paymentId, amount = 0, currency = "USD", idempotencyKey }: Input) {
   assertMoney(amount, currency); if (!paymentId || !idempotencyKey) throw new Error("Preauthorization and idempotency key are required");
-  const result = await request("/v2/capturePreauthTransaction", { transactionId: paymentId, amount, currency: "USD" }, idempotencyKey);
-  if (result.amount !== undefined && result.amount !== amount) throw new Error("Aeropay capture amount mismatch");
-  return result;
+  const result = await request("/v2/capturePreauthTransaction", { id: paymentId }, idempotencyKey);
+  const capturedAmount = result?.transaction?.amount?.amount ?? result?.amount?.amount ?? result?.amount;
+  if (capturedAmount !== undefined && capturedAmount !== amount) throw new Error("Aeropay capture amount mismatch");
+  return { ...result, paymentIntentId: result?.transaction?.id || paymentId, amount: capturedAmount, currency: result?.transaction?.amount?.currency || "USD", status: result?.transaction?.status === "live" ? "captured" : result?.status };
 }
 export async function refundPaymentFunction({ paymentId, amount = 0, currency = "USD", idempotencyKey }: Input) {
   assertMoney(amount, currency); if (!paymentId || !idempotencyKey) throw new Error("Transaction and idempotency key are required");
-  return request("/v2/reverseTransaction", { transactionId: paymentId, amount, currency: "USD" }, idempotencyKey);
+  const result = await request("/v2/reverseTransaction", { id: paymentId, amount: { amount, currency: "USD" } }, idempotencyKey);
+  return { ...result, paymentIntentId: result?.transaction?.id || paymentId, amount: result?.transaction?.amount?.amount ?? amount, currency: result?.transaction?.amount?.currency || "USD", status: result?.transaction?.status === "reversed" ? "refunded" : result?.status };
 }
 export async function getPaymentStatusFunction({ paymentId }: Input) { if (!paymentId) throw new Error("Transaction is required"); return request(`/v2/transaction/${encodeURIComponent(paymentId)}`, undefined, undefined, "GET"); }
 export async function generatePaymentLinkFunction() { return null; }

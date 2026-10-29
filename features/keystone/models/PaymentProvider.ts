@@ -1,10 +1,10 @@
 import { list } from "@keystone-6/core";
 import { checkbox, json, relationship, text } from "@keystone-6/core/fields";
-import { immutablePremisesAccess } from "../access";
+import { permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const PaymentProvider = list({
-  access: immutablePremisesAccess("canManageFinance"),
+  access: { operation: { query: permissions.canManageFinance, create: permissions.canManageFinance, update: permissions.canManageFinance, delete: permissions.canManageFinance } },
   fields: {
     name: text({ validation: { isRequired: true } }),
     code: text({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^pp_[a-zA-Z0-9_-]+$/, explanation: "Payment provider code must start with pp_" } } }),
