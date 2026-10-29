@@ -1,6 +1,10 @@
+<!-- logo -->
+
 # Openfront Cannabis
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-cannabis&env=DATABASE_URL%2CSESSION_SECRET%2CS3_BUCKET_NAME%2CS3_REGION%2CS3_ACCESS_KEY_ID%2CS3_SECRET_ACCESS_KEY)
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openfront-cannabis)
 
 Openfront Cannabis is a self-hostable dispensary menu and operator application. It connects public menu discovery and customer intake with eligibility decisions, POS, register and cash operations, package inventory, receiving, recalls, incidents, and reconciliation. Operation remains subject to licensing, market policy, and approved providers.
 
@@ -8,16 +12,14 @@ Openfront Cannabis is a self-hostable dispensary menu and operator application. 
 
 ## Demo
 
-Explore the application locally using the setup instructions below.
-
 | | |
 |---|---|
-| **Public application** | `/` on your development URL |
-| **Dashboard** | `/dashboard` on your development URL |
+| **Storefront** | [cannabis.openship.org](https://cannabis.openship.org) |
+| **Dashboard** | [cannabis.openship.org/dashboard](https://cannabis.openship.org/dashboard) |
 
 [Learn more →](https://openship.org/products/openfront-cannabis)
 
-[Documentation →](features/keystone/models)
+[Documentation →](https://docs.openship.org/docs/openfront/cannabis/)
 
 ## The Openfront Ecosystem
 
