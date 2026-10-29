@@ -37,7 +37,7 @@ export const TenderConfiguration = list({
   fields: {
     organization: org(), premises: site(), code: text({ validation: { isRequired: true }, isIndexed: "unique" }),
     type: status(["cash", "debit", "ach", "wallet", "other"]), displayName: text({ validation: { isRequired: true } }), enabled: checkbox({ defaultValue: false }),
-    providerCode: text(), authorityReference: text({ validation: { isRequired: true } }), effectiveAt: timestamp({ validation: { isRequired: true } }), expiresAt: timestamp({ validation: { isRequired: true } }),
+    providerCode: text(), paymentProvider: relationship({ ref: "PaymentProvider.tenderConfigurations" }), authorityReference: text({ validation: { isRequired: true } }), effectiveAt: timestamp({ validation: { isRequired: true } }), expiresAt: timestamp({ validation: { isRequired: true } }),
     ...trackingFields,
   },
 });

@@ -8,6 +8,7 @@ import {
 import {
   Product, InventoryPackage, PackageHold, RegulatedManifest, InventoryEvent, RecallCase,
 } from "./Inventory";
+import { PaymentProvider } from "./PaymentProvider";
 import {
   Register, RegisterShift, CashEvent, TenderConfiguration, Cart, CartLine,
   Sale, SaleLine, Tender, Refund,
@@ -23,7 +24,7 @@ export const models = {
   EligibilityEvidence, JurisdictionRulePack,
   Product, InventoryPackage, PackageHold, RegulatedManifest, InventoryEvent, RecallCase,
   Register, RegisterShift, CashEvent, TenderConfiguration, Cart, CartLine,
-  Sale, SaleLine, Tender, Refund,
+  Sale, SaleLine, Tender, Refund, PaymentProvider,
   AuditEvent, IdempotencyKey, OutboxEvent, StateEventInbox,
   IntegrationInstallation, ReconciliationRun, ComplianceIncident,
 };
@@ -53,6 +54,7 @@ const LIST_VIEWS: Record<string, [labelField: string, columns: string[]]> = {
   RegisterShift: ["status", ["register", "operator", "status"]],
   CashEvent: ["type", ["shift", "type"]],
   TenderConfiguration: ["displayName", ["displayName", "type", "enabled"]],
+  PaymentProvider: ["name", ["name", "code", "isInstalled"]],
   Cart: ["reference", ["reference", "status"]],
   CartLine: ["titleSnapshot", ["cart", "titleSnapshot", "quantityMicrounits"]],
   Sale: ["receiptNumber", ["receiptNumber", "status"]],
@@ -73,7 +75,7 @@ const LIST_VIEWS: Record<string, [labelField: string, columns: string[]]> = {
 const LIST_PERMISSION: Record<string, CannabisPermission> = {
   User: "canManagePeople", Role: "canManageRoles", Organization: "canManageAuthority", Premises: "canManageAuthority", StorefrontSettings: "canManageAuthority",
   CannabisLicense: "canManageAuthority", StaffCredential: "canManageAuthority", Customer: "canManageCompliance", EligibilityEvidence: "canManageCompliance",
-  JurisdictionRulePack: "canManageCompliance", Register: "canManageFinance", RegisterShift: "canManageFinance", CashEvent: "canManageFinance", TenderConfiguration: "canManageFinance",
+  JurisdictionRulePack: "canManageCompliance", Register: "canManageFinance", RegisterShift: "canManageFinance", CashEvent: "canManageFinance", TenderConfiguration: "canManageFinance", PaymentProvider: "canManageFinance",
   Cart: "canManageSales", CartLine: "canManageSales", Sale: "canManageSales", SaleLine: "canManageSales", Tender: "canManageFinance", Refund: "canManageFinance",
   Product: "canManageInventory", InventoryPackage: "canManageInventory", PackageHold: "canManageCompliance", RegulatedManifest: "canManageInventory", InventoryEvent: "canManageInventory",
   RecallCase: "canManageCompliance", AuditEvent: "canViewReports", IdempotencyKey: "canViewReports", OutboxEvent: "canManageIntegrations", StateEventInbox: "canManageIntegrations",
