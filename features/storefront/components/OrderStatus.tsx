@@ -49,7 +49,7 @@ export function OrderStatus({ reference }: { reference: string }) {
       <div className="flex justify-between"><dt className="text-cn-ink-2">Tax</dt><dd className="cn-num">{money(order.taxCents)}</dd></div>
       <div className="flex justify-between text-[20px] font-semibold"><dt>Total</dt><dd className="cn-num">{money(order.totalCents)}</dd></div>
     </dl>
-    <p className="text-cn-ink-2">{order.paymentMethod === 'card' ? (order.paymentStatus === 'authorized' ? 'Your card is authorized and is charged when you pick up.' : order.paymentStatus === 'voided' ? 'The card hold was released.' : order.paymentStatus === 'captured' ? 'Paid by card.' : '') : order.paymentStatus === 'paid_at_pickup' ? 'Paid at pickup.' : 'You’ll pay at pickup.'}</p>
+    <p className="text-cn-ink-2">{['cancelled', 'expired'].includes(order.status) ? (order.paymentMethod === 'card' ? 'Your card hold was released. You were not charged.' : 'No payment was taken.') : order.paymentMethod === 'card' ? (order.paymentStatus === 'authorized' ? 'Your card is authorized and is charged when you pick up.' : order.paymentStatus === 'voided' ? 'The card hold was released.' : order.paymentStatus === 'captured' ? 'Paid by card.' : '') : order.paymentStatus === 'paid_at_pickup' ? 'Paid at pickup.' : 'You’ll pay at pickup.'}</p>
     {error && <p role="alert" className="font-semibold text-cn-warn">{error}</p>}
     <div className="flex flex-wrap gap-2"><Link href="/#menu" className="cn-btn">Back to the menu</Link>{active && <button type="button" className="cn-btn" disabled={busy} onClick={cancel}>{busy ? 'Cancelling…' : 'Cancel order'}</button>}</div>
   </div>;
