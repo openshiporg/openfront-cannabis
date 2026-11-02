@@ -9,8 +9,7 @@ import { coverPhoto, StorefrontShell, storeName } from '../components/Storefront
 /** Everything a customer needs before walking in: where, when, what to bring, how to pay. */
 export async function VisitPage() {
   const [settings, menu] = await Promise.all([getPublicCannabisStorefrontSettings(), getPublicCannabisMenu()]);
-  const { live, demo } = menuItems(menu);
-  const forms = menuForms(live.length ? live : settings.mode === 'demo' ? demo : []);
+  const forms = menuForms(menuItems(menu));
   const visit = settings.visit;
   const open = openState(visit);
   const address = addressLines(visit);
@@ -23,7 +22,7 @@ export async function VisitPage() {
     ['Phone', visit?.phone ? <a href={`tel:${visit.phone.replace(/[^\d+]/g, '')}`} className="font-semibold text-cn-ink underline decoration-cn-line decoration-2 underline-offset-4 hover:decoration-cn-ink">{visit.phone}</a> : 'Not published'],
     ['Age', ages.medical != null ? `${ages.adult}+ adult-use · ${ages.medical}+ with a medical card · valid ID` : `${ages.adult}+ · valid ID`],
     ['Payment', tenders.length ? tenders.join(' · ') : 'Not published'],
-    ['Ordering', 'In store only'],
+    ['Ordering', 'Order ahead for pickup, or walk in'],
   ];
   return <StorefrontShell settings={settings} forms={forms} current="visit">
     <div className="mx-auto grid max-w-[1440px] lg:min-h-[calc(100svh-var(--cn-header)-30px)] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">

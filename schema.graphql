@@ -2978,6 +2978,13 @@ type Cart {
   lines(where: CartLineWhereInput! = {}, orderBy: [CartLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CartLineWhereUniqueInput): [CartLine!]
   linesCount(where: CartLineWhereInput! = {}): Int
   version: Int
+  pickupWindowStart: DateTime
+  pickupWindowEnd: DateTime
+  pickupName: String
+  pickupPhone: String
+  paymentMethod: String
+  paymentStatus: String
+  paymentReference: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3027,6 +3034,12 @@ input CartWhereInput {
   totalCents: IntNullableFilter
   lines: CartLineManyRelationFilter
   version: IntNullableFilter
+  pickupWindowStart: DateTimeNullableFilter
+  pickupWindowEnd: DateTimeNullableFilter
+  pickupName: StringFilter
+  pickupPhone: StringFilter
+  paymentMethod: StringFilter
+  paymentStatus: StringFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
 }
@@ -3062,6 +3075,12 @@ input CartOrderByInput {
   taxCents: OrderDirection
   totalCents: OrderDirection
   version: OrderDirection
+  pickupWindowStart: OrderDirection
+  pickupWindowEnd: OrderDirection
+  pickupName: OrderDirection
+  pickupPhone: OrderDirection
+  paymentMethod: OrderDirection
+  paymentStatus: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -3084,6 +3103,13 @@ input CartUpdateInput {
   totalCents: Int
   lines: CartLineRelateToManyForUpdateInput
   version: Int
+  pickupWindowStart: DateTime
+  pickupWindowEnd: DateTime
+  pickupName: String
+  pickupPhone: String
+  paymentMethod: String
+  paymentStatus: String
+  paymentReference: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3130,6 +3156,13 @@ input CartCreateInput {
   totalCents: Int
   lines: CartLineRelateToManyForCreateInput
   version: Int
+  pickupWindowStart: DateTime
+  pickupWindowEnd: DateTime
+  pickupName: String
+  pickupPhone: String
+  paymentMethod: String
+  paymentStatus: String
+  paymentReference: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -5120,6 +5153,8 @@ type Mutation {
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   sendUserPasswordResetLink(email: String!): Boolean!
   redeemUserPasswordResetToken(email: String!, token: String!, password: String!): RedeemUserPasswordResetTokenResult
+  placeCannabisPickupOrder(input: JSON!): JSON!
+  cancelCannabisPickupOrder(reference: String!, proof: String!): JSON!
   runCannabisOnboarding(input: JSON!): JSON!
   dismissCannabisOnboarding: JSON!
   transitionComplianceIncident(input: JSON!): JSON!
@@ -5301,6 +5336,8 @@ type Query {
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult
   redirectToInit: Boolean
   publicCannabisMenu: JSON!
+  cannabisPickupOptions: JSON!
+  cannabisPickupOrder(reference: String!, proof: String!): JSON!
   publicCannabisStorefrontSettings: JSON!
   cannabisOperationsWorkspace(section: String!, options: JSON): JSON!
   cannabisStorefrontSettingsWorkspace: JSON!

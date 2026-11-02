@@ -4,8 +4,8 @@ const ADAPTERS = new Set(Object.keys(paymentProviderAdapters));
 const OPERATIONS = new Set(["createPaymentFunction", "capturePaymentFunction", "refundPaymentFunction", "getPaymentStatusFunction", "generatePaymentLinkFunction", "handleWebhookFunction"]);
 export function paymentAdapterPayload(provider: any, args: any) {
   const input: Record<string, any> = {};
-  for (const key of ["cart", "order", "amount", "currency", "idempotencyKey", "paymentId", "refundId", "event", "headers", "rawBody"]) if (args?.[key] !== undefined) input[key] = args[key];
-  if (input.headers && typeof input.headers === "object") input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => key.toLowerCase().startsWith("x-aeropay-") || key.toLowerCase().startsWith("stripe-") || key.toLowerCase().startsWith("paypal-")));
+  for (const key of ["cart", "order", "amount", "currency", "idempotencyKey", "paymentId", "refundId", "event", "headers", "rawBody", "opaqueData", "captureNow"]) if (args?.[key] !== undefined) input[key] = args[key];
+  if (input.headers && typeof input.headers === "object") input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => key.toLowerCase().startsWith("x-aeropay-") || key.toLowerCase().startsWith("x-anet-") || key.toLowerCase().startsWith("stripe-") || key.toLowerCase().startsWith("paypal-")));
   return { ...input, provider: { id: provider.id, code: provider.code, credentials: provider.credentials || {} } };
 }
 export async function executeAdapterFunction({ provider, functionName, args }: { provider: any; functionName: string; args: any }) {

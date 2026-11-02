@@ -21,11 +21,8 @@ type SortId = (typeof SORTS)[number]['id'];
 
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
-export function menuItems(menu: PublicCannabisMenu): { live: TileProduct[]; demo: TileProduct[] } {
-  return {
-    live: menu.products.map(product => ({ id: product.id, name: product.name, form: product.form, priceCents: product.priceCents, imageUrl: product.imageUrl, description: product.description, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible })),
-    demo: menu.demoProducts.map(product => ({ id: product.id, name: product.name, form: product.form, description: product.description, demo: true })),
-  };
+export function menuItems(menu: PublicCannabisMenu): TileProduct[] {
+  return menu.products.map(product => ({ id: product.id, name: product.name, form: product.form, priceCents: product.priceCents, imageUrl: product.imageUrl, description: product.description, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible }));
 }
 
 export function menuForms(items: TileProduct[]): ShellForm[] {
@@ -64,10 +61,7 @@ function menuHref(state: MenuState, patch: Partial<MenuState> = {}) {
 export default async function MenuPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = (await searchParams) || {};
   const [menu, settings] = await Promise.all([getPublicCannabisMenu(), getPublicCannabisStorefrontSettings()]);
-  const { live, demo } = menuItems(menu);
-  const showDemo = settings.mode === 'demo' && demo.length > 0;
-  const sample = showDemo && !live.length;
-  const catalog = live.length ? live : showDemo ? demo : [];
+  const catalog = menuItems(menu);
   const forms = menuForms(catalog);
   const requestedForm = first(params.form);
   const activeForm = forms.some(form => form.key === requestedForm) ? requestedForm! : null;
@@ -95,7 +89,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
     ...(address.length ? [['Address', address.join(', ')] as [string, string]] : []),
     ...(open ? [['Hours', `Daily ${open.hours}`] as [string, string]] : []),
     ['Age', ages.medical != null ? `${ages.adult}+ · patients ${ages.medical}+ · valid ID` : `${ages.adult}+ · valid ID`],
-    ...(tenders.length ? [['Payment', `${tenders.join(' · ')} · in store only`] as [string, string]] : []),
+    ...(tenders.length ? [['Payment', `${tenders.join(' · ')} · card online or at pickup`] as [string, string]] : []),
   ];
 
   return <StorefrontShell settings={settings} forms={forms} current="menu">
@@ -112,10 +106,10 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
       </figure>
       <div className="flex min-w-0 flex-col gap-7 bg-cn-page px-4 py-7 sm:px-8 sm:py-9 lg:px-10">
         <div>
-          <p data-testid="customer-workflows-disabled" className="cn-display flex items-baseline gap-3 text-[44px] text-cn-ink sm:text-[52px]">
-            <span aria-hidden="true" className={`cn-dot size-3 ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} />{open ? (open.open ? 'Open now' : 'Closed') : 'In-store only'}
+          <p className="cn-display flex items-baseline gap-3 text-[44px] text-cn-ink sm:text-[52px]">
+            <span aria-hidden="true" className={`cn-dot size-3 ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} />{open ? (open.open ? 'Open now' : 'Closed') : 'Order for pickup'}
           </p>
-          <p className="mt-2 text-[16px] text-cn-ink-2">{open ? `${open.label.split(' · ')[1] ?? open.hours} · in-store purchase only` : 'Buy in store after an ID check'}</p>
+          <p className="mt-2 text-[16px] text-cn-ink-2">{open ? `${open.label.split(' · ')[1] ?? open.hours} · order ahead for pickup` : 'Order ahead, then bring a valid ID to pick up'}</p>
           {settings.unavailable
             ? <p role="status" className="mt-3 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Store information unavailable</p>
             : !settings.isConfigured && <p role="status" data-testid="unconfigured-storefront-identity" className="mt-3 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-ink-3" aria-hidden="true" />Store not set up</p>}
@@ -127,9 +121,10 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
         <div className="flex flex-wrap gap-2">
           {directions && <a href={directions} target="_blank" rel="noreferrer" data-tone="ink" className="cn-btn">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
           <Link href="/visit" className="cn-btn">Visit details</Link>
+          <Link href="/bag" data-tone="ink" className="cn-btn">Order for pickup</Link>
         </div>
         {forms.length > 0 && <nav aria-labelledby="cn-index-title" className="mt-auto">
-          <div className="flex items-baseline justify-between gap-3"><h2 id="cn-index-title" className="cn-name text-[20px] text-cn-ink">{sample ? 'Sample menu' : 'Menu'}</h2><span className="cn-num text-[15px] text-cn-ink-3">{catalog.length}</span></div>
+          <div className="flex items-baseline justify-between gap-3"><h2 id="cn-index-title" className="cn-name text-[20px] text-cn-ink">Menu</h2><span className="cn-num text-[15px] text-cn-ink-3">{catalog.length}</span></div>
           <ul className="mt-2 border-b border-cn-line">
             {forms.map(form => <li key={form.key} className="border-t border-cn-line">
               <Link href={menuHref(state, { form: activeForm === form.key ? null : form.key })} aria-current={activeForm === form.key ? 'page' : undefined} className="group flex min-h-12 items-center gap-3 py-1.5 aria-[current=page]:bg-cn-raise">
@@ -146,9 +141,8 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
     <section id="menu" aria-labelledby="menu-title" className="scroll-mt-[var(--cn-header)] pt-10 sm:pt-14" style={chapters.length < 2 ? { '--cn-rail': '0px' } as CSSProperties : undefined}>
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 sm:px-6">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h2 id="menu-title" className="cn-display text-[48px] text-cn-ink sm:text-[64px]">{sample ? 'Sample menu' : activeForm ? forms.find(form => form.key === activeForm)?.label : 'The menu'}</h2>
+          <h2 id="menu-title" className="cn-display text-[48px] text-cn-ink sm:text-[64px]">{activeForm ? forms.find(form => form.key === activeForm)?.label : 'The menu'}</h2>
           <span className="cn-num text-[16px] text-cn-ink-3">{shown.length} {shown.length === 1 ? 'item' : 'items'}</span>
-          {sample && <span className="inline-flex items-baseline gap-1.5 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Not for sale</span>}
         </div>
         {catalog.length > 0 && <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <form action="/#menu" role="search" className="flex w-full min-w-0 items-center gap-2 lg:max-w-[520px]">
@@ -162,7 +156,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
               <Link href={menuHref(state, { channel: 'adult' })} aria-current={channel === 'adult' ? 'page' : undefined} className="cn-tab">Adult-use</Link>
               <Link href={menuHref(state, { channel: 'medical' })} aria-current={channel === 'medical' ? 'page' : undefined} className="cn-tab">Medical</Link>
             </nav>}
-            {!sample && <nav aria-label="Sort" className="cn-scroll flex gap-5 overflow-x-auto">
+            {<nav aria-label="Sort" className="cn-scroll flex gap-5 overflow-x-auto">
               {SORTS.map(option => <Link key={option.id} href={menuHref(state, { sort: option.id })} aria-current={sort === option.id ? 'page' : undefined} className="cn-tab">{option.label}</Link>)}
             </nav>}
           </div>
@@ -175,7 +169,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
         {!menu.reason && <Link href="/" className="cn-btn">Try again</Link>}
       </div>}
 
-      {chapters.length > 0 && <div data-testid={live.length ? 'package-backed-live-catalog' : 'demo-catalog-lane'} className="mt-8">
+      {chapters.length > 0 && <div data-testid="package-backed-live-catalog" className="mt-8">
         <ChapterRail chapters={chapters.map(chapter => ({ id: chapter.id, label: chapter.label, count: chapter.items.length, ink: chapter.ink }))} />
         <div className="cn-print">
           {chapters.map(chapter => <section key={chapter.key} id={chapter.id} aria-labelledby={`${chapter.id}-title`} style={{ '--chapter': chapter.ink } as CSSProperties} className="scroll-mt-[calc(var(--cn-header)+var(--cn-rail))] pb-10">

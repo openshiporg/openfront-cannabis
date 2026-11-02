@@ -196,20 +196,23 @@ function AddLineForm({ cartId, products, currencyCode }: { cartId: string; produ
 
 export type PosCart = {
   id: string; reference: string; status: string; totalCents: number; subtotalCents: number | null; taxCents: number | null; discountCents: number | null;
+  source?: string; pickupWindowStart?: string | null; pickupName?: string | null; pickupPhone?: string | null; paymentMethod?: string | null; paymentStatus?: string | null;
   customer: { reference: string; capacity: string } | null; shift: { operator: { id: string } | null } | null;
   lines: Array<{ id: string; titleSnapshot: string; quantityMicrounits: number; totalCents: number; package: { unitOfMeasure: string } | null }>;
 };
 
 export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId }: { cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string }) {
   const money = (cents: number | null) => formatMinorUnits(cents ?? 0, currencyCode);
-  const mine = cart.shift?.operator?.id === actorId;
+  const online = cart.source === 'pickup' && !cart.shift;
+  const mine = online || cart.shift?.operator?.id === actorId;
   const open = ['preliminarily_eligible', 'reserved'].includes(cart.status);
   return <div className="space-y-4">
+    {online && <p className="rounded-[5px] border border-border bg-muted/30 px-3 py-2 text-sm">Online pickup order{cart.pickupName ? ` for ${cart.pickupName}` : ''}{cart.pickupPhone ? ` · ${cart.pickupPhone}` : ''}{cart.pickupWindowStart ? ` · pickup ${new Date(cart.pickupWindowStart).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''} · {cart.paymentMethod === 'card' ? (cart.paymentStatus === 'authorized' ? 'card authorized, not yet charged' : `card ${cart.paymentStatus ?? ''}`) : 'pays at pickup'}</p>}
     {cart.lines.length ? <ul className="divide-y divide-border overflow-hidden rounded-[5px] border border-border bg-background">{cart.lines.map(line => <li key={line.id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm"><span className="min-w-0">{line.titleSnapshot} <span className="tabular-nums text-xs text-muted-foreground">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)}</span></span><span className="tabular-nums">{money(line.totalCents)}</span></li>)}
       <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-xs text-muted-foreground"><span>Subtotal {money(cart.subtotalCents)} · tax {money(cart.taxCents)}{cart.discountCents ? ` · discount ${money(cart.discountCents)}` : ''}</span><span className="tabular-nums text-sm font-medium text-foreground">{money(cart.totalCents)}</span></li>
     </ul> : <p className="text-sm text-muted-foreground">No items yet.</p>}
     {!mine ? <p className="text-sm text-muted-foreground">Rung up on another person’s shift.</p> : open ? <>
-      <AddLineForm cartId={cart.id} products={products} currencyCode={currencyCode} />
+      {!online && <AddLineForm cartId={cart.id} products={products} currencyCode={currencyCode} />}
       {cart.lines.length > 0 && cart.status === 'reserved' && <PayForm cart={cart} tenderTypes={tenderTypes} money={money} />}
       <CancelCartForm cartId={cart.id} reference={cart.reference} />
     </> : null}
@@ -219,13 +222,17 @@ export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId }
 function PayForm({ cart, tenderTypes, money }: { cart: PosCart; tenderTypes: Array<{ type: string; displayName: string }>; money: (cents: number | null) => string }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(finalizeSaleFromDesk);
   const errors = state.fieldErrors;
-  const [type, setType] = useState(tenderTypes[0]?.type ?? '');
+  const cardOrder = cart.source === 'pickup' && cart.paymentMethod === 'card' && cart.paymentStatus === 'authorized';
+  const pickupOrder = cart.source === 'pickup';
+  const [type, setType] = useState(cardOrder ? 'debit' : tenderTypes[0]?.type ?? '');
   if (!tenderTypes.length) return <p className="text-sm text-muted-foreground">No payment types are in effect.</p>;
   return <form onSubmit={onSubmit(() => window.confirm(`Take ${money(cart.totalCents)} and complete the sale?`))} onChange={markDirty} className="space-y-3 rounded-[5px] border border-border bg-background p-3" aria-label={`Take payment for ${cart.reference}`}>
-    <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="cartId" value={cart.id} /><input type="hidden" name="totalCents" value={cart.totalCents} />
+    <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="cartId" value={cart.id} /><input type="hidden" name="totalCents" value={cart.totalCents} />{pickupOrder && <input type="hidden" name="pickupOrder" value="true" />}{cardOrder && <input type="hidden" name="cardOrder" value="true" />}
     <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
-      <Select name="tenderType" title="Payment" errors={errors} value={type} onChange={event => setType(event.target.value)}>{tenderTypes.map(tender => <option key={tender.type} value={tender.type}>{tender.displayName}</option>)}</Select>
-      {type === 'cash'
+      {pickupOrder && <div className="sm:col-span-2"><Check name="idVerified" title="I checked the customer’s government ID: valid, unexpired, and 21 or older" errors={errors} /></div>}
+      {cardOrder ? <><input type="hidden" name="tenderType" value="debit" /><p className="text-sm sm:col-span-2">The card on this order will be charged {money(cart.totalCents)}.</p></>
+        : <Select name="tenderType" title="Payment" errors={errors} value={type} onChange={event => setType(event.target.value)}>{tenderTypes.map(tender => <option key={tender.type} value={tender.type}>{tender.displayName}</option>)}</Select>}
+      {cardOrder ? null : type === 'cash'
         ? <Field name="tendered" title="Cash received" errors={errors} required inputMode="decimal" placeholder={(cart.totalCents / 100).toFixed(2)} className="font-mono" />
         : <Field name="providerReference" title="Terminal approval code" errors={errors} required autoComplete="off" className="font-mono" />}
       {cart.customer?.capacity === 'caregiver' && <div className="sm:col-span-2"><Check name="representedPatientVerified" title="Caregiver authority checked again at payment" errors={errors} /></div>}

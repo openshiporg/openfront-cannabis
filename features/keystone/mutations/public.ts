@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Context } from ".keystone/types";
 import { assertEffectiveRulePack, assertEligibility, assertPackageSaleable } from "../domain/cannabisPolicy";
-import { NEUTRAL_STOREFRONT_SETTINGS, projectPublicDemoCatalog, projectPublicStorefrontSettings } from "../domain/storefrontSettings";
+import { NEUTRAL_STOREFRONT_SETTINGS, projectPublicStorefrontSettings } from "../domain/storefrontSettings";
 import { isRuntimeCapabilityEnabled, requireRuntimeCapability } from "../domain/runtimeCapabilities";
 import { assertText, requireRulePack, runControlledOperation, stableHash } from "./workflow";
 
@@ -10,13 +10,13 @@ const proofHash = (value: string) => createHash("sha256").update(value).digest("
 class PublicScopeMissing extends Error {}
 
 /** The single active organization and premises; no rule-pack check, so identity can show even while sales rules are invalid. */
-async function publicScope(context: Context) {
+export async function publicScope(context: Context) {
   const organizations = await context.sudo().query.Organization.findMany({ where: { status: { equals: "active" } }, take: 2, query: "id jurisdictionCode premises(where: { status: { equals: active } }, take: 2) { id timezone currencyCode addressSnapshot }" });
   if (organizations.length !== 1 || organizations[0].premises?.length !== 1) throw new PublicScopeMissing("Public service is unavailable until exactly one authority scope is active");
   return { organization: organizations[0], premises: organizations[0].premises[0] };
 }
 
-async function publicAuthority(context: Context) {
+export async function publicAuthority(context: Context) {
   const { organization, premises } = await publicScope(context);
   const pack = await requireRulePack(context, organization.id, premises.id);
   assertEffectiveRulePack(pack as any);
@@ -66,38 +66,15 @@ export async function publicCannabisStorefrontSettings(_root: unknown, _args: un
 export async function publicCannabisMenu(_root: unknown, _args: unknown, context: Context) {
   let authority: Awaited<ReturnType<typeof publicAuthority>>;
   try { authority = await publicAuthority(context); }
-  catch (error) { return { unavailable: true, reason: error instanceof PublicScopeMissing ? "not_set_up" : "sales_rules", products: [], demoProducts: [] }; }
-  if (!isRuntimeCapabilityEnabled("storefront.public-live-menu")) {
-    const demoSettings = await context.sudo().query.StorefrontSettings.findMany({
-      where: {
-        organization: { id: { equals: authority.organization.id } },
-        premises: { id: { equals: authority.premises.id } },
-        publicationStatus: { equals: "published" },
-        storefrontMode: { equals: "demo" },
-      },
-      orderBy: [{ createdAt: "asc" }],
-      take: 2,
-      query: "demoCatalog",
-    });
-    return {
-      jurisdictionCode: authority.organization.jurisdictionCode,
-      rulePackVersion: authority.pack.version,
-      currencyCode: authority.premises.currencyCode ?? null,
-      products: [],
-      demoProducts: demoSettings.length === 1 ? projectPublicDemoCatalog(demoSettings[0].demoCatalog) : [],
-    };
-  }
+  catch (error) { return { unavailable: true, reason: error instanceof PublicScopeMissing ? "not_set_up" : "sales_rules", products: [] }; }
+  if (!isRuntimeCapabilityEnabled("storefront.public-live-menu")) return { unavailable: true, reason: "sales_rules", products: [] };
   const scope = { organization: { id: { equals: authority.organization.id } }, premises: { id: { equals: authority.premises.id } } };
-  const [packages, demoSettings] = await Promise.all([
+  const [packages] = await Promise.all([
     context.sudo().query.InventoryPackage.findMany({
       where: { ...scope, status: { equals: "saleable" }, testStatus: { equals: "passed" }, expiresAt: { gt: new Date() }, quantityOnHandMicrounits: { gt: 0 } },
       orderBy: [{ expiresAt: "asc" }, { createdAt: "asc" }], take: 201,
       query: "id status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku form categoryCode unitQuantityMicrounits priceCents publicDescription publicImageUrl photo { url } adultUseEligible medicalEligible status } premises { id }",
-    }),
-    context.sudo().query.StorefrontSettings.findMany({
-      where: { ...scope, publicationStatus: { equals: "published" }, storefrontMode: { equals: "demo" } },
-      orderBy: [{ createdAt: "asc" }], take: 2, query: "demoCatalog",
-    }),
+    })
   ]);
   if (packages.length > 200) throw new Error("Menu projection exceeds its bounded source page and requires operator review");
   const products = new Map<string, any>();
@@ -109,8 +86,7 @@ export async function publicCannabisMenu(_root: unknown, _args: unknown, context
     } catch { continue; }
     if (!products.has(pkg.product.id)) products.set(pkg.product.id, { id: pkg.product.id, name: pkg.product.name, sku: pkg.product.sku, form: pkg.product.form, categoryCode: pkg.product.categoryCode, priceCents: pkg.product.priceCents, description: pkg.product.publicDescription, imageUrl: pkg.product.photo?.url || pkg.product.publicImageUrl || null, adultUseEligible: pkg.product.adultUseEligible, medicalEligible: pkg.product.medicalEligible, available: true });
   }
-  const demoProducts = demoSettings.length === 1 ? projectPublicDemoCatalog(demoSettings[0].demoCatalog) : [];
-  return { jurisdictionCode: authority.organization.jurisdictionCode, rulePackVersion: authority.pack.version, currencyCode: authority.premises.currencyCode ?? null, products: [...products.values()], demoProducts };
+  return { jurisdictionCode: authority.organization.jurisdictionCode, rulePackVersion: authority.pack.version, currencyCode: authority.premises.currencyCode ?? null, products: [...products.values()] };
 }
 
 export async function submitCannabisCustomerIntake(_root: unknown, args: { input: any }, context: Context) {

@@ -421,12 +421,14 @@ export async function finalizeSaleFromDesk(_state: CommandState, formData: FormD
     else if (tendered < totalCents) errors.tendered = 'Less than the total';
     else tender = { type, amountCents: totalCents, tenderedCents: tendered, changeCents: tendered - totalCents };
   } else if (type) {
-    if (text(formData, 'providerReference').length < 2) errors.providerReference = 'Enter the terminal approval code';
+    if (text(formData, 'cardOrder') === 'true') tender = { type, amountCents: totalCents, tenderedCents: totalCents, changeCents: 0 };
+    else if (text(formData, 'providerReference').length < 2) errors.providerReference = 'Enter the terminal approval code';
     else tender = { type, amountCents: totalCents, tenderedCents: totalCents, changeCents: 0, providerReference: text(formData, 'providerReference') };
   }
+  if (formData.get('pickupOrder') === 'true' && formData.get('idVerified') !== 'on') errors.idVerified = 'Check the customer’s ID first';
   const idempotencyKey = commandKey(formData);
   if (Object.keys(errors).length || !idempotencyKey || !Number.isSafeInteger(totalCents)) return invalid(errors);
-  const result = await runCommand('finalizeCannabisSale', 'finalizeCannabisSale', { idempotencyKey, cartId: text(formData, 'cartId'), tenders: [tender], representedPatientVerified: formData.get('representedPatientVerified') === 'on' }, 'Sale complete.');
+  const result = await runCommand('finalizeCannabisSale', 'finalizeCannabisSale', { idempotencyKey, cartId: text(formData, 'cartId'), tenders: [tender], representedPatientVerified: formData.get('representedPatientVerified') === 'on', idVerified: formData.get('idVerified') === 'on' }, 'Sale complete.');
   const change = Number(tender.changeCents ?? 0);
   return result.success ? { ...result, success: `Sale ${String(result.result?.reference ?? '')} complete.${change > 0 ? ` Change due ${(change / 100).toFixed(2)}.` : ''}` } : result;
 }

@@ -6,7 +6,7 @@ import { chapterInk } from '../lib/chapters';
 
 export type TileProduct = {
   id: string; name: string; form: string; priceCents?: number; imageUrl?: string | null; description?: string | null;
-  adultUseEligible?: boolean; medicalEligible?: boolean; demo?: boolean;
+  adultUseEligible?: boolean; medicalEligible?: boolean;
 };
 
 export const channelLabel = (product: TileProduct) => [product.adultUseEligible && 'Adult-use', product.medicalEligible && 'Medical'].filter(Boolean).join(' · ');
@@ -23,14 +23,12 @@ export function CatalogEntry({ product, currencyCode, showChannel = true }: { pr
     <span className="block min-w-0 flex-1">
       <span className="flex items-baseline justify-between gap-4">
         <span className="cn-name cn-entry-name min-w-0 break-words text-[22px] leading-[26px] text-cn-ink sm:text-[24px] sm:leading-[28px]">{product.name}</span>
-        {product.priceCents != null
-          ? <span className="cn-display cn-num shrink-0 text-[24px] text-cn-ink sm:text-[26px]">{formatPrice(product.priceCents, currencyCode)}</span>
-          : <span className="shrink-0 text-[14px] font-semibold text-cn-warn">Sample</span>}
+        {product.priceCents != null && <span className="cn-display cn-num shrink-0 text-[24px] text-cn-ink sm:text-[26px]">{formatPrice(product.priceCents, currencyCode)}</span>}
       </span>
       <span className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[14px] text-cn-ink-2">
         <span>{product.form}</span>
         {channel && <span>{channel}</span>}
-        <span className="text-cn-ink-3">{product.demo ? 'Not for sale' : 'In store'}</span>
+        <span className="text-cn-ink-3">Pickup</span>
       </span>
       {product.description && <span className="mt-1.5 line-clamp-2 block max-w-[60ch] text-[15px] [text-wrap:pretty] leading-[22px] text-cn-ink-3">{product.description}</span>}
     </span>

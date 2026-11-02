@@ -50,7 +50,12 @@ export const Cart = list({
     guestProofHash: text({ isFilterable: false, isOrderable: false, access: { read: () => false, create: () => false, update: () => false } }), expiresAt: timestamp({ validation: { isRequired: true } }),
     rulePack: relationship({ ref: "JurisdictionRulePack" }), eligibilityEvidence: relationship({ ref: "EligibilityEvidence" }),
     subtotalCents: integer({ defaultValue: 0, validation: { min: 0 } }), discountCents: integer({ defaultValue: 0, validation: { min: 0 } }), taxCents: integer({ defaultValue: 0, validation: { min: 0 } }), totalCents: integer({ defaultValue: 0, validation: { min: 0 } }),
-    lines: relationship({ ref: "CartLine.cart", many: true }), version: integer({ defaultValue: 1, validation: { min: 1 } }), ...trackingFields,
+    lines: relationship({ ref: "CartLine.cart", many: true }), version: integer({ defaultValue: 1, validation: { min: 1 } }),
+    // Online pickup orders: the shopper's chosen window and how they pay. The card reference is the Authorize.net
+    // transaction id of the authorization; it is captured (or voided) by staff, never by the shopper.
+    pickupWindowStart: timestamp(), pickupWindowEnd: timestamp(), pickupName: text(), pickupPhone: text(),
+    paymentMethod: text(), paymentStatus: text(), paymentReference: text({ isFilterable: false, isOrderable: false }),
+    ...trackingFields,
   },
 });
 

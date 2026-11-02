@@ -8,13 +8,13 @@ import { chapterInk } from '../lib/chapters';
 import { directionsHref, openState } from '../lib/visit';
 import { CatalogEntry, ProductPlate, channelLabel } from '../components/ProductTile';
 import { StorefrontShell } from '../components/StorefrontShell';
+import { AddToBag } from '../components/AddToBag';
 import { menuForms, menuItems } from './MenuPage';
 
 export async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [menu, settings] = await Promise.all([getPublicCannabisMenu(), getPublicCannabisStorefrontSettings()]);
-  const { live, demo } = menuItems(menu);
-  const catalog = live.length ? live : settings.mode === 'demo' ? demo : [];
+  const catalog = menuItems(menu);
   const product = catalog.find(item => item.id === decodeURIComponent(id));
   if (!product) notFound();
   const source = menu.products.find(item => item.id === product.id);
@@ -25,7 +25,7 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
   const formHref = `/?form=${encodeURIComponent(formKey(product.form))}#menu`;
   const specs: Array<[string, string]> = [
     ...(source?.sku ? [['SKU', source.sku] as [string, string]] : []),
-    ['Purchase', product.demo ? 'Sample · not for sale' : 'In store only, after an ID check'],
+    ['Purchase', 'Order for pickup · bring a valid ID'],
     ...(open ? [['Store', open.label] as [string, string]] : []),
   ];
 
@@ -37,17 +37,18 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
         <Link href={formHref} className="inline-flex min-h-11 min-w-0 items-center truncate hover:text-cn-ink">{product.form}</Link>
       </nav>
       <article className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:gap-14">
-        <div className="order-last lg:order-none lg:sticky lg:top-[calc(var(--cn-header)+24px)] lg:self-start"><ProductPlate product={product} specs={[['Form', product.form], ...(product.priceCents != null ? [['Price', formatPrice(product.priceCents, menu.currencyCode)] as [string, string]] : []), ['Sold for', channels || (product.demo ? 'Sample' : '—')], ['Buy', 'In store']]} /></div>
+        <div className="order-last lg:order-none lg:sticky lg:top-[calc(var(--cn-header)+24px)] lg:self-start"><ProductPlate product={product} specs={[['Form', product.form], ...(product.priceCents != null ? [['Price', formatPrice(product.priceCents, menu.currencyCode)] as [string, string]] : []), ['Sold for', channels || '—'], ['Buy', 'Pickup']]} /></div>
         <div className="min-w-0 lg:pt-2">
           <h1 className="cn-display break-words text-[52px] text-cn-ink [text-wrap:balance] sm:text-[80px]">{product.name}</h1>
           <div className="mt-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-y border-cn-line py-4">
-            {product.priceCents != null ? <p className="cn-display cn-num text-[56px] text-cn-ink">{formatPrice(product.priceCents, menu.currencyCode)}</p> : <p className="cn-name text-[24px] text-cn-warn">Sample · not for sale</p>}
-            {!product.demo && <p className="inline-flex items-baseline gap-2 text-[16px] text-cn-ink-2"><span className="cn-dot bg-cn-ok" aria-hidden="true" />In stock · buy in store</p>}
+            {product.priceCents != null && <p className="cn-display cn-num text-[56px] text-cn-ink">{formatPrice(product.priceCents, menu.currencyCode)}</p>}
+            <p className="inline-flex items-baseline gap-2 text-[16px] text-cn-ink-2"><span className="cn-dot bg-cn-ok" aria-hidden="true" />In stock · order for pickup</p>
           </div>
           <dl className="mt-2 text-[16px]">
             {specs.map(([term, value]) => <div key={term} className="grid gap-1 border-b border-cn-line py-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-6"><dt className="text-cn-ink-3">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
           </dl>
           {product.description && <p className="mt-6 max-w-prose whitespace-pre-line break-words text-[17px] [text-wrap:pretty] leading-[28px] text-cn-ink-2">{product.description}</p>}
+          {product.priceCents != null && <AddToBag product={{ id: product.id, name: product.name, priceCents: product.priceCents }} />}
           <div className="mt-8 flex flex-wrap gap-2">
             {directions && <a href={directions} target="_blank" rel="noreferrer" data-tone="ink" className="cn-btn">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
             <Link href={formHref} className="cn-btn">More {product.form.toLowerCase()}</Link>

@@ -4,11 +4,11 @@ import { assertEffectiveRulePack, assertEligibility } from "../domain/cannabisPo
 import { assertText, requireRulePack, runControlledOperation, stableHash } from "./workflow";
 
 const CAPACITIES = new Set(["adult_use", "patient", "caregiver"]);
-const IDENTITY_METHODS = new Set(["drivers_license", "state_id", "passport", "military_id", "tribal_id"]);
+export const IDENTITY_METHODS = new Set(["drivers_license", "state_id", "passport", "military_id", "tribal_id"]);
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** A calendar date typed at the counter, read as that UTC day. */
-function dateOnly(value: unknown, label: string) {
+export function dateOnly(value: unknown, label: string) {
   const text = assertText(value, label, 10, 10);
   const date = new Date(`${text}T00:00:00Z`);
   if (!DATE_ONLY.test(text) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== text) throw new Error(`${label} must be a real date`);
@@ -19,7 +19,7 @@ function dateOnly(value: unknown, label: string) {
  * Document numbers are stored only as a keyed hash scoped to the premises, so a returning
  * customer is recognised (their purchase-limit history follows them) without keeping the number.
  */
-function documentHash(premisesId: string, kind: string, number: string) {
+export function documentHash(premisesId: string, kind: string, number: string) {
   const key = process.env.SESSION_SECRET;
   if (!key) throw new Error("Check-in is unavailable on this server");
   return createHmac("sha256", key).update(`${premisesId}:${kind}:${number.replace(/[\s-]/g, "").toUpperCase()}`).digest("hex");

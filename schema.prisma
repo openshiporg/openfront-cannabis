@@ -671,6 +671,13 @@ model Cart {
   totalCents            Int?                  @default(0)
   lines                 CartLine[]            @relation("CartLine_cart")
   version               Int?                  @default(1)
+  pickupWindowStart     DateTime?
+  pickupWindowEnd       DateTime?
+  pickupName            String                @default("")
+  pickupPhone           String                @default("")
+  paymentMethod         String                @default("")
+  paymentStatus         String                @default("")
+  paymentReference      String                @default("")
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @default(now()) @updatedAt
   from_Sale_cart        Sale[]                @relation("Sale_cart")

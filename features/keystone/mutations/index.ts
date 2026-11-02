@@ -15,6 +15,7 @@ import { setStaffTemporaryPassword } from "./staffAccess";
 import { exposeRuleErrors } from "./ruleErrors";
 import { advanceRecallCase, openRecallCase, placePackageHold, recordPackageLabResult, releaseCannabisPackage } from "./custody";
 import { checkInCannabisCustomer } from "./customers";
+import { cancelCannabisPickupOrder, cannabisPickupOptions, cannabisPickupOrder, placeCannabisPickupOrder } from "./onlineOrders";
 
 const graphql = String.raw;
 
@@ -25,6 +26,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type Query {
         redirectToInit: Boolean
         publicCannabisMenu: JSON!
+        cannabisPickupOptions: JSON!
+        cannabisPickupOrder(reference: String!, proof: String!): JSON!
         publicCannabisStorefrontSettings: JSON!
         cannabisOperationsWorkspace(section: String!, options: JSON): JSON!
         cannabisStorefrontSettingsWorkspace: JSON!
@@ -34,6 +37,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         cannabisSaleReceipt(saleId: ID!): JSON!
       }
       type Mutation {
+        placeCannabisPickupOrder(input: JSON!): JSON!
+        cancelCannabisPickupOrder(reference: String!, proof: String!): JSON!
         runCannabisOnboarding(input: JSON!): JSON!
         dismissCannabisOnboarding: JSON!
         transitionComplianceIncident(input: JSON!): JSON!
@@ -80,8 +85,10 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
     `,
     resolvers: {
-      Query: exposeRuleErrors({ redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
+      Query: exposeRuleErrors({ cannabisPickupOptions, cannabisPickupOrder, redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
       Mutation: exposeRuleErrors({
+        placeCannabisPickupOrder,
+        cancelCannabisPickupOrder,
         runCannabisOnboarding,
         dismissCannabisOnboarding,
         transitionComplianceIncident,

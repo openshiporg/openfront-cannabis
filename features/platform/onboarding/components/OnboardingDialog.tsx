@@ -36,7 +36,7 @@ const initialValues = (): Values => ({
   licenseNumber: '', licenseType: '', regulatorName: '', authorityReference: '', licenseEffectiveAt: localDate(), licenseExpiresAt: localDate(365),
   credentialType: '', credentialReference: '', credentialEffectiveAt: localDate(), credentialExpiresAt: localDate(365), staffEvidenceHash: '', ownerApprovalLimit: '',
   ruleVersion: '', citations: '', ruleEffectiveAt: localDate(), ruleExpiresAt: localDate(365), adultMinimumAge: '21', medicalEnabled: false, medicalMinimumAge: '18',
-  opensAt: '09:00', closesAt: '21:00', labelRequirements: '', returnPolicy: '', outagePolicy: '', privacyPolicy: '', retentionPolicy: '', pickupEnabled: false,
+  opensAt: '09:00', closesAt: '21:00', labelRequirements: '', returnPolicy: '', outagePolicy: '', privacyPolicy: '', retentionPolicy: '', pickupEnabled: true,
   tenders: ['cash'], tenderReference: '', traceabilityProviderCode: '', traceabilityAuthorityReference: '',
 });
 

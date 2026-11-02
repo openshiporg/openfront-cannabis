@@ -89,6 +89,7 @@ export async function amendCannabisRulePack(_root: unknown, args: { input: any }
       allowedTenderTypes: input.allowedTenderTypes === undefined ? current.allowedTenderTypes : tenderTypes(input.allowedTenderTypes),
       medicalEnabled: input.medicalEnabled === undefined ? current.medicalEnabled : input.medicalEnabled === true,
       offlineSalesAllowed: current.offlineSalesAllowed,
+      pickupEnabled: input.pickupEnabled === undefined ? current.pickupEnabled : input.pickupEnabled === true,
     };
     if (!Array.isArray(next.discountRules)) throw new Error("Discount rules must be a list; leave it empty to prohibit discounts");
     assertEffectiveRulePack({ id: "amendment", ...next } as unknown as EffectiveRulePack, now);
@@ -97,7 +98,7 @@ export async function amendCannabisRulePack(_root: unknown, args: { input: any }
       adultMinimumAge: next.adultMinimumAge, medicalMinimumAge: next.medicalMinimumAge, medicalEnabled: next.medicalEnabled, operatingStartMinute: next.operatingStartMinute, operatingEndMinute: next.operatingEndMinute,
       purchaseLimits: next.purchaseLimits, taxRules: next.taxRules, discountRules: next.discountRules, allowedTenderTypes: next.allowedTenderTypes, labelRequirements: current.labelRequirements,
       returnRules: current.returnRules, outagePolicy: current.outagePolicy, privacyRules: current.privacyRules, retentionRules: current.retentionRules,
-      pickupEnabled: current.pickupEnabled, deliveryEnabled: current.deliveryEnabled, offlineSalesAllowed: current.offlineSalesAllowed,
+      pickupEnabled: next.pickupEnabled, deliveryEnabled: current.deliveryEnabled, offlineSalesAllowed: current.offlineSalesAllowed,
     }));
     await sudo.query.JurisdictionRulePack.updateOne({ where: { id: current.id }, data: { status: "superseded" }, query: "id" });
     const created = await sudo.query.JurisdictionRulePack.createOne({ data: {
@@ -107,7 +108,7 @@ export async function amendCannabisRulePack(_root: unknown, args: { input: any }
       adultMinimumAge: next.adultMinimumAge, medicalMinimumAge: next.medicalMinimumAge, operatingStartMinute: next.operatingStartMinute, operatingEndMinute: next.operatingEndMinute,
       purchaseLimits: next.purchaseLimits, taxRules: next.taxRules, discountRules: next.discountRules, allowedTenderTypes: next.allowedTenderTypes,
       labelRequirements: current.labelRequirements, returnRules: current.returnRules, outagePolicy: current.outagePolicy, privacyRules: current.privacyRules, retentionRules: current.retentionRules,
-      medicalEnabled: next.medicalEnabled, pickupEnabled: current.pickupEnabled, deliveryEnabled: current.deliveryEnabled, offlineSalesAllowed: current.offlineSalesAllowed,
+      medicalEnabled: next.medicalEnabled, pickupEnabled: next.pickupEnabled, deliveryEnabled: current.deliveryEnabled, offlineSalesAllowed: current.offlineSalesAllowed,
     }, query: "id version" });
     await syncTenderConfigurations(tx, authority, next.allowedTenderTypes as string[], now, expiresAt, input.tenderReference);
     let approvalLimitCents: number | null = null;

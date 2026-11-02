@@ -12,6 +12,10 @@ import { assertInteger, assertText, requireOperationalAuthority, requireRulePack
 import { serializableTransaction } from '../domain/transaction.ts';
 import { capturePayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
+import { releaseOnlinePayment } from "./onlinePayments";
+
+/** Server-internal marker for expiring abandoned online orders; it can never arrive through GraphQL JSON. */
+export const SYSTEM_CANCEL = Symbol("system-cancel");
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -54,7 +58,7 @@ async function validateCustomerProof(context: Context, customerId: string, proof
 }
 
 /** Equivalency the customer already bought inside each configured day, rolling or allotment window. */
-async function purchaseWindowTotals(sudo: Context, customerId: string, pack: Record<string, any>, now: Date) {
+export async function purchaseWindowTotals(sudo: Context, customerId: string, pack: Record<string, any>, now: Date) {
   const priorSales = await sudo.query.Sale.findMany({ where: { customer: { id: { equals: customerId } }, finalizedAt: { gte: new Date(now.getTime() - 366 * 86400_000) }, status: { in: ["finalized", "state_queued", "state_accepted", "state_rejected", "reconciled", "partially_refunded"] } }, orderBy: [{ finalizedAt: "desc" }], take: 1001, query: "finalizedAt lines { categoryCodeSnapshot equivalencyMicrounits }" });
   if (priorSales.length > 1000) throw new Error("Purchase history exceeds bounded automatic evaluation and requires compliance review");
   const priorWindowTotals: Record<string, number> = {};
@@ -98,7 +102,7 @@ export async function createPosCannabisCart(_root: unknown, args: { input: any }
   });
 }
 
-const ALLOCATION_PACKAGE_SELECTION = "id packageUid productionBatchNumber unitOfMeasure status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labName labResultReference labVerifiedAt labelVersion potencySnapshot version organization { id } premises { id } holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku unitOfMeasure categoryCode unitQuantityMicrounits equivalencyMicrounits priceCents taxCategoryCode adultUseEligible medicalEligible status organization { id } premises { id } }";
+export const ALLOCATION_PACKAGE_SELECTION = "id packageUid productionBatchNumber unitOfMeasure status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labName labResultReference labVerifiedAt labelVersion potencySnapshot version organization { id } premises { id } holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku unitOfMeasure categoryCode unitQuantityMicrounits equivalencyMicrounits priceCents taxCategoryCode adultUseEligible medicalEligible status organization { id } premises { id } }";
 
 export async function cannabisCartAllocationQuote(_root: unknown, args: { input: unknown }, context: Context) {
   const authority = await requireOperationalAuthority(context, "canManageSales", "sale");
@@ -236,12 +240,12 @@ export async function cancelCannabisCart(_root: unknown, args: { input: any }, c
     const authority = await requireOperationalAuthority(context, "canManageSales", "sale");
     if (authority.organizationId !== cart.organization.id || authority.premisesId !== cart.premises.id) throw new Error("Cart is outside current staff authority");
     actor = authority.actor;
-  } else if (!input.proof || cart.guestProofHash !== hash(input.proof)) {
+  } else if (input.system !== SYSTEM_CANCEL && (!input.proof || cart.guestProofHash !== hash(input.proof))) {
     throw new Error("Cart ownership proof is invalid");
   }
   if (cart.status === "cancelled") return { id: cart.id, status: "cancelled", reference: cart.reference, replayed: true };
 
-  return serializableTransaction(context, async tx => {
+  const cancelled = await serializableTransaction(context, async tx => {
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-cart", cart.id);
     const sudo = tx.sudo();
     const currentCart = await sudo.query.Cart.findOne({
@@ -252,7 +256,7 @@ export async function cancelCannabisCart(_root: unknown, args: { input: any }, c
     if (currentCart.organization?.id !== cart.organization.id || currentCart.premises?.id !== cart.premises.id) throw new Error("Cart authority scope changed concurrently");
     if (staff) {
       if (actor?.organization?.id !== currentCart.organization.id || actor?.premises?.id !== currentCart.premises.id) throw new Error("Cart is outside current staff authority");
-    } else if (!input.proof || currentCart.guestProofHash !== hash(input.proof)) {
+    } else if (input.system !== SYSTEM_CANCEL && (!input.proof || currentCart.guestProofHash !== hash(input.proof))) {
       throw new Error("Cart ownership proof is invalid");
     }
 
@@ -339,6 +343,9 @@ export async function cancelCannabisCart(_root: unknown, args: { input: any }, c
     });
     return { id: currentCart.id, status: "cancelled", reference: currentCart.reference };
   }, 20_000);
+  // An online order may hold a card authorization: release it now that the stock is back.
+  if (!(cancelled as any).replayed) await releaseOnlinePayment(context, cart.id);
+  return cancelled;
 }
 
 export async function finalizeCannabisSale(_root: unknown, args: { input: any }, context: Context) {
@@ -355,6 +362,26 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     // a connected provider must be the only one and validated.
     const traceability = await sudo.query.IntegrationInstallation.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, providerType: { equals: "traceability" }, status: { equals: "active" } }, take: 2, query: "id providerCode validatedAt authorityReference" });
     if (traceability.length > 1 || (traceability.length === 1 && !traceability[0].validatedAt)) throw new Error("Exactly one externally validated active traceability installation is required before sale");
+    // Online pickup orders carry no shift and only a declared identity. Completing one is the ID check:
+    // staff confirm the customer's ID, which makes the declared eligibility current and puts the sale on their open shift.
+    let cardAuthorization: string | null = null;
+    const online = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id source shift { id } paymentMethod paymentStatus paymentReference eligibilityEvidence { id } customer { id } organization { id } premises { id } pickupWindowStart" });
+    if (online && online.source === "pickup" && !online.shift) {
+      if (online.organization?.id !== authority.organizationId || online.premises?.id !== authority.premisesId) throw new Error("Cart is outside current staff authority");
+      if (input.idVerified !== true) throw new Error("Check the customer\u2019s ID against the order and confirm it before completing a pickup order");
+      const openShifts = await sudo.query.RegisterShift.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, take: 1, query: "id" });
+      if (openShifts.length !== 1) throw new Error("Open your register shift before completing a pickup order");
+      if (!online.eligibilityEvidence || !online.customer) throw new Error("Pickup order has no customer on file");
+      await sudo.query.EligibilityEvidence.updateOne({ where: { id: online.eligibilityEvidence.id }, data: { result: "eligible", verifiedAt: now, reasonCodes: ["checked_at_pickup"] }, query: "id" });
+      await sudo.query.Customer.updateOne({ where: { id: online.customer.id }, data: { status: "eligible" }, query: "id" });
+      await sudo.query.Cart.updateOne({ where: { id: online.id }, data: { shift: { connect: { id: openShifts[0].id } } }, query: "id" });
+      if (online.paymentMethod === "card" && online.paymentStatus === "authorized" && online.paymentReference) {
+        cardAuthorization = online.paymentReference;
+        const first = Array.isArray(input.tenders) ? input.tenders[0] : null;
+        if (first && first.type === "debit" && !first.providerReference) first.providerReference = online.paymentReference;
+        else if (first && first.providerReference !== online.paymentReference) throw new Error("This order was paid by card; complete it with the card payment on the order");
+      }
+    }
     const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference status expiresAt totalCents subtotalCents discountCents taxCents version organization { id } premises { id } shift { id status operator { id } } customer { id capacity status } eligibilityEvidence { id result capacity dateOfBirth identityExpiresAt registryExpiresAt evidenceHash allotmentRemainingMicrounits } rulePack { id version } lines(take: 251) { id package { id version status testStatus expiresAt unitOfMeasure premises { id } quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } } product { id categoryCode } titleSnapshot skuSnapshot categoryCodeSnapshot packageUidSnapshot batchSnapshot potencySnapshot quantityMicrounits equivalencyMicrounits unitPriceCents discountCents discountSnapshot taxCents totalCents }" });
     if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || cart.status !== "reserved" || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
     if (!cart.shift || cart.shift.status !== "open" || cart.shift.operator?.id !== authority.actor.id) throw new Error("Actor must own the cart's open register shift");
@@ -461,6 +488,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     assertFinalSaleCartFence({ id: cart.id, status: cart.status, version: cart.version }, { id: cartFence.id, status: cartFence.status, version: cartFence.version });
     const completed = await tx.prisma.cart.updateMany({ where: { id: cart.id, version: cart.version, status: "reserved" }, data: { status: "completed", version: { increment: 1 } } });
     if (completed.count !== 1) throw new Error("Reserved cart state changed concurrently");
+    if (online?.source === "pickup") await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: cardAuthorization ? "captured" : "paid_at_pickup" }, query: "id" });
     return { id: sale.id, status: sale.status, reference: sale.receiptNumber, totalCents: cart.totalCents, stateReport: { receiptNumber: sale.receiptNumber, finalizedAt: now.toISOString(), customerCapacity: cart.customer.capacity, rulePackVersion: pack.version, packages: cart.lines.map((line: any) => ({ packageUid: line.packageUidSnapshot, quantityMicrounits: line.quantityMicrounits, unitOfMeasure: salePackageSnapshots.get(line.package.id)!.unitOfMeasure })) } };
   });
 }

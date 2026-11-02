@@ -223,7 +223,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   }
 
   if (section === "pos") {
-    const carts = await page(context, "Cart", { where: { ...scope, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference source status version expiresAt subtotalCents discountCents taxCents totalCents customer { id reference capacity } shift { id operator { id } } lines(take: 50) { id titleSnapshot quantityMicrounits totalCents package { unitOfMeasure } }" });
+    const carts = await page(context, "Cart", { where: { ...scope, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference source status version expiresAt subtotalCents discountCents taxCents totalCents pickupWindowStart pickupWindowEnd pickupName pickupPhone paymentMethod paymentStatus customer { id reference capacity } shift { id operator { id } } lines(take: 50) { id titleSnapshot quantityMicrounits totalCents package { unitOfMeasure } }" });
     // Selling needs the actor's own open shift; payment types are the configured, current ones.
     const myShifts = await sudo.query.RegisterShift.findMany({ where: { ...scope, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, orderBy: [{ openedAt: "desc" }], take: 5, query: "id register { name code }" });
     const tenderTypes = await sudo.query.TenderConfiguration.findMany({ where: { ...scope, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, orderBy: [{ type: "asc" }], take: 10, query: "type displayName" });

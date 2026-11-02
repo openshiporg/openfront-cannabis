@@ -8,6 +8,7 @@ import { storeBrand } from '../lib/brand';
 import { chapterInk } from '../lib/chapters';
 import { addressLines, ageRule, ageStripLabel, directionsHref, openState, tenderLabels } from '../lib/visit';
 import { AgeGate } from './AgeGate';
+import { BagLink } from './BagLink';
 import { PhoneMenu } from './PhoneMenu';
 import { StoreLogo } from './StoreLogo';
 
@@ -49,7 +50,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
     <div className="bg-cn-ink text-cn-on-ink">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-1.5 text-[13px] font-semibold sm:px-6">
         <span className="cn-num shrink-0">{ageStripLabel(visit)}</span>
-        <span className="inline-flex min-w-0 items-baseline gap-2 truncate">{open && <span aria-hidden="true" className={`cn-dot ${open.open ? 'bg-[#16834a]' : 'bg-cn-on-ink/40'}`} />}<span className="truncate">{open ? open.label : 'In-store purchase only'}</span></span>
+        <span className="inline-flex min-w-0 items-baseline gap-2 truncate">{open && <span aria-hidden="true" className={`cn-dot ${open.open ? 'bg-[#16834a]' : 'bg-cn-on-ink/40'}`} />}<span className="truncate">{open ? open.label : 'Order ahead for pickup'}</span></span>
       </div>
     </div>
     <header className="sticky top-0 z-40 border-b border-cn-line bg-cn-bg">
@@ -58,6 +59,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
         <nav aria-label="Store" className="hidden items-center gap-7 sm:flex">
           <Link href="/#menu" aria-current={current === 'menu' ? 'page' : undefined} className="cn-tab">Menu</Link>
           <Link href="/visit" aria-current={current === 'visit' ? 'page' : undefined} className="cn-tab">Visit</Link>
+          <BagLink />
           <Link href="/dashboard/signin" className="cn-tab text-cn-ink-3">Staff sign in<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
         </nav>
         <PhoneMenu>
@@ -67,6 +69,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
               {forms.map(form => <li key={form.key}><Link href={`/?form=${encodeURIComponent(form.key)}#menu`} className="flex min-h-12 items-center justify-between gap-3 px-3 text-[16px] text-cn-ink-2">
                 <span className="inline-flex items-center gap-2.5"><span aria-hidden="true" className="inline-block size-2.5 rounded-[2px]" style={{ background: chapterInk(form.label) }} />{form.label}</span><span className="cn-num text-[14px] text-cn-ink-3">{form.count}</span>
               </Link></li>)}
+              <li><BagLink className="flex min-h-12 items-center px-3 text-[16px] font-semibold text-cn-ink" /></li>
               <li><Link href="/visit" className="flex min-h-12 items-center px-3 text-[16px] font-semibold text-cn-ink">Visit · hours and address</Link></li>
               <li><Link href="/dashboard/signin" className="flex min-h-12 items-center justify-between px-3 text-[15px] text-cn-ink-2">Staff sign in<ArrowUpRight className="size-4" aria-hidden="true" /></Link></li>
             </ul>
@@ -96,7 +99,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
         {tenders.length > 0 && <section aria-labelledby="pay-title" className="min-w-0 text-[15px]">
           <h2 id="pay-title" className="cn-name text-[18px] text-cn-ink">Payment</h2>
           <p className="mt-2 text-cn-ink-2">{tenders.join(' · ')}</p>
-          <p className="mt-1 text-cn-ink-3">In store only</p>
+          <p className="mt-1 text-cn-ink-3">Card online or at pickup</p>
         </section>}
       </div>
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-1 border-t border-cn-line px-4 py-4 text-[14px] text-cn-ink-3 sm:px-6">

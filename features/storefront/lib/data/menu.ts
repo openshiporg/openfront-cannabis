@@ -1,7 +1,7 @@
 'use server';
 
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
-import { NEUTRAL_STOREFRONT_SETTINGS, type PublicDemoCatalogItem, type PublicStorefrontSettings } from '@/features/keystone/domain/storefrontSettings';
+import { NEUTRAL_STOREFRONT_SETTINGS, type PublicStorefrontSettings } from '@/features/keystone/domain/storefrontSettings';
 
 export type PublicLiveMenuItem = {
   id: string; name: string; sku?: string; form: string; categoryCode: string; priceCents: number; description?: string | null;
@@ -15,14 +15,13 @@ export type PublicCannabisMenu = {
   rulePackVersion?: string;
   currencyCode?: string | null;
   products: PublicLiveMenuItem[];
-  demoProducts: PublicDemoCatalogItem[];
 };
 
 export async function getPublicCannabisMenu(): Promise<PublicCannabisMenu> {
   const response = await keystoneClient<{ publicCannabisMenu: PublicCannabisMenu }>('query PublicCannabisMenu { publicCannabisMenu }', {}, undefined,
     // @ts-expect-error The restored E-commerce keystoneClient has no privacy option and logs failures; kept until the family upstreams it.
     { logErrors: false });
-  if (!response.success) return { unavailable: true, products: [], demoProducts: [] };
+  if (!response.success) return { unavailable: true, products: [] };
   return response.data.publicCannabisMenu;
 }
 
