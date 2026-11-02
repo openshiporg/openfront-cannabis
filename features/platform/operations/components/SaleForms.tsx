@@ -1,4 +1,5 @@
 'use client';
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime';
 
 import { useState, useTransition } from 'react';
 import { Actions, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
@@ -207,7 +208,7 @@ export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId }
   const mine = online || cart.shift?.operator?.id === actorId;
   const open = ['preliminarily_eligible', 'reserved'].includes(cart.status);
   return <div className="space-y-4">
-    {online && <p className="rounded-[5px] border border-border bg-muted/30 px-3 py-2 text-sm">Online pickup order{cart.pickupName ? ` for ${cart.pickupName}` : ''}{cart.pickupPhone ? ` · ${cart.pickupPhone}` : ''}{cart.pickupWindowStart ? ` · pickup ${new Date(cart.pickupWindowStart).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''} · {cart.paymentMethod === 'card' ? (cart.paymentStatus === 'authorized' ? 'card authorized, not yet charged' : `card ${cart.paymentStatus ?? ''}`) : 'pays at pickup'}</p>}
+    {online && <p className="rounded-[5px] border border-border bg-muted/30 px-3 py-2 text-sm">Online pickup order{cart.pickupName ? ` for ${cart.pickupName}` : ''}{cart.pickupPhone ? ` · ${cart.pickupPhone}` : ''}{cart.pickupWindowStart ? <> · pickup <ViewerTime value={cart.pickupWindowStart} style="datetime" /></> : ''} · {cart.paymentMethod === 'card' ? (cart.paymentStatus === 'authorized' ? 'card authorized, not yet charged' : `card ${cart.paymentStatus ?? ''}`) : 'pays at pickup'}</p>}
     {cart.lines.length ? <ul className="divide-y divide-border overflow-hidden rounded-[5px] border border-border bg-background">{cart.lines.map(line => <li key={line.id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm"><span className="min-w-0">{line.titleSnapshot} <span className="tabular-nums text-xs text-muted-foreground">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)}</span></span><span className="tabular-nums">{money(line.totalCents)}</span></li>)}
       <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-xs text-muted-foreground"><span>Subtotal {money(cart.subtotalCents)} · tax {money(cart.taxCents)}{cart.discountCents ? ` · discount ${money(cart.discountCents)}` : ''}</span><span className="tabular-nums text-sm font-medium text-foreground">{money(cart.totalCents)}</span></li>
     </ul> : <p className="text-sm text-muted-foreground">No items yet.</p>}
