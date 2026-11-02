@@ -10,7 +10,7 @@
  * Enforced server-side as a `beforeOperation` hook wrapped around the lists named in
  * DEMO_GUARD_POLICY. List hooks also run for `context.sudo()` writes (the session is
  * kept), so custom mutations and server actions that write through Keystone are covered.
- * `useDemoGuardErrors()` turns the wrapped Keystone error into the exact copy.
+ * `demoGuardErrorsPlugin()` turns the wrapped Keystone error into the exact copy.
  *
  * Plain module: no @/ imports, only `graphql`.
  */
@@ -204,7 +204,7 @@ export function rewriteDemoErrors(result: any) {
 }
 
 /** Yoga/envelop plugin for pages/api/graphql.ts. */
-export function useDemoGuardErrors() {
+export function demoGuardErrorsPlugin() {
   return {
     onExecute() {
       return {

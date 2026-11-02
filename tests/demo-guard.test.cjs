@@ -137,5 +137,5 @@ test('the guard is wired into the Keystone config and the GraphQL route', () => 
   const config = fs.readFileSync(path.join(root, 'features/keystone/index.ts'), 'utf8');
   assert.match(config, /lists: withDemoGuard\(models\)/);
   const route = fs.readFileSync(path.join(root, 'pages/api/graphql.ts'), 'utf8');
-  assert.match(route, /useDemoGuardErrors\(\)/);
+  assert.match(route, /demoGuardErrorsPlugin\(\)/);
 });
