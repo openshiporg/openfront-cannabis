@@ -1,5 +1,7 @@
 'use client';
 
+import { Children, isValidElement } from 'react';
+import { Select as SelectRoot, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Actions, buttonClass, inputClass, labelClass, Button, textareaClass } from '@/features/platform/components/cannabis-ui';
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
 import {
@@ -16,8 +18,19 @@ function Field({ name, title, errors, hint, ...rest }: { name: string; title: st
   return <label className={label}>{title}<input {...rest} {...fieldProps(name, errors)} className={input} />{hint && <span className="mt-1 block font-normal text-muted-foreground">{hint}</span>}<FieldError name={name} errors={errors} /></label>;
 }
 
-function Select({ name, title, errors, children, ...rest }: { name: string; title: string; errors?: FieldErrors; children: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <label className={label}>{title}<select {...rest} {...fieldProps(name, errors)} className={input}>{children}</select><FieldError name={name} errors={errors} /></label>;
+function Select({ name, title, errors, children, defaultValue, disabled, required, compact = false }: { name: string; title: string; errors?: FieldErrors; children: React.ReactNode; defaultValue?: string; disabled?: boolean; required?: boolean; compact?: boolean }) {
+  const options = Children.toArray(children).filter(isValidElement<{ value: string; disabled?: boolean; children: React.ReactNode }>);
+  const placeholder = options.find(option => option.props.value === '')?.props.children;
+  return <div className={compact ? 'min-w-32' : undefined}>
+    {!compact && <label htmlFor={`field-${name}`} className={label}>{title}</label>}
+    <SelectRoot name={name} defaultValue={defaultValue} disabled={disabled} required={required}>
+      <SelectTrigger {...fieldProps(name, errors)} aria-label={compact ? title : undefined} className={compact ? 'h-8 rounded-[5px] px-2 text-xs' : input}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>{options.filter(option => option.props.value !== '').map(option => <SelectItem key={option.props.value} value={option.props.value} disabled={option.props.disabled}>{option.props.children}</SelectItem>)}</SelectContent>
+    </SelectRoot>
+    <FieldError name={name} errors={errors} />
+  </div>;
 }
 
 function Check({ name, title, defaultChecked }: { name: string; title: string; defaultChecked?: boolean }) {
@@ -241,7 +254,7 @@ export function RegisterStatusForm({ register }: { register: { id: string; statu
   const { state, onSubmit, pending, key, summary } = useCommand(amendRegisterFromDesk);
   return <form onSubmit={onSubmit()} className="flex flex-wrap items-center gap-2">
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="registerId" value={register.id} />
-    <select name="status" defaultValue={register.status} aria-label="Register status" disabled={pending} className="h-8 rounded-[5px] border border-input bg-background px-2 text-xs"><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select>
+    <Select name="status" title="Register status" defaultValue={register.status} disabled={pending} errors={state.fieldErrors} compact><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></Select>
     <Actions><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;

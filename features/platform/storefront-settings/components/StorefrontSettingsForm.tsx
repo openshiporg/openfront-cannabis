@@ -150,7 +150,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
     <aside aria-label="Storefront preview" className="xl:sticky xl:top-4">
       <p className="mb-2 text-[13px] font-semibold">Preview</p>
       <div className="storefront-theme overflow-hidden rounded-[6px] border border-border" style={{ '--cn-h': values.brandHue } as React.CSSProperties}>
-        <div className="flex items-center justify-between bg-cn-ink px-3 py-1 text-[11px] font-semibold text-cn-on-ink"><span>{previewStrip?.age ?? '21+ ONLY'}</span><span className="truncate pl-3">{previewStrip?.hours ?? 'In-store purchase only'}</span></div>
+        <div className="flex items-center justify-between bg-cn-ink px-3 py-1 text-[12px] font-semibold text-cn-on-ink"><span>{previewStrip?.age ?? '21+ ONLY'}</span><span className="truncate pl-3">{previewStrip?.hours ?? 'In-store purchase only'}</span></div>
         <div className="border-b border-cn-line px-3 py-1.5 text-cn-ink"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
         <div className="relative h-36 bg-cn-raise">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -163,7 +163,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
           <span className="inline-flex items-baseline gap-1.5 text-[12px] text-cn-ink-2"><span className="cn-dot" style={{ backgroundColor: accent(60, 46) }} />In-store only</span>
         </div>
         {previewItems.length > 0 && <div className="px-3 pb-3">
-          {previewItems.map(item => <div key={item.name} className="flex items-baseline justify-between gap-3 border-t border-cn-line py-2 text-cn-ink"><span className="cn-name truncate text-[15px]">{item.name}</span><span className="shrink-0 text-[11px] text-cn-ink-3">{item.form}</span></div>)}
+          {previewItems.map(item => <div key={item.name} className="flex items-baseline justify-between gap-3 border-t border-cn-line py-2 text-cn-ink"><span className="cn-name truncate text-[15px]">{item.name}</span><span className="shrink-0 text-[12px] text-cn-ink-3">{item.form}</span></div>)}
         </div>}
       </div>
     </aside>
