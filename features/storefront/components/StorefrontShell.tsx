@@ -75,7 +75,8 @@ export async function StorefrontShell({ settings, forms = [], current, children 
       </div>
     </header>
     <main className="flex-1">{children}</main>
-    <footer className="mt-16 border-t border-cn-line bg-cn-page">
+    {/* Visit ends on its own panel; a gap there reads as an empty band. */}
+    <footer className={`${current === 'visit' ? '' : 'mt-16 '}border-t border-cn-line bg-cn-page`}>
       <div className="mx-auto grid max-w-[1440px] gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,1fr))]">
         <div className="min-w-0 space-y-3 text-cn-ink">
           {logo(true)}
