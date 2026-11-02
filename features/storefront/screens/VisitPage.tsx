@@ -4,7 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings } from '../lib/data/menu';
 import { menuForms, menuItems } from './MenuPage';
 import { addressLines, ageRule, directionsHref, openState, tenderLabels } from '../lib/visit';
-import { COVER_PHOTO, StorefrontShell, storeName } from '../components/StorefrontShell';
+import { coverPhoto, StorefrontShell, storeName } from '../components/StorefrontShell';
 
 /** Everything a customer needs before walking in: where, when, what to bring, how to pay. */
 export async function VisitPage() {
@@ -29,7 +29,7 @@ export async function VisitPage() {
     <div className="mx-auto grid max-w-[1440px] lg:min-h-[calc(100svh-var(--cn-header)-30px)] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
       <figure className="relative min-h-[240px] overflow-hidden bg-cn-raise sm:min-h-[360px] lg:min-h-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={COVER_PHOTO.src} alt="" className="absolute inset-0 size-full object-cover [object-position:36%_42%]" />
+        <img src={coverPhoto(settings).src} alt="" className="absolute inset-0 size-full object-cover" style={{ objectPosition: coverPhoto(settings).position }} />
       </figure>
       <section aria-labelledby="cn-visit-title" className="min-w-0 bg-cn-page px-4 py-8 sm:px-8 sm:py-10 lg:px-12">
         <h1 id="cn-visit-title" className="cn-display break-words text-[56px] text-cn-ink [text-wrap:balance] sm:text-[88px]">{settings.isConfigured ? `Visit ${storeName(settings)}` : 'Visit'}</h1>

@@ -32,7 +32,7 @@ export type PublicVisit = {
   minimumAge: number | null; medicalMinimumAge: number | null;
 };
 
-export type PublicStorefrontSettingsResult = PublicStorefrontSettings & { unavailable?: boolean; visit?: PublicVisit };
+export type PublicStorefrontSettingsResult = PublicStorefrontSettings & { unavailable?: boolean; visit?: PublicVisit; coverUrl?: string | null };
 
 export async function getPublicCannabisStorefrontSettings(): Promise<PublicStorefrontSettingsResult> {
   const response = await keystoneClient<{ publicCannabisStorefrontSettings: PublicStorefrontSettingsResult }>(

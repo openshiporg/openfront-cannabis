@@ -52,12 +52,12 @@ export async function publicCannabisStorefrontSettings(_root: unknown, _args: un
       },
       orderBy: [{ createdAt: "asc" }],
       take: 2,
-      query: "businessName tagline description brandHue logoIcon logoColor publicationStatus storefrontMode",
+      query: "businessName tagline description brandHue logoIcon logoColor heroImage { url } publicationStatus storefrontMode",
     });
     if (settings.length > 1) return { ...NEUTRAL_STOREFRONT_SETTINGS, unavailable: true };
     if (settings.length !== 1) return { ...NEUTRAL_STOREFRONT_SETTINGS };
     const projected = projectPublicStorefrontSettings(settings[0]);
-    return projected.isConfigured ? { ...projected, visit: await publicVisit(context, authority) } : projected;
+    return projected.isConfigured ? { ...projected, coverUrl: settings[0].heroImage?.url ?? null, visit: await publicVisit(context, authority) } : projected;
   } catch {
     return { ...NEUTRAL_STOREFRONT_SETTINGS, unavailable: true };
   }
@@ -92,7 +92,7 @@ export async function publicCannabisMenu(_root: unknown, _args: unknown, context
     context.sudo().query.InventoryPackage.findMany({
       where: { ...scope, status: { equals: "saleable" }, testStatus: { equals: "passed" }, expiresAt: { gt: new Date() }, quantityOnHandMicrounits: { gt: 0 } },
       orderBy: [{ expiresAt: "asc" }, { createdAt: "asc" }], take: 201,
-      query: "id status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku form categoryCode unitQuantityMicrounits priceCents publicDescription publicImageUrl adultUseEligible medicalEligible status } premises { id }",
+      query: "id status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku form categoryCode unitQuantityMicrounits priceCents publicDescription publicImageUrl photo { url } adultUseEligible medicalEligible status } premises { id }",
     }),
     context.sudo().query.StorefrontSettings.findMany({
       where: { ...scope, publicationStatus: { equals: "published" }, storefrontMode: { equals: "demo" } },
@@ -107,7 +107,7 @@ export async function publicCannabisMenu(_root: unknown, _args: unknown, context
     try {
       assertPackageSaleable({ status: pkg.status, testStatus: pkg.testStatus, expiresAt: pkg.expiresAt, premisesId, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits, reservedMicrounits: pkg.reservedMicrounits, activeHoldCount: pkg.holds?.length || 0, coaReference: pkg.coaReference, labelVersion: pkg.labelVersion }, authority.premises.id, pkg.product.unitQuantityMicrounits);
     } catch { continue; }
-    if (!products.has(pkg.product.id)) products.set(pkg.product.id, { id: pkg.product.id, name: pkg.product.name, sku: pkg.product.sku, form: pkg.product.form, categoryCode: pkg.product.categoryCode, priceCents: pkg.product.priceCents, description: pkg.product.publicDescription, imageUrl: pkg.product.publicImageUrl, adultUseEligible: pkg.product.adultUseEligible, medicalEligible: pkg.product.medicalEligible, available: true });
+    if (!products.has(pkg.product.id)) products.set(pkg.product.id, { id: pkg.product.id, name: pkg.product.name, sku: pkg.product.sku, form: pkg.product.form, categoryCode: pkg.product.categoryCode, priceCents: pkg.product.priceCents, description: pkg.product.publicDescription, imageUrl: pkg.product.photo?.url || pkg.product.publicImageUrl || null, adultUseEligible: pkg.product.adultUseEligible, medicalEligible: pkg.product.medicalEligible, available: true });
   }
   const demoProducts = demoSettings.length === 1 ? projectPublicDemoCatalog(demoSettings[0].demoCatalog) : [];
   return { jurisdictionCode: authority.organization.jurisdictionCode, rulePackVersion: authority.pack.version, currencyCode: authority.premises.currencyCode ?? null, products: [...products.values()], demoProducts };

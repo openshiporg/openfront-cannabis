@@ -27,3 +27,20 @@ export async function runCommandRequest<T>(query: string, variables: Record<stri
     return { success: false, message: operatorMessage(error) };
   }
 }
+
+/** The same command with one image file, sent as a GraphQL multipart request (the `photo: Upload` argument). */
+export async function runCommandUpload<T>(query: string, variables: Record<string, unknown>, photo: File): Promise<CommandResponse<T>> {
+  try {
+    const body = new FormData();
+    body.append('operations', JSON.stringify({ query, variables: { ...variables, photo: null } }));
+    body.append('map', JSON.stringify({ 1: ['variables.photo'] }));
+    body.append('1', photo, photo.name || 'photo');
+    // Keystone's GraphQL endpoint rejects multipart posts without a preflight header (CSRF guard).
+    const response = await fetch(await getGraphQLEndpoint(), { method: 'POST', redirect: 'error', headers: { ...((await getAuthHeaders()) || {}), 'apollo-require-preflight': 'true' }, body });
+    const json = await response.json().catch(() => null) as { data?: T; errors?: Array<{ message?: string }> } | null;
+    if (json?.errors?.length || !json?.data) return { success: false, message: operatorMessage({ response: { errors: json?.errors ?? [] } }) };
+    return { success: true, data: json.data };
+  } catch {
+    return { success: false, message: null };
+  }
+}

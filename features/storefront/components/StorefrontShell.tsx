@@ -17,18 +17,25 @@ export function storeName(settings: PublicStorefrontSettingsResult) {
   return settings.businessName || 'Dispensary';
 }
 
-/** The cover photograph's source, credited in the colophon. */
+/** The built-in cover photograph, credited in the colophon while it is shown. */
 export const COVER_PHOTO = {
   src: '/storefront/cover-silver-star-haze.jpg',
   credit: 'Cover photo: Cannabis Pictures, CC BY 2.0',
   href: 'https://commons.wikimedia.org/wiki/File:Cannabis_Silver_star_haze_in_bloom_(25519864035).jpg',
+  position: '36% 42%',
 };
+
+/** The store's own cover from Store Settings, else the built-in one with its credit. */
+export function coverPhoto(settings: PublicStorefrontSettingsResult) {
+  return settings.coverUrl ? { src: settings.coverUrl, credit: null, href: null, position: '50% 50%' } : COVER_PHOTO;
+}
 
 /** Public frame: age gate, age and open-state strip, header, phone menu, and the catalog colophon. */
 export async function StorefrontShell({ settings, forms = [], current, children }: { settings: PublicStorefrontSettingsResult; forms?: ShellForm[]; current?: 'menu' | 'visit'; children: ReactNode }) {
   const confirmed = (await cookies()).get(AGE_COOKIE)?.value === '1';
   const brand = storeBrand(settings);
   const name = storeName(settings);
+  const cover = coverPhoto(settings);
   const logo = (wrap = false) => <StoreLogo svg={brand.logoSvg} hue={brand.logoColor} name={name} wrap={wrap} />;
   const theme = { '--cn-h': brand.hue } as CSSProperties;
   const visit = settings.visit;
@@ -96,7 +103,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
         <Link href="/#menu" className="inline-flex min-h-11 items-center hover:text-cn-ink">Menu</Link>
         <Link href="/visit" className="inline-flex min-h-11 items-center hover:text-cn-ink">Visit</Link>
         <Link href="/dashboard/signin" className="inline-flex min-h-11 items-center gap-1 hover:text-cn-ink">Staff sign in<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
-        <a href={COVER_PHOTO.href} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center hover:text-cn-ink">{COVER_PHOTO.credit}</a>
+        {cover.credit && <a href={cover.href!} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center hover:text-cn-ink">{cover.credit}</a>}
         <span className="cn-num inline-flex min-h-11 items-center">© {new Date().getFullYear()}</span>
       </div>
     </footer>

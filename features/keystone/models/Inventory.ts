@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { checkbox, integer, json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { checkbox, image, integer, json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { immutablePremisesAccess } from "../access";
 import { trackingFields } from "./trackingFields";
 
@@ -16,6 +16,8 @@ export const Product = list({
     equivalencyMicrounits: integer({ validation: { min: 1, isRequired: true } }), priceCents: integer({ validation: { min: 0, isRequired: true } }),
     taxCategoryCode: text({ validation: { isRequired: true } }), adultUseEligible: checkbox({ defaultValue: false }), medicalEligible: checkbox({ defaultValue: false }),
     status: status(["draft", "active", "inactive"], "draft"), publicDescription: text(), publicImageUrl: text(),
+    // Set only through amendCannabisProduct (the list is read-only), shown on the public menu and product page.
+    photo: image({ storage: "my_images", label: "Photo" }),
     packages: relationship({ ref: "InventoryPackage.product", many: true }), ...trackingFields,
   },
 });

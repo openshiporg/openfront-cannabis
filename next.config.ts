@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
   // typescript: {
   //   ignoreBuildErrors: true,
   // },
+  // Product and cover photos go through server actions; allow up to 10 MB, as Coffee and Rideshare do.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   images: {
     remotePatterns: [
       {

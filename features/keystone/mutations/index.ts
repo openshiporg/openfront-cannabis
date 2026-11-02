@@ -9,7 +9,7 @@ import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabi
 import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, retryStateOutboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
-import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings } from "./storefrontSettings";
+import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings, setCannabisStorefrontCover } from "./storefrontSettings";
 import { amendCannabisPremisesDetails, amendCannabisRulePack } from "./rulePack";
 import { setStaffTemporaryPassword } from "./staffAccess";
 import { exposeRuleErrors } from "./ruleErrors";
@@ -37,7 +37,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         runCannabisOnboarding(input: JSON!): JSON!
         dismissCannabisOnboarding: JSON!
         transitionComplianceIncident(input: JSON!): JSON!
-        amendCannabisProduct(input: JSON!): JSON!
+        amendCannabisProduct(input: JSON!, photo: Upload): JSON!
+        setCannabisStorefrontCover(input: JSON!, photo: Upload): JSON!
         revokeStaffCredential(input: JSON!): JSON!
         amendRegister(input: JSON!): JSON!
         renewCannabisAuthority(input: JSON!): JSON!
@@ -98,6 +99,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         checkInCannabisCustomer,
         setStaffTemporaryPassword,
         configureCannabisStorefrontSettings,
+        setCannabisStorefrontCover,
         provisionStaffAuthority,
         submitCannabisCustomerIntake,
         recordEligibilityDecision,

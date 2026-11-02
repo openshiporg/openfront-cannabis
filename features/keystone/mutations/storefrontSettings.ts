@@ -1,8 +1,9 @@
 import type { Context } from ".keystone/types";
 import { NEUTRAL_STOREFRONT_SETTINGS, normalizeLogoSettings, normalizeStorefrontSettingsInput, projectPublicStorefrontSettings } from "../domain/storefrontSettings";
 import { requireOperationalAuthority, requireReadAuthority, runControlledOperation } from "./workflow";
+import { imageColumns, readPublicImageUpload, storePublicImage } from "../domain/publicImages";
 
-const SETTINGS_SELECTION = "id businessName tagline description brandHue logoIcon logoColor publicationStatus storefrontMode updatedAt";
+const SETTINGS_SELECTION = "id businessName tagline description brandHue logoIcon logoColor heroImage { url } publicationStatus storefrontMode updatedAt";
 
 async function scopedSettings(context: Context, organizationId: string, premisesId: string) {
   return context.sudo().query.StorefrontSettings.findMany({
@@ -35,6 +36,7 @@ export async function cannabisStorefrontSettingsWorkspace(_root: unknown, _args:
       ...normalizeLogoSettings({ logoIcon: row.logoIcon || undefined, logoColor: row.logoColor }),
       publicationStatus: row.publicationStatus, storefrontMode: row.storefrontMode,
     } : null,
+    coverUrl: row?.heroImage?.url ?? null,
     publicPreview: projectPublicStorefrontSettings(row),
     organizationId: authority.organizationId,
     premisesId: authority.premisesId,
@@ -81,4 +83,26 @@ export async function configureCannabisStorefrontSettings(_root: unknown, args: 
 
 export function unconfiguredStorefrontSettings() {
   return { ...NEUTRAL_STOREFRONT_SETTINGS };
+}
+
+/** Upload or remove the storefront cover photo. Settings must already exist; the cover never publishes them. */
+export async function setCannabisStorefrontCover(_root: unknown, args: { input: any; photo?: unknown }, context: Context) {
+  const upload = await readPublicImageUpload(args.photo);
+  const input = upload ? { ...args.input, photoSha256: upload.sha256 } : args.input;
+  const remove = input?.remove === true;
+  if (!upload && !remove) throw new Error("Choose a cover photo to upload");
+  if (upload && remove) throw new Error("Upload a cover photo or remove it, not both");
+  await requireOperationalAuthority(context, "canManageAuthority", "authority");
+  const stored = upload ? await storePublicImage(context, upload) : null;
+  return runControlledOperation(context, input, {
+    permission: "canManageAuthority", activity: "authority", scope: "setCannabisStorefrontCover", lockKeys: ["storefront-settings"],
+    resourceType: "StorefrontSettings", action: "storefront.cover.set", emitStateEvent: false,
+  }, async (tx, authority) => {
+    const existing = await scopedSettings(tx, authority.organizationId, authority.premisesId);
+    if (existing.length !== 1) throw new Error("Save Store Settings before adding a cover photo");
+    const changed = await tx.prisma.storefrontSettings.updateMany({ where: { id: existing[0].id }, data: imageColumns("heroImage", stored) });
+    if (changed.count !== 1) throw new Error("Store settings changed; refresh and try again");
+    const cover = stored ? { uploaded: `${stored.id}.${stored.extension}`, sha256: upload!.sha256, width: stored.width, height: stored.height } : { removed: true };
+    return { id: existing[0].id, status: stored ? "cover_set" : "cover_removed", cover };
+  });
 }

@@ -16,5 +16,6 @@ export const VIEW_ORDER = [
   "timestamp",
   "checkbox",
   "json",
-  "integer"
+  "integer",
+  "image"
 ];

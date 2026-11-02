@@ -7,7 +7,7 @@ import { formKey } from '../lib/format';
 import { chapterId, chapterInk } from '../lib/chapters';
 import { CatalogEntry, type TileProduct } from '../components/ProductTile';
 import { ChapterRail } from '../components/ChapterRail';
-import { COVER_PHOTO, StorefrontShell, storeName, type ShellForm } from '../components/StorefrontShell';
+import { coverPhoto, StorefrontShell, storeName, type ShellForm } from '../components/StorefrontShell';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -103,7 +103,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
       <figure className="relative flex min-w-0 flex-col bg-cn-bg lg:min-h-0">
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-cn-raise lg:absolute lg:inset-0 lg:aspect-auto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={COVER_PHOTO.src} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover [object-position:36%_42%]" />
+          <img src={coverPhoto(settings).src} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover" style={{ objectPosition: coverPhoto(settings).position }} />
         </div>
         <figcaption className="relative px-4 pb-6 pt-5 sm:px-7 lg:absolute lg:inset-x-0 lg:bottom-0 lg:bg-cn-bg/80 lg:pb-7 lg:pt-6">
           <h1 id="cn-cover-title" className="cn-display break-words text-[56px] text-cn-ink [text-wrap:balance] sm:text-[88px] xl:text-[112px]">{settings.isConfigured ? name : 'Dispensary menu'}</h1>

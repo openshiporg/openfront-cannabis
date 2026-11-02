@@ -137,7 +137,7 @@ const sections = {
     refunds: page(obj({ id: str, amountCents: int, reasonCode: str, status: str, inventoryDisposition: str, occurredAt: date, sale: nullable(obj({ id: str, receiptNumber: str })) })),
   }),
   product: obj({ ...base,
-    product: nullable(obj({ id: str, name: str, sku: str, brand: optStr, form: str, categoryCode: str, taxCategoryCode: str, unitOfMeasure: str, unitQuantityMicrounits: int, equivalencyMicrounits: int, priceCents: int, status: str, adultUseEligible: bool, medicalEligible: bool, publicDescription: optStr, publicImageUrl: optStr, updatedAt: date, createdAt: date })),
+    product: nullable(obj({ id: str, name: str, sku: str, brand: optStr, form: str, categoryCode: str, taxCategoryCode: str, unitOfMeasure: str, unitQuantityMicrounits: int, equivalencyMicrounits: int, priceCents: int, status: str, adultUseEligible: bool, medicalEligible: bool, publicDescription: optStr, publicImageUrl: optStr, photoUrl: optStr, updatedAt: date, createdAt: date })),
     packages: page(custodyPackage),
     saleLines: arr(obj({ id: str, quantityMicrounits: int, totalCents: int, packageUidSnapshot: str, createdAt: date, sale: nullable(obj({ id: str, receiptNumber: str, status: str, finalizedAt: date })) }), 20),
     categories: obj({ limit: arr(str, 50), tax: arr(str, 50) }),

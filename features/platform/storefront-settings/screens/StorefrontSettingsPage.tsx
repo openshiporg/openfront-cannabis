@@ -1,12 +1,13 @@
 import { ArrowUpRight } from 'lucide-react';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
-import { Actions, ButtonLink, buttonClass, Notice, PageTitle } from '@/features/platform/components/cannabis-ui';
+import { Actions, ButtonLink, buttonClass, Notice, PageTitle, Panel } from '@/features/platform/components/cannabis-ui';
 import { WorkspaceStateNotice } from '@/features/platform/operations/components/WorkspaceKit';
 import { getCannabisWorkspace } from '@/features/platform/workspaces/actions/workspaces';
 import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings } from '@/features/storefront/lib/data/menu';
 import { ageStripLabel, openState } from '@/features/storefront/lib/visit';
 import { getStoreSettingsSetup } from '../actions/settings';
 import { StorefrontSettingsForm } from '../components/StorefrontSettingsForm';
+import { CoverPhotoForm } from '../components/CoverPhotoForm';
 
 /** What a visitor sees right now, read from the same public queries the storefront uses. */
 async function publicState() {
@@ -30,6 +31,7 @@ export async function StorefrontSettingsPage() {
     <div className="space-y-6 px-4 pb-28 md:px-6">
       {visible && <Notice tone={visible.tone} action={<Actions>{visible.fix && <ButtonLink href="/dashboard/platform/authority#sales-rules" tone="primary">Fix sales rules</ButtonLink>}<ButtonLink href="/dashboard/platform/authority#premises">Address and phone</ButtonLink><a href="/" target="_blank" rel="noreferrer" className={buttonClass('default')}>View storefront<ArrowUpRight className="size-3.5" aria-hidden="true" /></a></Actions>}>Public storefront: {visible.label}</Notice>}
       {result.state === 'ok' && <StorefrontSettingsForm setup={result.data} previewItems={visible?.items ?? []} previewStrip={visible?.strip} />}
+      {result.state === 'ok' && result.data.revision && <Panel title="Cover photo"><CoverPhotoForm coverUrl={result.data.coverUrl} canSave={result.data.canSave} /></Panel>}
       {result.state === 'forbidden' && (setup?.state === 'setup_required' ? <WorkspaceStateNotice result={{ state: 'setup_required' }} retryHref="/dashboard/platform/store-settings" /> : <Notice tone="warn">No access to Store Settings for this premises</Notice>)}
       {result.state === 'unavailable' && <div role="alert"><Notice tone="danger" action={<ButtonLink href="/dashboard/platform/store-settings" tone="primary">Retry</ButtonLink>}>Store Settings could not be loaded</Notice></div>}
     </div>

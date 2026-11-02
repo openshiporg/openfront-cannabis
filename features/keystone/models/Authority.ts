@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { checkbox, integer, json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { checkbox, image, integer, json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { denyAll } from "@keystone-6/core/access";
 import { operationalPermissions, immutableOrganizationAccess, immutablePremisesAccess, immutableTenantAccess } from "../access";
 import { trackingFields } from "./trackingFields";
@@ -88,6 +88,8 @@ export const StorefrontSettings = list({
     logoColor: text({ defaultValue: DEFAULT_STORE_LOGO_COLOR, hooks: {
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === undefined ? undefined : normalizeStoreLogoColor(resolvedData[fieldKey]),
     } }),
+    // Storefront cover photo, set through setCannabisStorefrontCover. Empty shows the built-in cover.
+    heroImage: image({ storage: "my_images", label: "Cover photo" }),
     publicationStatus: status(["draft", "published"], "draft"),
     storefrontMode: status(["demo", "configured"], "configured"),
     demoCatalog: json({ defaultValue: [] }),

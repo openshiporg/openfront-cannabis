@@ -8,7 +8,8 @@ import { assertProviderEventScopeMatch } from "../domain/providerEventScope";
 import { isCompleteShiftCashEventRead } from "../domain/operatorReadBounds";
 import { evaluateRefundAllocationEvidence, getRefundEvidenceTenderIds, MAX_REFUND_ALLOCATION_EVIDENCE_ROWS } from "../domain/refundAllocation";
 import { serializableTransaction } from "../domain/transaction";
-import { assertInteger, assertReasonCode, assertText, fenceAuthority, requireReadAuthority, retainedRequest, runControlledOperation, stableHash } from "./workflow";
+import { imageColumns, readPublicImageUpload, storePublicImage } from "../domain/publicImages";
+import { assertInteger, assertReasonCode, assertText, fenceAuthority, requireOperationalAuthority, requireReadAuthority, retainedRequest, runControlledOperation, stableHash } from "./workflow";
 import { latestRulePack } from "./rulePack";
 
 export async function configureCannabisProduct(_root: unknown, args: { input: any }, context: Context) {
@@ -258,8 +259,12 @@ export async function transitionComplianceIncident(_root: unknown, args: { input
 const PRODUCT_STATUS = new Set(["active", "inactive"]);
 
 /** Correct or retire catalog data. Sold lines and received packages keep their own snapshots. */
-export async function amendCannabisProduct(_root: unknown, args: { input: any }, context: Context) {
-  const input = args.input;
+export async function amendCannabisProduct(_root: unknown, args: { input: any; photo?: unknown }, context: Context) {
+  // The photo's content hash joins the input, so a retried key must carry the same file.
+  const upload = await readPublicImageUpload(args.photo);
+  const input = upload ? { ...args.input, photoSha256: upload.sha256 } : args.input;
+  const removePhoto = input.removePhoto === true;
+  if (upload && removePhoto) throw new Error("Upload a photo or remove it, not both");
   const productId = assertText(input.productId, "Product ID"); const expectedUpdatedAt = new Date(assertText(input.expectedUpdatedAt, "Product revision"));
   if (!Number.isFinite(expectedUpdatedAt.getTime())) throw new Error("Product revision is invalid");
   if (input.unitOfMeasure != null || input.unitQuantityMicrounits != null || input.equivalencyMicrounits != null || input.sku != null) throw new Error("Unit, equivalency and SKU cannot be changed; configure a new product instead");
@@ -273,13 +278,17 @@ export async function amendCannabisProduct(_root: unknown, args: { input: any },
   // Categories can be corrected after a sales-rules change; sales lines keep their own category snapshot.
   if (input.categoryCode != null) data.categoryCode = assertText(input.categoryCode, "Purchase-limit category", 1, 60);
   if (input.taxCategoryCode != null) data.taxCategoryCode = assertText(input.taxCategoryCode, "Tax category", 1, 60);
-  if (!Object.keys(data).length) throw new Error("No product changes were submitted");
+  if (!Object.keys(data).length && !upload && !removePhoto) throw new Error("No product changes were submitted");
+  // Stored before the transaction: an S3 write must not hold row locks. A rejected command leaves only an unreferenced object.
+  if (upload) await requireOperationalAuthority(context, "canManageInventory", "inventory");
+  const stored = upload ? await storePublicImage(context, upload) : null;
   return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", emitStateEvent: false, lockKeys: [productId] }, async (tx, authority) => {
-    const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription categoryCode taxCategoryCode updatedAt organization { id } premises { id }" });
+    const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription categoryCode taxCategoryCode photo { id } updatedAt organization { id } premises { id }" });
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) throw new Error("Product is outside this premises");
     // The form sends every field; only real differences count as an amendment.
     for (const [field, value] of Object.entries(data)) if ((product as Record<string, unknown>)[field] === value || (field === "publicDescription" && !value && !product.publicDescription)) delete data[field];
-    if (!Object.keys(data).length) throw new Error("No changes to save");
+    const photoChange = stored ? { photo: { uploaded: `${stored.id}.${stored.extension}`, sha256: upload!.sha256, width: stored.width, height: stored.height } } : removePhoto && product.photo?.id ? { photo: { removed: true } } : {};
+    if (!Object.keys(data).length && !Object.keys(photoChange).length) throw new Error("No changes to save");
     if (data.categoryCode != null || data.taxCategoryCode != null) {
       const { pack } = await latestRulePack(tx, authority.organizationId, authority.premisesId);
       const limits = Array.isArray(pack?.purchaseLimits) ? pack!.purchaseLimits as Array<{ categoryCode?: unknown }> : [];
@@ -289,10 +298,11 @@ export async function amendCannabisProduct(_root: unknown, args: { input: any },
     }
     const next: Record<string, unknown> = { adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible, ...data };
     if (next.adultUseEligible !== true && next.medicalEligible !== true) throw new Error("Product must remain eligible for at least one channel");
-    const changed = await tx.prisma.product.updateMany({ where: { id: product.id, updatedAt: expectedUpdatedAt }, data });
+    const columns = Object.keys(photoChange).length ? imageColumns("photo", stored) : {};
+    const changed = await tx.prisma.product.updateMany({ where: { id: product.id, updatedAt: expectedUpdatedAt }, data: { ...data, ...columns } });
     if (changed.count !== 1) throw new Error("This product changed since you opened it. Refresh and try again.");
     const before = { name: product.name, priceCents: product.priceCents, status: product.status, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible, publicDescription: product.publicDescription, categoryCode: product.categoryCode, taxCategoryCode: product.taxCategoryCode };
-    return { id: product.id, status: String(next.status ?? product.status), reference: product.sku, before, changes: data };
+    return { id: product.id, status: String(next.status ?? product.status), reference: product.sku, before, changes: { ...data, ...photoChange } };
   });
 }
 

@@ -22,6 +22,7 @@ export type StoreSettingsSetup = {
   publicationStatus: 'draft' | 'published' | null;
   storefrontMode: 'demo' | 'configured' | null;
   values: StoreSettingsValues | null;
+  coverUrl: string | null;
 };
 
 export type StoreSettingsSetupResult =
@@ -42,6 +43,7 @@ type WorkspaceResponse = {
   state: 'ok' | 'forbidden';
   canSave?: boolean;
   revision?: string | null;
+  coverUrl?: string | null;
   settings?: (StoreSettingsValues & { publicationStatus: 'draft' | 'published'; storefrontMode: 'demo' | 'configured'; tagline: string | null; description: string | null }) | null;
 };
 
@@ -61,6 +63,7 @@ async function readWorkspace(): Promise<StoreSettingsSetupResult> {
       revision: typeof workspace.revision === 'string' ? workspace.revision : null,
       publicationStatus: row?.publicationStatus ?? null,
       storefrontMode: row?.storefrontMode ?? null,
+      coverUrl: typeof workspace.coverUrl === 'string' ? workspace.coverUrl : null,
       values: row ? {
         businessName: String(row.businessName || ''), tagline: String(row.tagline || ''), description: String(row.description || ''),
         brandHue: Number.isInteger(row.brandHue) ? row.brandHue : 215, logoIcon: String(row.logoIcon || ''), logoColor: String(row.logoColor || '0'),

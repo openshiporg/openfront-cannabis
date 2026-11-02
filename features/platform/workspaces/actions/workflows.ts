@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
-import { runCommandRequest } from '@/features/platform/lib/commandClient';
+import { runCommandRequest, runCommandUpload } from '@/features/platform/lib/commandClient';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
 import type { FieldErrors, FormState } from '@/features/platform/lib/formErrors';
 
@@ -29,8 +29,10 @@ async function commandReceipt(scope: string, idempotencyKey: string) {
 /** Server rule messages that belong to one field, shown next to it as well as in the summary. */
 const FIELD_MESSAGES: Array<[RegExp, string]> = [[/^SKU /, 'sku'], [/^Register code /, 'code'], [/^Staff email /, 'email'], [/^Package UID|^Package .* already/i, 'packageUid']];
 
-async function runCommand(mutation: string, scope: string, input: Record<string, unknown>, success: string): Promise<CommandState> {
-  const response = await runCommandRequest<Record<string, Record<string, unknown>>>(`mutation ControlledCannabisCommand($input: JSON!) { ${mutation}(input: $input) }`, { input });
+async function runCommand(mutation: string, scope: string, input: Record<string, unknown>, success: string, photo?: File | null): Promise<CommandState> {
+  const response = photo
+    ? await runCommandUpload<Record<string, Record<string, unknown>>>(`mutation ControlledCannabisCommand($input: JSON!, $photo: Upload) { ${mutation}(input: $input, photo: $photo) }`, { input }, photo)
+    : await runCommandRequest<Record<string, Record<string, unknown>>>(`mutation ControlledCannabisCommand($input: JSON!) { ${mutation}(input: $input) }`, { input });
   if (response.success) {
     revalidatePath('/dashboard/platform', 'layout');
     const result = response.data[mutation];
@@ -47,6 +49,15 @@ async function runCommand(mutation: string, scope: string, input: Record<string,
     return { error: `Not recorded: ${response.message}`, ...(field ? { fieldErrors: { [field]: response.message } } : {}) };
   }
   return { error: 'The outcome could not be confirmed. Try again: the same command will not be applied twice.', outcome: 'unknown' };
+}
+
+const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const PHOTO_ERROR = 'Choose a JPEG, PNG, WebP or GIF image of 10 MB or less';
+/** The chosen image, null when none was chosen, false when the file is not an acceptable image. */
+function imageFile(formData: FormData, name: string): File | null | false {
+  const value = formData.get(name);
+  if (!(value instanceof File) || value.size === 0) return null;
+  return PHOTO_TYPES.has(value.type) && value.size <= 10 * 1024 * 1024 ? value : false;
 }
 
 function invalid(fieldErrors: FieldErrors): CommandState {
@@ -109,15 +120,19 @@ export async function amendProductFromMenu(_state: CommandState, formData: FormD
   if (!['active', 'inactive'].includes(status)) errors.status = 'Choose active or inactive';
   const adultUseEligible = formData.get('adultUseEligible') === 'on'; const medicalEligible = formData.get('medicalEligible') === 'on';
   if (!adultUseEligible && !medicalEligible) errors.adultUseEligible = 'Select at least one sales channel';
+  const photo = imageFile(formData, 'photo');
+  if (photo === false) errors.photo = PHOTO_ERROR;
+  const removePhoto = formData.get('removePhoto') === 'on';
+  if (photo && removePhoto) errors.photo = 'Upload a photo or remove it, not both';
   const idempotencyKey = commandKey(formData);
   if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
   return runCommand('amendCannabisProduct', 'amendCannabisProduct', {
     idempotencyKey, productId: text(formData, 'productId'), expectedUpdatedAt: text(formData, 'expectedUpdatedAt'), name: text(formData, 'name'), priceCents, status,
-    adultUseEligible, medicalEligible, publicDescription: text(formData, 'publicDescription'),
+    adultUseEligible, medicalEligible, publicDescription: text(formData, 'publicDescription'), ...(removePhoto ? { removePhoto: true } : {}),
     // Categories are sent only when changed, so an unrelated edit isn't blocked by a stale code.
     ...(text(formData, 'categoryCode') && text(formData, 'categoryCode') !== text(formData, 'currentCategoryCode') ? { categoryCode: text(formData, 'categoryCode') } : {}),
     ...(text(formData, 'taxCategoryCode') && text(formData, 'taxCategoryCode') !== text(formData, 'currentTaxCategoryCode') ? { taxCategoryCode: text(formData, 'taxCategoryCode') } : {}),
-  }, 'Product updated.');
+  }, 'Product updated.', photo || null);
 }
 
 const INCIDENT_TYPES = ['refusal_of_sale', 'identity', 'patient_registry_outage', 'traceability_outage', 'payment_ambiguity', 'inventory_discrepancy', 'theft', 'loss', 'diversion', 'recall', 'privacy', 'security', 'system_outage', 'offline_attempt'];
@@ -446,4 +461,18 @@ export async function refundSaleFromDesk(_state: CommandState, formData: FormDat
   if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
   const providerReference = text(formData, 'providerReference');
   return runCommand('refundCannabisSale', 'refundCannabisSale', { idempotencyKey, saleId: text(formData, 'saleId'), originalTenderId: text(formData, 'originalTenderId'), amountCents, reasonCode: text(formData, 'reasonCode'), inventoryDisposition, ...(providerReference ? { providerReference } : {}), ...approver }, 'Refund recorded.');
+}
+
+/** Upload or remove the storefront cover photo (Store Settings). */
+export async function setStorefrontCoverFromSettings(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const photo = imageFile(formData, 'photo');
+  const remove = formData.get('remove') === 'on';
+  if (photo === false) return invalid({ photo: PHOTO_ERROR });
+  if (!photo && !remove) return invalid({ photo: 'Choose a cover photo' });
+  if (photo && remove) return invalid({ photo: 'Upload a cover photo or remove it, not both' });
+  const idempotencyKey = commandKey(formData);
+  if (!idempotencyKey) return invalid({});
+  const state = await runCommand('setCannabisStorefrontCover', 'setCannabisStorefrontCover', { idempotencyKey, ...(remove ? { remove: true } : {}) }, remove ? 'Cover photo removed.' : 'Cover photo saved.', photo || null);
+  if (state.success) { revalidatePath('/'); revalidatePath('/visit'); revalidatePath('/dashboard/platform/store-settings'); }
+  return state;
 }

@@ -293,13 +293,13 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   }
 
   if (section === "product") {
-    const product = options.id ? await sudo.query.Product.findOne({ where: { id: options.id }, query: "id name sku brand form categoryCode taxCategoryCode unitOfMeasure unitQuantityMicrounits equivalencyMicrounits priceCents status adultUseEligible medicalEligible publicDescription publicImageUrl updatedAt createdAt organization { id } premises { id }" }) : null;
+    const product = options.id ? await sudo.query.Product.findOne({ where: { id: options.id }, query: "id name sku brand form categoryCode taxCategoryCode unitOfMeasure unitQuantityMicrounits equivalencyMicrounits priceCents status adultUseEligible medicalEligible publicDescription publicImageUrl photo { url } updatedAt createdAt organization { id } premises { id }" }) : null;
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) return { ...base, product: null, packages: { items: [], nextCursor: null, total: 0 }, saleLines: [], categories: { limit: [], tax: [] } };
     const packages = await page(context, "InventoryPackage", { where: { ...scope, product: { id: { equals: product.id } } }, orderBy: [{ expiresAt: "asc" }], cursor: options.cursor, take: 25, query: PACKAGE_SELECTION });
     const saleLines = await sudo.query.SaleLine.findMany({ where: { ...scope, skuSnapshot: { equals: product.sku } }, orderBy: [{ createdAt: "desc" }], take: 20, query: "id quantityMicrounits totalCents packageUidSnapshot createdAt sale { id receiptNumber status finalizedAt }" });
     const codes = (rules: unknown) => [...new Set((Array.isArray(rules) ? rules : []).map((rule: any) => rule?.categoryCode).filter((code: unknown): code is string => typeof code === "string" && code.trim() !== ""))].slice(0, 50);
-    const { organization: _organization, premises: _premises, ...rest } = product;
-    return { ...base, product: rest, packages: { ...packages, items: packages.items.map(pkg => projectPackage(pkg, now)) }, saleLines, categories: { limit: codes(rulePack?.purchaseLimits), tax: codes(rulePack?.taxRules) } };
+    const { organization: _organization, premises: _premises, photo, ...rest } = product;
+    return { ...base, product: { ...rest, photoUrl: photo?.url || rest.publicImageUrl || null }, packages: { ...packages, items: packages.items.map(pkg => projectPackage(pkg, now)) }, saleLines, categories: { limit: codes(rulePack?.purchaseLimits), tax: codes(rulePack?.taxRules) } };
   }
 
   if (section === "recalls") {

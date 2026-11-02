@@ -60,7 +60,7 @@ export function NewProductForm({ limitCategories = [], taxCategories = [] }: { l
   </form>;
 }
 
-export function AmendProductForm({ product, limitCategories = [], taxCategories = [] }: { product: { id: string; name: string; priceCents: number; status: string; adultUseEligible: boolean; medicalEligible: boolean; publicDescription: string | null; updatedAt: string; categoryCode: string; taxCategoryCode: string }; limitCategories?: string[]; taxCategories?: string[] }) {
+export function AmendProductForm({ product, limitCategories = [], taxCategories = [] }: { product: { id: string; name: string; priceCents: number; status: string; adultUseEligible: boolean; medicalEligible: boolean; publicDescription: string | null; photoUrl?: string | null; updatedAt: string; categoryCode: string; taxCategoryCode: string }; limitCategories?: string[]; taxCategories?: string[] }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(amendProductFromMenu);
   const errors = state.fieldErrors;
   return <form onSubmit={onSubmit()} onChange={markDirty} className="space-y-3" aria-label={`Edit ${product.name}`}>
@@ -73,6 +73,16 @@ export function AmendProductForm({ product, limitCategories = [], taxCategories 
       <Select name="status" title="Status" errors={errors} defaultValue={product.status}><option value="active">Active</option><option value="inactive">Inactive (retired)</option></Select>
       <div className="grid gap-2 sm:col-span-3 sm:grid-cols-2"><Check name="adultUseEligible" title="Adult-use" defaultChecked={product.adultUseEligible} /><Check name="medicalEligible" title="Medical" defaultChecked={product.medicalEligible} /><FieldError name="adultUseEligible" errors={errors} /></div>
       <label className={`${label} sm:col-span-3`}>Public description<textarea name="publicDescription" defaultValue={product.publicDescription || ''} maxLength={1000} className={textareaClass} /></label>
+      <div className="flex items-start gap-3 sm:col-span-3">
+        {product.photoUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={product.photoUrl} alt="" className="size-16 shrink-0 rounded-[5px] border object-cover" />
+          : <span className="grid size-16 shrink-0 place-items-center rounded-[5px] border border-dashed text-xs text-muted-foreground">No photo</span>}
+        <div className="min-w-0 flex-1 space-y-2">
+          <label className={label}>{product.photoUrl ? 'Replace photo' : 'Photo'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" {...fieldProps('photo', errors)} className={`${input} py-1.5 file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-sm`} /><span className="mt-1 block font-normal text-muted-foreground">JPEG, PNG, WebP or GIF, up to 10 MB. Shown on the menu and product page.</span><FieldError name="photo" errors={errors} /></label>
+          {product.photoUrl && <Check name="removePhoto" title="Remove photo" />}
+        </div>
+      </div>
     </fieldset>
     <p className="text-xs text-muted-foreground">Unit, increment and SKU are fixed.</p>
     <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Saving…' : 'Save product'}</Button></Actions>

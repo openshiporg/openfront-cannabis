@@ -650,11 +650,28 @@ type StorefrontSettings {
   brandHue: Int
   logoIcon: String
   logoColor: String
+  heroImage: ImageFieldOutput
   publicationStatus: StorefrontSettingsPublicationStatusType
   storefrontMode: StorefrontSettingsStorefrontModeType
   demoCatalog: JSON
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type ImageFieldOutput {
+  id: ID!
+  filesize: Int!
+  width: Int!
+  height: Int!
+  extension: ImageExtension!
+  url: String!
+}
+
+enum ImageExtension {
+  jpg
+  png
+  webp
+  gif
 }
 
 enum StorefrontSettingsPublicationStatusType {
@@ -738,12 +755,20 @@ input StorefrontSettingsUpdateInput {
   brandHue: Int
   logoIcon: String
   logoColor: String
+  heroImage: ImageFieldInput
   publicationStatus: StorefrontSettingsPublicationStatusType
   storefrontMode: StorefrontSettingsStorefrontModeType
   demoCatalog: JSON
   createdAt: DateTime
   updatedAt: DateTime
 }
+
+input ImageFieldInput {
+  upload: Upload!
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
 
 input StorefrontSettingsUpdateArgs {
   where: StorefrontSettingsWhereUniqueInput!
@@ -759,6 +784,7 @@ input StorefrontSettingsCreateInput {
   brandHue: Int
   logoIcon: String
   logoColor: String
+  heroImage: ImageFieldInput
   publicationStatus: StorefrontSettingsPublicationStatusType
   storefrontMode: StorefrontSettingsStorefrontModeType
   demoCatalog: JSON
@@ -1465,6 +1491,7 @@ type Product {
   status: ProductStatusType
   publicDescription: String
   publicImageUrl: String
+  photo: ImageFieldOutput
   packages(where: InventoryPackageWhereInput! = {}, orderBy: [InventoryPackageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InventoryPackageWhereUniqueInput): [InventoryPackage!]
   packagesCount(where: InventoryPackageWhereInput! = {}): Int
   createdAt: DateTime
@@ -1561,6 +1588,7 @@ input ProductUpdateInput {
   status: ProductStatusType
   publicDescription: String
   publicImageUrl: String
+  photo: ImageFieldInput
   packages: InventoryPackageRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
@@ -1596,6 +1624,7 @@ input ProductCreateInput {
   status: ProductStatusType
   publicDescription: String
   publicImageUrl: String
+  photo: ImageFieldInput
   packages: InventoryPackageRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
@@ -2819,6 +2848,7 @@ type TenderConfiguration {
   displayName: String
   enabled: Boolean
   providerCode: String
+  paymentProvider: PaymentProvider
   authorityReference: String
   effectiveAt: DateTime
   expiresAt: DateTime
@@ -2851,6 +2881,7 @@ input TenderConfigurationWhereInput {
   displayName: StringFilter
   enabled: BooleanFilter
   providerCode: StringFilter
+  paymentProvider: PaymentProviderWhereInput
   authorityReference: StringFilter
   effectiveAt: DateTimeFilter
   expiresAt: DateTimeFilter
@@ -2887,11 +2918,18 @@ input TenderConfigurationUpdateInput {
   displayName: String
   enabled: Boolean
   providerCode: String
+  paymentProvider: PaymentProviderRelateToOneForUpdateInput
   authorityReference: String
   effectiveAt: DateTime
   expiresAt: DateTime
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input PaymentProviderRelateToOneForUpdateInput {
+  create: PaymentProviderCreateInput
+  connect: PaymentProviderWhereUniqueInput
+  disconnect: Boolean
 }
 
 input TenderConfigurationUpdateArgs {
@@ -2907,11 +2945,17 @@ input TenderConfigurationCreateInput {
   displayName: String
   enabled: Boolean
   providerCode: String
+  paymentProvider: PaymentProviderRelateToOneForCreateInput
   authorityReference: String
   effectiveAt: DateTime
   expiresAt: DateTime
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input PaymentProviderRelateToOneForCreateInput {
+  create: PaymentProviderCreateInput
+  connect: PaymentProviderWhereUniqueInput
 }
 
 type Cart {
@@ -3858,6 +3902,121 @@ input RefundCreateInput {
   evidenceHash: String
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type PaymentProvider {
+  id: ID!
+  name: String
+  code: String
+  isInstalled: Boolean
+  credentials: JSON
+  metadata: JSON
+  createPaymentFunction: String
+  capturePaymentFunction: String
+  refundPaymentFunction: String
+  getPaymentStatusFunction: String
+  generatePaymentLinkFunction: String
+  handleWebhookFunction: String
+  tenderConfigurations(where: TenderConfigurationWhereInput! = {}, orderBy: [TenderConfigurationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TenderConfigurationWhereUniqueInput): [TenderConfiguration!]
+  tenderConfigurationsCount(where: TenderConfigurationWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentProviderWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input PaymentProviderWhereInput {
+  AND: [PaymentProviderWhereInput!]
+  OR: [PaymentProviderWhereInput!]
+  NOT: [PaymentProviderWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  code: StringFilter
+  isInstalled: BooleanFilter
+  createPaymentFunction: StringFilter
+  capturePaymentFunction: StringFilter
+  refundPaymentFunction: StringFilter
+  getPaymentStatusFunction: StringFilter
+  generatePaymentLinkFunction: StringFilter
+  handleWebhookFunction: StringFilter
+  tenderConfigurations: TenderConfigurationManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input TenderConfigurationManyRelationFilter {
+  every: TenderConfigurationWhereInput
+  some: TenderConfigurationWhereInput
+  none: TenderConfigurationWhereInput
+}
+
+input PaymentProviderOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  code: OrderDirection
+  isInstalled: OrderDirection
+  createPaymentFunction: OrderDirection
+  capturePaymentFunction: OrderDirection
+  refundPaymentFunction: OrderDirection
+  getPaymentStatusFunction: OrderDirection
+  generatePaymentLinkFunction: OrderDirection
+  handleWebhookFunction: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentProviderUpdateInput {
+  name: String
+  code: String
+  isInstalled: Boolean
+  credentials: JSON
+  metadata: JSON
+  createPaymentFunction: String
+  capturePaymentFunction: String
+  refundPaymentFunction: String
+  getPaymentStatusFunction: String
+  generatePaymentLinkFunction: String
+  handleWebhookFunction: String
+  tenderConfigurations: TenderConfigurationRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TenderConfigurationRelateToManyForUpdateInput {
+  disconnect: [TenderConfigurationWhereUniqueInput!]
+  set: [TenderConfigurationWhereUniqueInput!]
+  create: [TenderConfigurationCreateInput!]
+  connect: [TenderConfigurationWhereUniqueInput!]
+}
+
+input PaymentProviderUpdateArgs {
+  where: PaymentProviderWhereUniqueInput!
+  data: PaymentProviderUpdateInput!
+}
+
+input PaymentProviderCreateInput {
+  name: String
+  code: String
+  isInstalled: Boolean
+  credentials: JSON
+  metadata: JSON
+  createPaymentFunction: String
+  capturePaymentFunction: String
+  refundPaymentFunction: String
+  getPaymentStatusFunction: String
+  generatePaymentLinkFunction: String
+  handleWebhookFunction: String
+  tenderConfigurations: TenderConfigurationRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TenderConfigurationRelateToManyForCreateInput {
+  create: [TenderConfigurationCreateInput!]
+  connect: [TenderConfigurationWhereUniqueInput!]
 }
 
 type AuditEvent {
@@ -4908,6 +5067,12 @@ type Mutation {
   updateRefunds(data: [RefundUpdateArgs!]!): [Refund]
   deleteRefund(where: RefundWhereUniqueInput!): Refund
   deleteRefunds(where: [RefundWhereUniqueInput!]!): [Refund]
+  createPaymentProvider(data: PaymentProviderCreateInput!): PaymentProvider
+  createPaymentProviders(data: [PaymentProviderCreateInput!]!): [PaymentProvider]
+  updatePaymentProvider(where: PaymentProviderWhereUniqueInput!, data: PaymentProviderUpdateInput!): PaymentProvider
+  updatePaymentProviders(data: [PaymentProviderUpdateArgs!]!): [PaymentProvider]
+  deletePaymentProvider(where: PaymentProviderWhereUniqueInput!): PaymentProvider
+  deletePaymentProviders(where: [PaymentProviderWhereUniqueInput!]!): [PaymentProvider]
   createAuditEvent(data: AuditEventCreateInput!): AuditEvent
   createAuditEvents(data: [AuditEventCreateInput!]!): [AuditEvent]
   updateAuditEvent(where: AuditEventWhereUniqueInput!, data: AuditEventUpdateInput!): AuditEvent
@@ -4958,7 +5123,8 @@ type Mutation {
   runCannabisOnboarding(input: JSON!): JSON!
   dismissCannabisOnboarding: JSON!
   transitionComplianceIncident(input: JSON!): JSON!
-  amendCannabisProduct(input: JSON!): JSON!
+  amendCannabisProduct(input: JSON!, photo: Upload): JSON!
+  setCannabisStorefrontCover(input: JSON!, photo: Upload): JSON!
   revokeStaffCredential(input: JSON!): JSON!
   amendRegister(input: JSON!): JSON!
   renewCannabisAuthority(input: JSON!): JSON!
@@ -4986,6 +5152,7 @@ type Mutation {
   finalizeCannabisSale(input: JSON!): JSON!
   configureCannabisProduct(input: JSON!): JSON!
   configureRegister(input: JSON!): JSON!
+  linkTenderPaymentProvider(input: JSON!): JSON!
   openRegisterShift(input: JSON!): JSON!
   closeRegisterShift(input: JSON!): JSON!
   approveCashVariance(input: JSON!): JSON!
@@ -5105,6 +5272,9 @@ type Query {
   refund(where: RefundWhereUniqueInput!): Refund
   refunds(where: RefundWhereInput! = {}, orderBy: [RefundOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefundWhereUniqueInput): [Refund!]
   refundsCount(where: RefundWhereInput! = {}): Int
+  paymentProvider(where: PaymentProviderWhereUniqueInput!): PaymentProvider
+  paymentProviders(where: PaymentProviderWhereInput! = {}, orderBy: [PaymentProviderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentProviderWhereUniqueInput): [PaymentProvider!]
+  paymentProvidersCount(where: PaymentProviderWhereInput! = {}): Int
   auditEvent(where: AuditEventWhereUniqueInput!): AuditEvent
   auditEvents(where: AuditEventWhereInput! = {}, orderBy: [AuditEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AuditEventWhereUniqueInput): [AuditEvent!]
   auditEventsCount(where: AuditEventWhereInput! = {}): Int
