@@ -24,7 +24,7 @@ function Select({ name, title, errors, children, defaultValue, disabled, require
   return <div className={compact ? 'min-w-32' : undefined}>
     {!compact && <label htmlFor={`field-${name}`} className={label}>{title}</label>}
     <SelectRoot name={name} defaultValue={defaultValue} disabled={disabled} required={required}>
-      <SelectTrigger {...fieldProps(name, errors)} aria-label={compact ? title : undefined} className={compact ? 'h-8 rounded-[5px] px-2 text-xs' : input}>
+      <SelectTrigger {...fieldProps(name, errors)} aria-label={compact ? title : undefined} className={compact ? 'h-8 rounded-[5px] px-2 text-xs' : `${input} !flex items-center justify-between text-left`}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>{options.filter(option => option.props.value !== '').map(option => <SelectItem key={option.props.value} value={option.props.value} disabled={option.props.disabled}>{option.props.children}</SelectItem>)}</SelectContent>
