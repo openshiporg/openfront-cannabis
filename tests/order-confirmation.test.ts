@@ -31,8 +31,9 @@ test("sends once on success and records sent with a guest link", async () => {
 test("the provider message id is recorded with a sent status", async () => {
   configure(true);
   const { audits, context } = fakeContext();
-  await deliverPickupConfirmation(context, args, async () => ({ sent: true, messageId: "<abc@resend>" }));
+  await deliverPickupConfirmation(context, args, async () => ({ sent: true, messageId: "<abc@resend>", response: "250 2.0.0 Ok: queued as abc123" }));
   assert.equal(audits[0].evidence.messageId, "<abc@resend>");
+  assert.equal(audits[0].evidence.smtpResponse, "250 2.0.0 Ok: queued as abc123");
 });
 
 test("a replay does not resend", async () => {
