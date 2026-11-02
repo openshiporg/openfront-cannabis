@@ -28,7 +28,7 @@ export async function StorefrontSettingsPage() {
   const setup = result.state === 'forbidden' ? await getCannabisWorkspace('overview') : null;
   const visible = result.state === 'ok' ? await publicState() : null;
   return <PageContainer header={header} breadcrumbs={breadcrumbs}>
-    <div className="space-y-6 px-4 pb-28 md:px-6">
+    <div className="space-y-6 px-4 pb-24 md:px-6 md:pb-8">
       {visible && <Notice tone={visible.tone} action={<Actions>{visible.fix && <ButtonLink href="/dashboard/platform/authority#sales-rules" tone="primary">Fix sales rules</ButtonLink>}<ButtonLink href="/dashboard/platform/authority#premises">Address and phone</ButtonLink><a href="/" target="_blank" rel="noreferrer" className={buttonClass('default')}>View storefront<ArrowUpRight className="size-3.5" aria-hidden="true" /></a></Actions>}>Public storefront: {visible.label}</Notice>}
       {result.state === 'ok' && <StorefrontSettingsForm setup={result.data} previewItems={visible?.items ?? []} previewStrip={visible?.strip} />}
       {result.state === 'ok' && result.data.revision && <Panel title="Cover photo"><CoverPhotoForm coverUrl={result.data.coverUrl} canSave={result.data.canSave} /></Panel>}

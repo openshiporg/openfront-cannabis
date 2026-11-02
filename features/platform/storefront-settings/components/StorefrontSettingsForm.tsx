@@ -2,13 +2,22 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Actions, Dot, DotLabel, inputClass, labelClass, Panel, Button, textareaClass } from '@/features/platform/components/cannabis-ui';
+import { Code } from 'lucide-react';
+import * as SelectPrimitive from '@radix-ui/react-select';
+import { Actions, Dot, DotLabel, inputClass, labelClass, Panel, Button as CannabisButton, textareaClass } from '@/features/platform/components/cannabis-ui';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { HUE_PRESETS, LOGO_ICONS } from '@/features/platform/store-settings/lib/icon-registry';
+import { StoreSettingsSaveBar } from '@/features/platform/store-settings/components/StoreSettingsSaveBar';
 import { StoreLogo } from '@/features/storefront/components/StoreLogo';
 import { CANNABIS_ACCENT_HUE, CANNABIS_LOGO_COLOR, CANNABIS_LOGO_ICON, isDefaultMark } from '@/features/storefront/lib/brand';
 import { FieldError, fieldProps, useFocusFirstError, type FieldErrors, type FormState } from '@/features/platform/lib/formErrors';
 import { useUnsavedChangesGuard } from '@/features/platform/lib/useUnsavedChangesGuard';
 import { checkStoreSettingsSave, saveStoreSettings, type SaveStoreSettingsInput, type SaveStoreSettingsResult, type StoreSettingsSetup, type StoreSettingsValues } from '../actions/settings';
-import { LogoPicker } from './LogoPicker';
 
 const EMPTY: StoreSettingsValues = { businessName: '', tagline: '', description: '', brandHue: CANNABIS_ACCENT_HUE, logoIcon: CANNABIS_LOGO_ICON, logoColor: CANNABIS_LOGO_COLOR };
 // A row still on the family's stored default mark opens on the Cannabis default instead.
@@ -26,12 +35,11 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
   const [published, setPublished] = useState(setup.publicationStatus === 'published');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors | undefined>();
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
-  const [logoDraftPending, setLogoDraftPending] = useState(false);
   const [pending, startTransition] = useTransition();
   // One command identity per reviewed edit; it survives retries until the outcome is definite.
   const attempt = useRef<SaveStoreSettingsInput | null>(null);
   const dirty = !same(values, baseline);
-  useUnsavedChangesGuard(dirty || logoDraftPending);
+  useUnsavedChangesGuard(dirty);
   const formState: FormState = { fieldErrors, error: status.kind === 'rejected' || status.kind === 'conflict' || status.kind === 'unknown' ? status.kind : undefined };
   const summary = useFocusFirstError(formState);
 
@@ -64,7 +72,7 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (logoDraftPending || pending) return;
+    if (pending) return;
     attempt.current ??= { values, expectedRevision: revision, idempotencyKey: `store-settings:${crypto.randomUUID()}` };
     send(attempt.current, saveStoreSettings);
   }
@@ -73,6 +81,14 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
     attempt.current = null;
     window.location.reload();
   }
+
+  // Same names as the E-commerce logo block, over this page's form state.
+  const logoIcon = values.logoIcon;
+  const logoColor = values.logoColor;
+  const setLogoIcon = (value: string) => update('logoIcon', value);
+  const setLogoColor = (value: string) => update('logoColor', value);
+  // Find matching preset icon, but don't default to first icon if not found
+  const selectedIcon = LOGO_ICONS.find((icon) => icon.lightSvg === logoIcon);
 
   const statusLabel = published ? 'Saved and published' : setup.values ? 'Draft' : 'Not set up';
   const accent = (lightness: number, saturation = 38) => `hsl(${values.brandHue} ${saturation}% ${lightness}%)`;
@@ -105,18 +121,134 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
 
         <Panel title="Logo">
           <div className="space-y-5">
-            <LogoPicker value={values.logoIcon} hue={values.logoColor} onChange={svg => update('logoIcon', svg)} onDraftPendingChange={setLogoDraftPending} />
-            <FieldError name="logoIcon" errors={fieldErrors} />
+            {/* Logo Icon Selector */}
             <div>
-              <span className={labelClass}>Logo colour</span>
-              <div className="mt-1.5 flex items-center gap-3">
-                <label htmlFor="logo-colour-range" className="sr-only">Logo colour (slider)</label>
-                <input id="logo-colour-range" type="range" min="0" max="359" step="1" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className="h-2 w-full cursor-pointer accent-foreground" />
-                <label htmlFor="field-logoColor" className="sr-only">Logo colour (degrees)</label>
-                <input {...fieldProps('logoColor', fieldErrors)} type="number" min="0" max="359" value={values.logoColor} onChange={event => update('logoColor', event.target.value)} className={`${inputClass} mt-0 w-24 tabular-nums`} />
+              <Label>Logo Icon</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <Select
+                  value={selectedIcon?.id || ''}
+                  onValueChange={(id) => {
+                    const icon = LOGO_ICONS.find((i) => i.id === id);
+                    if (icon) setLogoIcon(icon.lightSvg);
+                  }}
+                >
+                  <SelectPrimitive.Trigger
+                    className={cn(
+                      'flex h-12 w-12 shrink-0 rounded-lg border border-input bg-background focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 p-0 overflow-hidden items-center justify-center'
+                    )}
+                  >
+                    <div
+                      dangerouslySetInnerHTML={{ __html: logoIcon }}
+                      style={{ filter: `hue-rotate(${logoColor}deg)` }}
+                      className="[&>svg]:w-6 [&>svg]:h-6"
+                    />
+                  </SelectPrimitive.Trigger>
+                  <SelectContent className="border-border dark:border-blue-700">
+                    {LOGO_ICONS.map((icon) => (
+                      <SelectItem key={icon.id} value={icon.id}>
+                        <span className="flex items-center gap-3">
+                          <div
+                            dangerouslySetInnerHTML={{ __html: icon.lightSvg }}
+                            style={{ filter: `hue-rotate(${logoColor}deg)` }}
+                            className="[&>svg]:w-6 [&>svg]:h-6"
+                          />
+                          <span>
+                            <span className="block font-medium text-gray-900 dark:text-gray-100">
+                              {icon.name}
+                            </span>
+                          </span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* SVG Code Editor Popover */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-12 w-12 shrink-0"
+                      type="button"
+                    >
+                      <Code className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[min(500px,calc(100vw-2rem))]" align="start">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-medium mb-2">Edit SVG Code</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Edit the SVG code directly. Changes will be reflected in the icon preview.
+                        </p>
+                      </div>
+                      <Textarea
+                        value={logoIcon}
+                        onChange={(e) => setLogoIcon(e.target.value)}
+                        className="font-mono text-xs min-h-[300px]"
+                        placeholder="<svg>...</svg>"
+                      />
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-muted-foreground">Preview:</div>
+                        <div
+                          dangerouslySetInnerHTML={{ __html: logoIcon }}
+                          style={{ filter: `hue-rotate(${logoColor}deg)` }}
+                          className="[&>svg]:w-8 [&>svg]:h-8 flex items-center justify-center p-2 border rounded"
+                        />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
-              <FieldError name="logoColor" errors={fieldErrors} />
             </div>
+
+            {/* Logo Color Selector */}
+            <div>
+              <Label>Logo Color</Label>
+              <div className="mt-2">
+                <Select
+                  value={logoColor}
+                  onValueChange={(value) => setLogoColor(value)}
+                >
+                  <SelectPrimitive.Trigger
+                    className={cn(
+                      'flex h-12 w-12 shrink-0 rounded-lg border border-input bg-background focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 p-0 overflow-hidden items-center justify-center'
+                    )}
+                  >
+                    <SelectValue>
+                      <div
+                        className="w-6 h-6 rounded-full"
+                        style={{
+                          background: `hsl(${(240 + parseInt(logoColor)) % 360}, 70%, 50%)`
+                        }}
+                      />
+                    </SelectValue>
+                  </SelectPrimitive.Trigger>
+                  <SelectContent className="border-border dark:border-blue-700">
+                    <div className="grid grid-cols-4 gap-2 p-2">
+                      {HUE_PRESETS.map((preset) => (
+                        <SelectItem
+                          key={preset.value}
+                          value={preset.value.toString()}
+                          className="cursor-pointer p-0 h-12 w-12 flex items-center justify-center [&>span:first-child]:hidden"
+                        >
+                          <div
+                            className="w-6 h-6 rounded-full"
+                            style={{
+                              background: `hsl(${(240 + preset.value) % 360}, 70%, 50%)`
+                            }}
+                          />
+                        </SelectItem>
+                      ))}
+                    </div>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <FieldError name="logoIcon" errors={fieldErrors} />
+            <FieldError name="logoColor" errors={fieldErrors} />
           </div>
         </Panel>
 
@@ -136,15 +268,14 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
         {status.kind === 'saved' && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="ok" />{status.recovered ? 'Your earlier save was recorded. Store Settings are published.' : 'Saved and published.'}</p>}
         {status.kind === 'invalid' && <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />Fix the highlighted fields.</p>}
         {status.kind === 'rejected' && <p ref={summary} tabIndex={-1} role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />Store Settings could not be saved. Check your access and try again.</p>}
-        {status.kind === 'conflict' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2 text-destructive"><Dot tone="danger" />Store Settings changed since you opened them. Your changes are still shown; reload to see the latest version.</p><Actions><Button onClick={reload}>Reload</Button></Actions></div>}
+        {status.kind === 'conflict' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2 text-destructive"><Dot tone="danger" />Store Settings changed since you opened them. Your changes are still shown; reload to see the latest version.</p><Actions><CannabisButton onClick={reload}>Reload</CannabisButton></Actions></div>}
         {status.kind === 'unknown' && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 text-sm"><p className="flex items-baseline gap-2"><Dot tone="warn" />We couldn&apos;t confirm whether your save went through.</p><Actions>
-          <Button disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, checkStoreSettingsSave)}>Check save status</Button>
-          <Button tone="primary" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, saveStoreSettings)}>Retry same save</Button>
+          <CannabisButton disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, checkStoreSettingsSave)}>Check save status</CannabisButton>
+          <CannabisButton tone="primary" disabled={pending || !attempt.current} onClick={() => attempt.current && send(attempt.current, saveStoreSettings)}>Retry same save</CannabisButton>
         </Actions></div>}
-        {logoDraftPending && <p role="status" className="flex items-baseline gap-2 text-sm text-muted-foreground"><Dot tone="warn" />Apply or discard the custom logo before saving.</p>}
       </div>
 
-      <Actions><Button type="submit" tone="primary" disabled={pending || !setup.canSave || logoDraftPending || status.kind === 'unknown' || (!dirty && Boolean(setup.values) && published)}>{pending ? 'Saving…' : 'Save and publish'}</Button></Actions>
+      <StoreSettingsSaveBar isSaving={pending} button={<CannabisButton type="submit" tone="primary" disabled={pending || !setup.canSave || status.kind === 'unknown' || (!dirty && Boolean(setup.values) && published)}>{pending ? 'Saving…' : 'Save and publish'}</CannabisButton>} />
     </div>
 
     <aside aria-label="Storefront preview" className="xl:sticky xl:top-4">

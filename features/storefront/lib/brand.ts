@@ -24,9 +24,9 @@ export function isDefaultMark(svg?: string | null) {
 }
 
 export function storeBrand(store: BrandSource) {
-  const chosen = !isDefaultMark(store?.logoIcon);
-  const logoSvg = chosen ? store!.logoIcon! : CANNABIS_LOGO_ICON;
-  const logoColor = chosen ? normalizeStoreLogoColor(store?.logoColor) : CANNABIS_LOGO_COLOR;
+  // The saved icon is always shown, with the saved hue. An empty (or never-chosen platform placeholder) value renders the Cannabis default icon.
+  const logoSvg = isDefaultMark(store?.logoIcon) ? CANNABIS_LOGO_ICON : store!.logoIcon!;
+  const logoColor = normalizeStoreLogoColor(store?.logoColor);
   const hue = store?.isConfigured && Number.isInteger(store.brandHue) ? store.brandHue! : CANNABIS_ACCENT_HUE;
   return { logoSvg, logoColor, hue, logoHue: (REGISTRY_BASE_HUE + Number(logoColor)) % 360 };
 }
