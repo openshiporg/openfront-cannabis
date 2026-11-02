@@ -12,6 +12,7 @@ import { documentHash } from "./customers";
 import { CARD_PROVIDER_CODE, onlineCardProvider } from "./onlinePayments";
 import { publicAuthority } from "./public";
 import { assertInteger, assertText, stableHash } from "./workflow";
+import { deliverPickupConfirmation } from "../utils/orderConfirmation";
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const MAX_ITEMS = 10;
@@ -191,6 +192,7 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   }
   await context.sudo().query.AuditEvent.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, action: "cart.pickup_order_placed", resourceType: "Cart", resourceId: placed.cartId, correlationId: reference, reasonCode: "online_pickup_order",
     evidence: { items: items.length, totalCents: placed.totalCents, paymentMethod: method }, evidenceHash: stableHash({ reference, totals: placed, method }), occurredAt: new Date() }, query: "id" });
+  await deliverPickupConfirmation(context, { cartId: placed.cartId, reference, proof, scope, email, name });
   return { reference, proof, status, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false };
 }
 
