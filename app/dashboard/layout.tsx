@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
-import "./globals.css";
+import "./dashboard.css";
 
 export const metadata: Metadata = {
   title: "Openfront Dashboard",
