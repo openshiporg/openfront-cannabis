@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
 
 /** One confirmation email per order, sent after the order is committed. The AuditEvent row is the dedupe record and carries the status. */
-export async function deliverPickupConfirmation(context: any, args: { cartId: string; reference: string; proof: string; scope: { organizationId: string; premisesId: string }; email: string; name: string }, send?: (order: any) => Promise<{ sent: boolean; error?: string }>) {
+export async function deliverPickupConfirmation(context: any, args: { cartId: string; reference: string; proof: string; scope: { organizationId: string; premisesId: string }; email: string; name: string }, send?: (order: any) => Promise<{ sent: boolean; error?: string; messageId?: string }>) {
   try {
     const sudo = context.sudo();
     const existing = await sudo.query.AuditEvent.findMany({ where: { action: { equals: "cart.confirmation_email" }, resourceId: { equals: args.cartId } }, take: 1, query: "id" });
     if (existing.length) return;
     let status = "skipped_not_configured";
     let error: string | undefined;
+    let messageId: string | undefined;
     const base = process.env.SMTP_STORE_LINK;
     if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD && base) {
       try {
@@ -28,10 +29,11 @@ export async function deliverPickupConfirmation(context: any, args: { cartId: st
         });
         status = result.sent ? "sent" : "failed";
         error = result.error;
+        messageId = result.messageId;
       } catch (caught) { status = "failed"; error = caught instanceof Error ? caught.message : "send_failed"; }
     }
     await sudo.query.AuditEvent.createOne({ data: { organization: { connect: { id: args.scope.organizationId } }, premises: { connect: { id: args.scope.premisesId } }, action: "cart.confirmation_email", resourceType: "Cart", resourceId: args.cartId, correlationId: args.reference, reasonCode: status,
-      evidence: { status, ...(error ? { error: error.slice(0, 200) } : {}) }, evidenceHash: createHash("sha256").update(`${args.reference}:${status}`).digest("hex"), occurredAt: new Date() }, query: "id" });
+      evidence: { status, ...(messageId ? { messageId: messageId.slice(0, 200) } : {}), ...(error ? { error: error.slice(0, 200) } : {}) }, evidenceHash: createHash("sha256").update(`${args.reference}:${status}`).digest("hex"), occurredAt: new Date() }, query: "id" });
   } catch (caught) {
     console.error("Order confirmation email bookkeeping failed:", caught instanceof Error ? caught.message : "unknown");
   }

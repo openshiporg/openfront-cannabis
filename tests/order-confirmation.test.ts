@@ -28,6 +28,13 @@ test("sends once on success and records sent with a guest link", async () => {
   assert.ok(!JSON.stringify(audits[0]).includes("secretproof"));
 });
 
+test("the provider message id is recorded with a sent status", async () => {
+  configure(true);
+  const { audits, context } = fakeContext();
+  await deliverPickupConfirmation(context, args, async () => ({ sent: true, messageId: "<abc@resend>" }));
+  assert.equal(audits[0].evidence.messageId, "<abc@resend>");
+});
+
 test("a replay does not resend", async () => {
   configure(true);
   const { context } = fakeContext();
