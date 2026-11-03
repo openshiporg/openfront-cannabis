@@ -3,7 +3,7 @@ import { createAuth } from "@keystone-6/auth";
 import { config } from "@keystone-6/core";
 import "dotenv/config";
 import { models } from "./models";
-import { withCreateAwareUi } from "./ui-create-access";
+import { withCreateAwareUi, withDeleteAwareUi } from "./ui-create-access";
 import { statelessSessions } from "@keystone-6/core/session";
 import { extendGraphqlSchema } from "./mutations";
 import { sendPasswordResetEmail } from "./lib/mail";
@@ -80,7 +80,7 @@ export default withAuth(
       provider: "postgresql",
       url: runtimeEnvironment.databaseUrl,
     },
-    lists: withCreateAwareUi(models),
+    lists: withDeleteAwareUi(withCreateAwareUi(models)),
     storage: {
       my_images: {
         kind: "s3",

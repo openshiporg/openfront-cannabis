@@ -36,3 +36,16 @@ test("access rules themselves are not changed", () => {
   const wrapped: any = withCreateAwareUi({ X: { access: { operation: { create } } } });
   assert.equal(wrapped.X.access.operation.create, create);
 });
+
+test("delete buttons follow the delete rule when opted in", async () => {
+  const { withDeleteAwareUi } = await import("../features/keystone/ui-create-access.ts");
+  const wrapped: any = withDeleteAwareUi({
+    Role: { access: { operation: { delete: ({ session }: any) => session?.data?.role?.canManageSales === true } } },
+    Sale: { access: { operation: { delete: () => false } } },
+    Explicit: { access: { operation: { delete: () => false } }, ui: { hideDelete: false } },
+  });
+  assert.equal(await wrapped.Role.ui.hideDelete({ session: manager, context: {} }), false);
+  assert.equal(await wrapped.Role.ui.hideDelete({ session: clerk, context: {} }), true);
+  assert.equal(await wrapped.Sale.ui.hideDelete({ session: manager, context: {} }), true);
+  assert.equal(wrapped.Explicit.ui.hideDelete, false);
+});

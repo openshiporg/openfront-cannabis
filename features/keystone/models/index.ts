@@ -82,12 +82,14 @@ const LIST_PERMISSION: Record<string, CannabisPermission> = {
   IntegrationInstallation: "canManageIntegrations", ReconciliationRun: "canViewReports", ComplianceIncident: "canManageCompliance",
 };
 
-// Raw creation/deletion is denied for every current List. Keep those dead
-// actions out of generic model views; domain commands remain the write surface.
+// Most Lists deny raw creation/deletion (domain commands are the write
+// surface). Create and delete buttons follow each List's own access rule
+// (keystone/index.ts withCreateAwareUi / withDeleteAwareUi), so Role and
+// PaymentProvider, which managers can create, keep their buttons.
 for (const [key, model] of Object.entries(models)) {
   const view = LIST_VIEWS[key];
   const permission = LIST_PERMISSION[key];
-  model.ui = { ...model.ui, hideCreate: true, hideDelete: true,
+  model.ui = { ...model.ui,
     ...(permission ? { isHidden: ({ session }: { session?: Session }) => session?.data?.role?.[permission] !== true } : {}),
     ...(view ? { labelField: view[0], listView: { ...model.ui?.listView, initialColumns: view[1] } } : {}),
     ...(key === 'User' ? {} : { itemView: { ...model.ui?.itemView, defaultFieldMode: 'read' as const } }),

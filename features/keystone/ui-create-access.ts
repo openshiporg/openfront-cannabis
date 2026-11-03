@@ -12,22 +12,47 @@
  */
 type ListConfig = { access?: any; ui?: { hideCreate?: unknown; [key: string]: unknown }; [key: string]: unknown }
 
-function createRule(access: any): ((args: any) => unknown) | undefined {
+type Operation = 'create' | 'delete'
+
+function operationRule(access: any, operation: Operation): ((args: any) => unknown) | undefined {
   if (typeof access === 'function') return access
-  const operation = access?.operation
-  if (typeof operation === 'function') return operation
-  if (typeof operation?.create === 'function') return operation.create
+  const rules = access?.operation
+  if (typeof rules === 'function') return rules
+  if (typeof rules?.[operation] === 'function') return rules[operation]
   return undefined
 }
+const createRule = (access: any) => operationRule(access, 'create')
 
-export async function createAllowed(listKey: string, list: ListConfig, args: { session?: unknown; context: unknown }) {
-  const rule = createRule(list.access)
+async function allowed(listKey: string, list: ListConfig, operation: Operation, args: { session?: unknown; context: unknown }) {
+  const rule = operationRule(list.access, operation)
   if (!rule) return true
   try {
-    return Boolean(await rule({ session: args.session, context: args.context, listKey, operation: 'create' }))
+    return Boolean(await rule({ session: args.session, context: args.context, listKey, operation }))
   } catch {
     return false
   }
+}
+
+export const createAllowed = (listKey: string, list: ListConfig, args: { session?: unknown; context: unknown }) =>
+  allowed(listKey, list, 'create', args)
+
+/**
+ * Same for delete buttons. Opt-in (cannabis): repos whose lists already pick
+ * their own hideDelete keep it.
+ */
+export function withDeleteAwareUi<T extends Record<string, ListConfig>>(lists: T): T {
+  const out: Record<string, ListConfig> = {}
+  for (const [listKey, list] of Object.entries(lists)) {
+    if (list.ui?.hideDelete !== undefined || !operationRule(list.access, 'delete')) {
+      out[listKey] = list
+      continue
+    }
+    out[listKey] = {
+      ...list,
+      ui: { ...list.ui, hideDelete: async (args: { session?: unknown; context: unknown }) => !(await allowed(listKey, list, 'delete', args)) },
+    }
+  }
+  return out as T
 }
 
 export function withCreateAwareUi<T extends Record<string, ListConfig>>(lists: T): T {
