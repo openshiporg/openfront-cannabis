@@ -2,7 +2,7 @@
 
 import { ClientError, GraphQLClient } from 'graphql-request';
 import { getAuthHeaders } from '@/features/dashboard/lib/cookies';
-import { getGraphQLEndpoint } from '@/features/dashboard/lib/getBaseUrl';
+import { getServerGraphQLTarget } from '@/features/dashboard/lib/getBaseUrl';
 
 export type CommandResponse<T> = { success: true; data: T } | { success: false; message: string | null };
 
@@ -21,7 +21,8 @@ function operatorMessage(error: unknown): string | null {
 /** keystoneClient for vertical commands: same endpoint and session, but keeps a safe rule message on failure. */
 export async function runCommandRequest<T>(query: string, variables: Record<string, unknown>): Promise<CommandResponse<T>> {
   try {
-    const client = new GraphQLClient(await getGraphQLEndpoint(), { credentials: 'include', redirect: 'error', headers: (await getAuthHeaders()) || {} });
+    const target = await getServerGraphQLTarget();
+    const client = new GraphQLClient(target.endpoint, { credentials: 'include', redirect: 'error', ...(target.fetch ? { fetch: target.fetch } : {}), headers: (await getAuthHeaders()) || {} });
     return { success: true, data: await client.request<T>(query, variables) };
   } catch (error) {
     return { success: false, message: operatorMessage(error) };
@@ -36,7 +37,8 @@ export async function runCommandUpload<T>(query: string, variables: Record<strin
     body.append('map', JSON.stringify({ 1: ['variables.photo'] }));
     body.append('1', photo, photo.name || 'photo');
     // Keystone's GraphQL endpoint rejects multipart posts without a preflight header (CSRF guard).
-    const response = await fetch(await getGraphQLEndpoint(), { method: 'POST', redirect: 'error', headers: { ...((await getAuthHeaders()) || {}), 'apollo-require-preflight': 'true' }, body });
+    const target = await getServerGraphQLTarget();
+    const response = await (target.fetch ?? fetch)(target.endpoint, { method: 'POST', redirect: 'error', headers: { ...((await getAuthHeaders()) || {}), 'apollo-require-preflight': 'true' }, body });
     const json = await response.json().catch(() => null) as { data?: T; errors?: Array<{ message?: string }> } | null;
     if (json?.errors?.length || !json?.data) return { success: false, message: operatorMessage({ response: { errors: json?.errors ?? [] } }) };
     return { success: true, data: json.data };
