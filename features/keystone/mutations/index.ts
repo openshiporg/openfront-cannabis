@@ -11,7 +11,7 @@ import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
 import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings, setCannabisStorefrontCover } from "./storefrontSettings";
 import { amendCannabisPremisesDetails, amendCannabisRulePack } from "./rulePack";
-import { setStaffTemporaryPassword } from "./staffAccess";
+import { changeStaffPermissions, setStaffTemporaryPassword } from "./staffAccess";
 import { exposeRuleErrors } from "./ruleErrors";
 import { advanceRecallCase, openRecallCase, placePackageHold, recordPackageLabResult, releaseCannabisPackage } from "./custody";
 import { checkInCannabisCustomer } from "./customers";
@@ -56,6 +56,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         releaseCannabisPackage(input: JSON!): JSON!
         checkInCannabisCustomer(input: JSON!): JSON!
         setStaffTemporaryPassword(input: JSON!): JSON!
+        changeStaffPermissions(input: JSON!): JSON!
         configureCannabisStorefrontSettings(input: JSON!): JSON!
         provisionStaffAuthority(input: JSON!): JSON!
         submitCannabisCustomerIntake(input: JSON!): JSON!
@@ -105,6 +106,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         releaseCannabisPackage,
         checkInCannabisCustomer,
         setStaffTemporaryPassword,
+        changeStaffPermissions,
         configureCannabisStorefrontSettings,
         setCannabisStorefrontCover,
         provisionStaffAuthority,

@@ -229,6 +229,13 @@ export async function provisionStaffFromDesk(_state: CommandState, formData: For
   }, 'Staff member added.');
 }
 
+export async function changeStaffPermissionsFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const idempotencyKey = commandKey(formData);
+  if (!idempotencyKey || !text(formData, 'userId')) return invalid({});
+  const permissions = Object.fromEntries(PERMISSIONS.map(permission => [permission, formData.get(`permission:${permission}`) === 'on']));
+  return runCommand('changeStaffPermissions', 'changeStaffPermissions', { idempotencyKey, userId: text(formData, 'userId'), permissions }, 'Permissions updated.');
+}
+
 export async function revokeCredentialFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
   const errors: FieldErrors = {};
   if (!REASON_CODE.test(text(formData, 'reasonCode'))) errors.reasonCode = 'Use a lowercase code such as left_employment';

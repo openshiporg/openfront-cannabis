@@ -6,7 +6,7 @@ import { Actions, buttonClass, inputClass, labelClass, Button, textareaClass } f
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
 import {
   amendProductFromMenu, amendRegisterFromDesk, approveVarianceFromDesk, renewAuthorityFromDesk, configureProductFromMenu, configureRegisterFromDesk, openShiftFromDesk,
-  provisionStaffFromDesk, recordIncidentFromDesk, setTemporaryPasswordFromDesk, amendPremisesDetailsFromDesk, retryOutboxEventFromDesk, revokeCredentialFromDesk, transitionIncidentFromDesk,
+  provisionStaffFromDesk, changeStaffPermissionsFromDesk, recordIncidentFromDesk, setTemporaryPasswordFromDesk, amendPremisesDetailsFromDesk, retryOutboxEventFromDesk, revokeCredentialFromDesk, transitionIncidentFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
 import { zonedLocalToInstant } from '@/features/platform/lib/time';
@@ -228,6 +228,19 @@ export function ProvisionStaffForm() {
     <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Adding…' : 'Add staff member'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
+}
+
+export function ChangePermissionsForm({ userId, name, current }: { userId: string; name: string; current: Record<string, unknown> | null }) {
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(changeStaffPermissionsFromDesk);
+  return <details className="group">
+    <summary className={buttonClass('default', 'cursor-pointer list-none [&::-webkit-details-marker]:hidden group-open:bg-muted')}>Change permissions</summary>
+    <form onSubmit={onSubmit()} onChange={markDirty} className="mt-2 space-y-3" aria-label={`Change permissions for ${name}`}>
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="userId" value={userId} />
+      <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2"><legend className="mb-1.5 text-xs font-semibold text-foreground">Permissions</legend>{PERMISSIONS.map(([permission, title]) => <Check key={permission} name={`permission:${permission}`} title={title} defaultChecked={current?.[permission] === true} />)}</fieldset>
+      <Actions><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save permissions'}</Button></Actions>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </details>;
 }
 
 export function RevokeCredentialForm({ credentialId, status, name }: { credentialId: string; status: string; name: string }) {

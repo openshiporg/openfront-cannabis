@@ -1,7 +1,7 @@
 import { formatMinorUnits } from '@/features/lib/money';
 import { Disclosure, RecordList, RecordRow, Ref, StatusText, INTERVAL_LABEL, sentenceCase, statusTone } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
-import { ProvisionStaffForm, RevokeCredentialForm, TemporaryPasswordForm } from '@/features/platform/operations/components/OperatorForms';
+import { ChangePermissionsForm, ProvisionStaffForm, RevokeCredentialForm, TemporaryPasswordForm } from '@/features/platform/operations/components/OperatorForms';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
 
 const PERMISSION_LABEL: Array<[string, string]> = [
@@ -38,6 +38,7 @@ export async function StaffPage({ searchParams }: { searchParams?: SearchParams 
             {credential && credential.allowedActivities.length > 0 && <p className="mt-1.5 text-xs text-muted-foreground">Activities: {credential.allowedActivities.map(sentenceCase).join(', ')}</p>}
             {data.operating.open && <div className="mt-2 flex flex-wrap items-start gap-2">
               <TemporaryPasswordForm userId={person.id} name={person.name} />
+              {person.id !== data.selfId && (person.role as Record<string, unknown> | null)?.canManageOnboarding !== true && <ChangePermissionsForm userId={person.id} name={person.name} current={person.role as Record<string, unknown> | null} />}
               {credential && person.id !== data.selfId && <RevokeCredentialForm credentialId={credential.id} status={credential.status} name={person.name} />}
             </div>}
           </RecordRow>;
