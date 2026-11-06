@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatPrice } from '../lib/format';
 import { getPickupOptions, publicGraphql, type PickupOptions } from '../lib/api';
 import { useBag } from '../lib/bag';
+import { BIRTH_DATE_PATTERN, formatBirthDateInput, isoBirthDate } from '../lib/birth-date';
 import { CardFields, useAcceptJs } from './AuthorizeNetCardFields';
 
 const PLACE = `mutation($input: JSON!) { placeCannabisPickupOrder(input: $input) }`;
@@ -47,7 +48,7 @@ export function CheckoutForm() {
     try {
       const opaqueData = method === 'card' && card ? await anet.tokenize(card, form) : undefined;
       const result = await publicGraphql<{ placeCannabisPickupOrder: { reference: string; proof: string } }>(PLACE, { input: {
-        idempotencyKey: key.current, name: form.get('name'), email: form.get('email'), phone: form.get('phone'), dateOfBirth: form.get('dateOfBirth'),
+        idempotencyKey: key.current, name: form.get('name'), email: form.get('email'), phone: form.get('phone'), dateOfBirth: isoBirthDate(form.get('dateOfBirth')),
         pickupStart: form.get('pickupStart'), idNotice: form.get('idNotice') === 'on', paymentMethod: method, opaqueData,
         items: bag.items.map(item => ({ productId: item.id, units: item.units })) } });
       const order = result.placeCannabisPickupOrder;
@@ -87,7 +88,7 @@ export function CheckoutForm() {
         <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Full name</span><input name="name" autoComplete="name" required minLength={2} maxLength={120} className="cn-field" /></label>
         <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Phone</span><input name="phone" type="tel" autoComplete="tel" required maxLength={30} className="cn-field" /></label>
         <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Email</span><input name="email" type="email" autoComplete="email" required maxLength={254} className="cn-field" /></label>
-        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Date of birth ({options?.minimumAge ?? 21}+ only)</span><input name="dateOfBirth" type="date" autoComplete="bday" required className="cn-field" /></label>
+        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Date of birth ({options?.minimumAge ?? 21}+ only)</span><input name="dateOfBirth" type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10} pattern={BIRTH_DATE_PATTERN} title="Month/day/year, for example 04/09/1986" autoComplete="bday" required onChange={event => formatBirthDateInput(event.currentTarget)} className="cn-field" /></label>
       </div>
       <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Pickup window</span>
         <select name="pickupStart" required defaultValue="" className="cn-field">
