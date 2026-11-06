@@ -28,7 +28,7 @@ export async function getPublicCannabisMenu(): Promise<PublicCannabisMenu> {
 export type PublicVisit = {
   address: { line1: string | null; city: string | null; region: string | null; postalCode: string | null; country: string | null };
   phone: string | null; timezone: string | null; hours: { opensMinute: number; closesMinute: number } | null; tenders: string[];
-  minimumAge: number | null; medicalMinimumAge: number | null;
+  minimumAge: number | null; medicalMinimumAge: number | null; cardOnline?: boolean; pickupEnabled?: boolean;
 };
 
 export type PublicStorefrontSettingsResult = PublicStorefrontSettings & { unavailable?: boolean; visit?: PublicVisit; coverUrl?: string | null };

@@ -17,6 +17,9 @@ import { StoreLogo } from '@/features/storefront/components/StoreLogo';
 import { CANNABIS_ACCENT_HUE, CANNABIS_LOGO_COLOR, CANNABIS_LOGO_ICON, isDefaultMark } from '@/features/storefront/lib/brand';
 import { FieldError, fieldProps, useFocusFirstError, type FieldErrors, type FormState } from '@/features/platform/lib/formErrors';
 import { useUnsavedChangesGuard } from '@/features/platform/lib/useUnsavedChangesGuard';
+
+/** Built-in cover (same file and crop as the storefront's COVER_PHOTO), shown until the store uploads its own. */
+const COVER_PHOTO = { src: '/storefront/cover-silver-star-haze.jpg', position: '36% 42%' };
 import { checkStoreSettingsSave, saveStoreSettings, type SaveStoreSettingsInput, type SaveStoreSettingsResult, type StoreSettingsSetup, type StoreSettingsValues } from '../actions/settings';
 
 const EMPTY: StoreSettingsValues = { businessName: '', tagline: '', description: '', brandHue: CANNABIS_ACCENT_HUE, logoIcon: CANNABIS_LOGO_ICON, logoColor: CANNABIS_LOGO_COLOR };
@@ -27,7 +30,7 @@ const same = (left: StoreSettingsValues, right: StoreSettingsValues) => (Object.
 type Status =
   | { kind: 'idle' } | { kind: 'saved'; recovered?: boolean } | { kind: 'invalid' } | { kind: 'conflict' } | { kind: 'rejected' } | { kind: 'unknown' };
 
-export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip }: { setup: StoreSettingsSetup; previewItems?: Array<{ form: string; name: string }>; previewStrip?: { age: string; hours: string } }) {
+export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip, coverUrl }: { setup: StoreSettingsSetup; previewItems?: Array<{ form: string; name: string }>; previewStrip?: { age: string; hours: string; ordering?: string }; coverUrl?: string | null }) {
   const router = useRouter();
   const [baseline, setBaseline] = useState<StoreSettingsValues>(() => initial(setup.values));
   const [values, setValues] = useState<StoreSettingsValues>(() => initial(setup.values));
@@ -285,13 +288,13 @@ export function StorefrontSettingsForm({ setup, previewItems = [], previewStrip 
         <div className="border-b border-cn-line px-3 py-1.5 text-cn-ink"><StoreLogo svg={values.logoIcon} hue={values.logoColor} name={values.businessName || 'Business name'} size="sm" /></div>
         <div className="relative h-36 bg-cn-raise">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/storefront/cover-silver-star-haze.jpg" alt="" className="absolute inset-0 size-full object-cover [object-position:36%_42%]" />
+          <img src={coverUrl || COVER_PHOTO.src} alt="" className="absolute inset-0 size-full object-cover" style={{ objectPosition: coverUrl ? '50% 50%' : COVER_PHOTO.position }} />
           <p className="cn-display absolute bottom-0 left-0 max-w-[90%] break-words bg-cn-bg px-3 pb-2 pt-2 text-[30px] text-cn-ink">{values.businessName || 'Business name'}</p>
         </div>
         <div className="space-y-2 bg-cn-page px-3 py-3">
           {values.tagline && <p className="cn-name break-words text-[14px] leading-5 text-cn-ink-2">{values.tagline}</p>}
           {values.description && <p className="break-words text-[12px] leading-[18px] text-cn-ink-3">{values.description}</p>}
-          <span className="inline-flex items-baseline gap-1.5 text-[12px] text-cn-ink-2"><span className="cn-dot" style={{ backgroundColor: accent(60, 46) }} />In-store only</span>
+          <span className="inline-flex items-baseline gap-1.5 text-[12px] text-cn-ink-2"><span className="cn-dot" style={{ backgroundColor: accent(60, 46) }} />{previewStrip?.ordering ?? 'In-store only'}</span>
         </div>
         {previewItems.length > 0 && <div className="px-3 pb-3">
           {previewItems.map(item => <div key={item.name} className="flex items-baseline justify-between gap-3 border-t border-cn-line py-2 text-cn-ink"><span className="cn-name truncate text-[15px]">{item.name}</span><span className="shrink-0 text-[12px] text-cn-ink-3">{item.form}</span></div>)}

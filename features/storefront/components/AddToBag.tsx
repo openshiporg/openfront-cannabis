@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useBag } from '../lib/bag';
 
 /** Add to bag on a product page; once added the shopper can go straight to checkout. */
-export function AddToBag({ product }: { product: { id: string; name: string; priceCents: number } }) {
+export function AddToBag({ product, cardOnline = false }: { product: { id: string; name: string; priceCents: number }; cardOnline?: boolean }) {
   const bag = useBag();
   const [units, setUnits] = useState(1);
   const [added, setAdded] = useState(false);
@@ -19,6 +19,6 @@ export function AddToBag({ product }: { product: { id: string; name: string; pri
       <button type="button" data-tone="ink" className="cn-btn min-h-12" onClick={() => { bag.add(product, units); setAdded(true); }}>{added ? 'Added to bag' : 'Add to bag'}</button>
       {bag.count > 0 && <Link href="/bag" className="cn-btn min-h-12">Order for pickup · {bag.count}</Link>}
     </div>
-    <p className="text-[14px] text-cn-ink-3">Reserve now, pay by card or at the counter. Bring a valid ID to pick up.</p>
+    <p className="text-[14px] text-cn-ink-3">{cardOnline ? 'Reserve now, pay by card or at the counter.' : 'Reserve now, pay at the counter.'} Bring a valid ID to pick up.</p>
   </div>;
 }

@@ -89,7 +89,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
     ...(address.length ? [['Address', address.join(', ')] as [string, string]] : []),
     ...(open ? [['Hours', `Daily ${open.hours}`] as [string, string]] : []),
     ['Age', ages.medical != null ? `${ages.adult}+ · patients ${ages.medical}+ · valid ID` : `${ages.adult}+ · valid ID`],
-    ...(tenders.length ? [['Payment', `${tenders.join(' · ')} · card online or at pickup`] as [string, string]] : []),
+    ...(tenders.length ? [['Payment', settings.visit?.cardOnline ? `${tenders.join(' · ')} · card online or at pickup` : `${tenders.join(' · ')} · paid at pickup`] as [string, string]] : []),
   ];
 
   return <StorefrontShell settings={settings} forms={forms} current="menu">

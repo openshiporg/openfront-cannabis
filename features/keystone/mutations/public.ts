@@ -4,6 +4,8 @@ import { assertEffectiveRulePack, assertEligibility, assertPackageSaleable } fro
 import { NEUTRAL_STOREFRONT_SETTINGS, projectPublicStorefrontSettings } from "../domain/storefrontSettings";
 import { isRuntimeCapabilityEnabled, requireRuntimeCapability } from "../domain/runtimeCapabilities";
 import { assertText, requireRulePack, runControlledOperation, stableHash } from "./workflow";
+import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
+import { CARD_PROVIDER_CODE } from "./onlinePayments";
 
 const proofHash = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -27,15 +29,18 @@ export async function publicAuthority(context: Context) {
 async function publicVisit(context: Context, scope: Awaited<ReturnType<typeof publicScope>>) {
   const address = scope.premises.addressSnapshot && typeof scope.premises.addressSnapshot === "object" && !Array.isArray(scope.premises.addressSnapshot) ? scope.premises.addressSnapshot as Record<string, unknown> : {};
   const pick = (key: string) => typeof address[key] === "string" && (address[key] as string).trim() ? (address[key] as string).trim().slice(0, 200) : null;
-  let hours: { opensMinute: number; closesMinute: number } | null = null; let tenders: string[] = []; let minimumAge: number | null = null; let medicalMinimumAge: number | null = null;
+  let hours: { opensMinute: number; closesMinute: number } | null = null; let tenders: string[] = []; let minimumAge: number | null = null; let medicalMinimumAge: number | null = null; let cardOnline = false; let pickupEnabled = false;
   try {
     const pack = await requireRulePack(context, scope.organization.id, scope.premises.id);
     assertEffectiveRulePack(pack as any);
     hours = { opensMinute: pack.operatingStartMinute, closesMinute: pack.operatingEndMinute };
     tenders = Array.isArray(pack.allowedTenderTypes) ? (pack.allowedTenderTypes as unknown[]).filter((type): type is string => typeof type === "string").slice(0, 10) : [];
     minimumAge = pack.adultMinimumAge; medicalMinimumAge = pack.medicalEnabled ? pack.medicalMinimumAge : null;
+    // Same test the checkout uses before it offers a card (cannabisPickupOptions).
+    pickupEnabled = pack.pickupEnabled === true;
+    cardOnline = pack.pickupEnabled === true && tenders.includes("debit") && isPaymentProviderConfigured(CARD_PROVIDER_CODE);
   } catch { /* Sales rules unavailable: show only the address. */ }
-  return { address: { line1: pick("line1"), city: pick("city"), region: pick("region"), postalCode: pick("postalCode"), country: pick("country") }, phone: pick("phone"), timezone: scope.premises.timezone ?? null, hours, tenders, minimumAge, medicalMinimumAge };
+  return { address: { line1: pick("line1"), city: pick("city"), region: pick("region"), postalCode: pick("postalCode"), country: pick("country") }, phone: pick("phone"), timezone: scope.premises.timezone ?? null, hours, tenders, minimumAge, medicalMinimumAge, cardOnline, pickupEnabled };
 }
 
 export async function publicCannabisStorefrontSettings(_root: unknown, _args: unknown, context: Context) {

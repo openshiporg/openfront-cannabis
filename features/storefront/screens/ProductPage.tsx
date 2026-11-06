@@ -45,7 +45,7 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
             <p className="inline-flex items-baseline gap-2 text-[16px] text-cn-ink-2"><span className="cn-dot bg-cn-ok" aria-hidden="true" />In stock · order for pickup</p>
           </div>
           {/* Buy first: on a phone the photo follows this column, so Add to bag sits right under the price. */}
-          {product.priceCents != null && <AddToBag product={{ id: product.id, name: product.name, priceCents: product.priceCents }} />}
+          {product.priceCents != null && <AddToBag product={{ id: product.id, name: product.name, priceCents: product.priceCents }} cardOnline={settings.visit?.cardOnline === true} />}
           <dl className="mt-6 text-[16px]">
             {specs.map(([term, value]) => <div key={term} className="grid gap-1 border-b border-cn-line py-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-6"><dt className="text-cn-ink-3">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
           </dl>

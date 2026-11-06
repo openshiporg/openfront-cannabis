@@ -14,7 +14,7 @@ async function publicState() {
   const [settings, menu] = await Promise.all([getPublicCannabisStorefrontSettings(), getPublicCannabisMenu()]);
   const items = menu.products.slice(0, 2).map(product => ({ form: product.form, name: product.name }));
   const open = openState(settings.visit);
-  const strip = { age: ageStripLabel(settings.visit), hours: open?.label ?? 'In-store purchase only' };
+  const strip = { age: ageStripLabel(settings.visit), hours: open?.label ?? 'In-store purchase only', ordering: settings.visit?.pickupEnabled ? 'Order ahead for pickup' : 'In-store only' };
   if (settings.unavailable) return { tone: 'danger' as const, label: 'Storefront unavailable', items, strip };
   if (!settings.isConfigured) return { tone: 'warn' as const, label: 'Storefront shows "Store not set up"', items, strip };
   if (menu.unavailable) return { tone: 'danger' as const, label: menu.reason === 'sales_rules' ? 'Live, menu unavailable: sales rules invalid' : 'Live, menu unavailable', items, fix: menu.reason === 'sales_rules', strip };
@@ -30,7 +30,7 @@ export async function StorefrontSettingsPage() {
   return <PageContainer header={header} breadcrumbs={breadcrumbs}>
     <div className="space-y-6 px-4 pb-24 md:px-6 md:pb-8">
       {visible && <Notice tone={visible.tone} action={<Actions>{visible.fix && <ButtonLink href="/dashboard/platform/authority#sales-rules" tone="primary">Fix sales rules</ButtonLink>}<ButtonLink href="/dashboard/platform/authority#premises">Address and phone</ButtonLink><a href="/" target="_blank" rel="noreferrer" className={buttonClass('default')}>View storefront<ArrowUpRight className="size-3.5" aria-hidden="true" /></a></Actions>}>Public storefront: {visible.label}</Notice>}
-      {result.state === 'ok' && <StorefrontSettingsForm setup={result.data} previewItems={visible?.items ?? []} previewStrip={visible?.strip} />}
+      {result.state === 'ok' && <StorefrontSettingsForm setup={result.data} previewItems={visible?.items ?? []} previewStrip={visible?.strip} coverUrl={result.data.coverUrl} />}
       {result.state === 'ok' && result.data.revision && <Panel title="Cover photo"><CoverPhotoForm coverUrl={result.data.coverUrl} canSave={result.data.canSave} /></Panel>}
       {result.state === 'forbidden' && (setup?.state === 'setup_required' ? <WorkspaceStateNotice result={{ state: 'setup_required' }} retryHref="/dashboard/platform/store-settings" /> : <Notice tone="warn">No access to Store Settings for this premises</Notice>)}
       {result.state === 'unavailable' && <div role="alert"><Notice tone="danger" action={<ButtonLink href="/dashboard/platform/store-settings" tone="primary">Retry</ButtonLink>}>Store Settings could not be loaded</Notice></div>}

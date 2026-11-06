@@ -13,14 +13,14 @@ const INKS: Record<string, string> = {
   vape: '#7ebbd3',
   vapes: '#7ebbd3',
   cartridge: '#7ebbd3',
-  topical: '#bba6e0',
-  topicals: '#bba6e0',
+  topical: '#d4b896',
+  topicals: '#d4b896',
   tincture: '#82c7a8',
   tinctures: '#82c7a8',
   beverage: '#d8987a',
   beverages: '#d8987a',
 };
-const SPARE = ['#82c7a8', '#d8987a', '#c9c27a', '#9fb0e0'];
+const SPARE = ['#82c7a8', '#d8987a', '#c9c27a', '#9fc4b8'];
 
 export function chapterInk(form: string) {
   const key = formKey(form);
