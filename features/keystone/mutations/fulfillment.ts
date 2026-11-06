@@ -82,9 +82,9 @@ export async function transitionCannabisCartPreparation(_root: unknown, args: { 
     const sudo = tx.sudo();
     const now = new Date();
     const cart = await sudo.query.Cart.findOne({ where: { id: input.cartId }, query: `
-      id reference version status expiresAt organization { id } premises { id }
+      id reference version status source expiresAt organization { id } premises { id }
       customer { id status capacity organization { id } premises { id } }
-      eligibilityEvidence { id result capacity identityExpiresAt registryExpiresAt customer { id } organization { id } premises { id } }
+      eligibilityEvidence { id result identityMethod capacity identityExpiresAt registryExpiresAt customer { id } organization { id } premises { id } }
       lines(take: ${MAX_FULFILLMENT_LINES + 1}) { id quantityMicrounits cart { id } package { id } organization { id } premises { id } }
     ` });
     assertFulfillmentScope(cart, currentAuthority);
@@ -92,8 +92,12 @@ export async function transitionCannabisCartPreparation(_root: unknown, args: { 
     assertFulfillmentScope(cart.customer, currentAuthority);
     assertFulfillmentScope(cart.eligibilityEvidence, currentAuthority);
     const evidence = cart.eligibilityEvidence;
-    if (cart.customer.status !== 'eligible' || !['adult_use', 'patient', 'caregiver'].includes(cart.customer.capacity) ||
-        evidence.customer?.id !== cart.customer.id || evidence.capacity !== cart.customer.capacity || evidence.result !== 'eligible' ||
+    // An online pickup order is packed before the customer arrives (Dutchie / Jane); its ID is checked at the
+    // counter when the sale is finalized. Its unexpired online declaration is enough to pack, never to sell.
+    const onlineDeclared = cart.source === 'pickup' && cart.customer.status === 'pending_verification' && cart.customer.capacity === 'adult_use'
+      && evidence?.identityMethod === 'online_declared' && evidence?.result === 'pending';
+    if (!(cart.customer.status === 'eligible' || onlineDeclared) || !['adult_use', 'patient', 'caregiver'].includes(cart.customer.capacity) ||
+        evidence.customer?.id !== cart.customer.id || evidence.capacity !== cart.customer.capacity || !(evidence.result === 'eligible' || onlineDeclared) ||
         !(new Date(evidence.identityExpiresAt).getTime() > now.getTime()) ||
         (cart.customer.capacity !== 'adult_use' && !(new Date(evidence.registryExpiresAt).getTime() > now.getTime()))) {
       throw new Error('Current customer evidence is required for cart preparation; this is not final eligibility verification');
