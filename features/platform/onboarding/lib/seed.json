@@ -59,9 +59,7 @@
     "businessName": "Fernwood Cannabis Co.",
     "tagline": "Small-batch Colorado cannabis, a block off Larimer",
     "description": "Flower, pre-rolls, edibles, vapes and concentrates from Colorado growers. Adults 21+ with a valid ID.",
-    "brandHue": 148,
-    "logoIcon": "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" height=\"100%\" width=\"100%\" viewBox=\"0 0 200 200\"><circle cx=\"100\" cy=\"100\" r=\"96\" fill=\"#1f5130\"/><path d=\"M100 34c-9 22-30 40-30 70 0 18 13 32 30 36 17-4 30-18 30-36 0-30-21-48-30-70Z\" fill=\"#8fd19e\"/><path d=\"M97 92h6v74h-6z\" fill=\"#1f5130\"/><path d=\"M100 120c-14-6-30-6-46 4 12 10 30 12 46 4m0-8c14-6 30-6 46 4-12 10-30 12-46 4\" fill=\"#5fb878\"/></svg>",
-    "logoColor": "0"
+    "brandHue": 148
   },
   "register": { "code": "front-1", "name": "Front counter" },
   "receiving": {

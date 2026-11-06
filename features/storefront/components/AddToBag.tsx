@@ -9,7 +9,7 @@ export function AddToBag({ product }: { product: { id: string; name: string; pri
   const bag = useBag();
   const [units, setUnits] = useState(1);
   const [added, setAdded] = useState(false);
-  return <div className="mt-8 space-y-3">
+  return <div className="mt-6 space-y-3">
     <div className="flex flex-wrap items-center gap-3">
       <div role="group" aria-label="Quantity" className="inline-flex h-12 items-center rounded-[4px] border border-cn-line">
         <button type="button" aria-label="Fewer" onClick={() => setUnits(value => Math.max(1, value - 1))} className="size-12 text-[20px]">−</button>

@@ -38,7 +38,9 @@ export function CatalogEntry({ product, currencyCode, showChannel = true }: { pr
 /** The item's plate: its photo when there is one, otherwise its chapter's ink with the item's record printed on it. */
 export function ProductPlate({ product, specs, className }: { product: TileProduct; specs: Array<[string, string]>; className?: string }) {
   if (product.imageUrl) {
-    return <div className={cn('aspect-[4/5] w-full overflow-hidden rounded-[4px] bg-cn-raise', className)}>
+    // Capped so the tall jar photos never push the purchase block off screen: 400px on a phone (where it
+    // sits below Add to bag), and the viewport under the header on a wide screen.
+    return <div className={cn('aspect-[4/5] max-h-[400px] w-full overflow-hidden rounded-[4px] bg-cn-raise lg:max-h-[calc(100svh-220px)] lg:min-h-[420px]', className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={product.imageUrl} alt="" className="size-full object-cover" loading="eager" />
     </div>;

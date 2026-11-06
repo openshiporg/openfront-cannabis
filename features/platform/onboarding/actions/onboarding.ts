@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from '@/features/dashboard/actions/auth';
 import { notCompletedState, parseAuthorityPack, unknownOutcomeState, type OnboardingState } from '../lib/state';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
 import seed from '../lib/seed.json';
+import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON } from '@/features/lib/store-logo';
 
 
 async function readOnboardingStatus(): Promise<string | null> {
@@ -82,7 +83,7 @@ async function stockStorefront() {
   if (!workspace.success || workspace.data.cannabisStorefrontSettingsWorkspace.state !== 'ok') throw new Error('Store settings are not available to you.');
   const { revision, settings } = workspace.data.cannabisStorefrontSettingsWorkspace;
   if (settings?.businessName === seed.storefront.businessName && settings?.tagline === seed.storefront.tagline) return;
-  await sampleCommand('configureCannabisStorefrontSettings', { idempotencyKey: `${SAMPLE_KEY}:storefront:${revision ?? 'new'}`, expectedRevision: revision, ...seed.storefront });
+  await sampleCommand('configureCannabisStorefrontSettings', { idempotencyKey: `${SAMPLE_KEY}:storefront:${revision ?? 'new'}`, expectedRevision: revision, logoIcon: DEFAULT_STORE_LOGO_ICON, logoColor: DEFAULT_STORE_LOGO_COLOR, ...seed.storefront });
 }
 
 async function stockProduct(index: number) {

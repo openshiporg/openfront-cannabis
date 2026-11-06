@@ -26,7 +26,8 @@ const { sanitizeStoreLogoSvg } = load('features/keystone/utils/storeLogo.ts');
 const { normalizeLogoSettings } = load('features/keystone/domain/storefrontSettings.ts');
 const { normalizeStoreLogoColor } = load('features/lib/store-logo.ts');
 const { LOGO_ICONS } = load('features/platform/store-settings/lib/icon-registry.ts');
-const { storeBrand, CANNABIS_LOGO_ICON } = load('features/storefront/lib/brand.ts');
+const { storeBrand, CANNABIS_LOGO_ICON, RETIRED_STORE_LOGO_ICONS } = load('features/storefront/lib/brand.ts');
+const { DEFAULT_STORE_LOGO_ICON, DEFAULT_STORE_LOGO_COLOR } = load('features/platform/store-settings/lib/store-logo.ts');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('the old paths are re-exports of the E-commerce copies', () => {
@@ -64,7 +65,7 @@ test('a pasted custom SVG is kept, trimmed', () => {
 test('the hue is normalized to 0..359', () => {
   assert.equal(normalizeStoreLogoColor('-30'), '330');
   assert.equal(normalizeStoreLogoColor('390'), '30');
-  assert.equal(normalizeStoreLogoColor('nope'), '0');
+  assert.equal(normalizeStoreLogoColor('nope'), '270');
   assert.equal(normalizeLogoSettings({ logoColor: '480' }).logoColor, '120');
 });
 
@@ -93,4 +94,15 @@ test('render rule: the saved icon and hue always show; empty renders the default
   const shell = read('features/storefront/components/StorefrontShell.tsx');
   assert.ok((shell.match(/logo\(/g) || []).length >= 3); // header, age gate, footer
   assert.doesNotMatch(read('features/storefront/components/StoreLogo.tsx'), /storeOwnMark|return null/);
+});
+
+test('the default mark is the Untitled UI "Pollinate" in green, and onboarding writes it as E-commerce does', () => {
+  assert.equal(LOGO_ICONS.find((icon) => icon.lightSvg.trim() === DEFAULT_STORE_LOGO_ICON)?.id, 'pollinate');
+  assert.equal(DEFAULT_STORE_LOGO_COLOR, '270');
+  assert.equal(CANNABIS_LOGO_ICON, DEFAULT_STORE_LOGO_ICON);
+  const seed = JSON.parse(read('features/platform/onboarding/lib/seed.json'));
+  assert.equal(seed.storefront.logoIcon, undefined, 'no custom mark in the seed');
+  assert.match(read('features/platform/onboarding/actions/onboarding.ts'), /logoIcon: DEFAULT_STORE_LOGO_ICON, logoColor: DEFAULT_STORE_LOGO_COLOR, \.\.\.seed\.storefront/);
+  for (const retired of RETIRED_STORE_LOGO_ICONS) assert.deepEqual([storeBrand({ logoIcon: retired, logoColor: '0' }).logoSvg, storeBrand({ logoIcon: retired, logoColor: '0' }).logoColor], [DEFAULT_STORE_LOGO_ICON, '270']);
+  assert.ok(read('schema.prisma').includes(JSON.stringify(DEFAULT_STORE_LOGO_ICON)));
 });

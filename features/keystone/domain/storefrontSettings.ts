@@ -1,5 +1,5 @@
 import { sanitizeStoreLogoSvg } from '../../lib/sanitize-store-logo.ts';
-import { DEFAULT_STORE_LOGO_ICON, normalizeStoreLogoColor } from '../../lib/store-logo.ts';
+import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON, normalizeStoreLogoColor } from '../../lib/store-logo.ts';
 
 export const NEUTRAL_STOREFRONT_HUE = 215;
 
@@ -20,7 +20,7 @@ export const NEUTRAL_STOREFRONT_SETTINGS: PublicStorefrontSettings = Object.free
   description: null,
   brandHue: NEUTRAL_STOREFRONT_HUE,
   logoIcon: DEFAULT_STORE_LOGO_ICON,
-  logoColor: '0',
+  logoColor: DEFAULT_STORE_LOGO_COLOR,
   mode: "neutral",
   isConfigured: false,
 });

@@ -39,16 +39,17 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
       <article className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:gap-14">
         <div className="order-last lg:order-none lg:sticky lg:top-[calc(var(--cn-header)+24px)] lg:self-start"><ProductPlate product={product} specs={[['Form', product.form], ...(product.priceCents != null ? [['Price', formatPrice(product.priceCents, menu.currencyCode)] as [string, string]] : []), ['Sold for', channels || '—'], ['Buy', 'Pickup']]} /></div>
         <div className="min-w-0 lg:pt-2">
-          <h1 className="cn-display break-words text-[52px] text-cn-ink [text-wrap:balance] sm:text-[80px]">{product.name}</h1>
+          <h1 className="cn-display break-words text-[44px] text-cn-ink [text-wrap:balance] sm:text-[64px] xl:text-[80px]">{product.name}</h1>
           <div className="mt-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-y border-cn-line py-4">
-            {product.priceCents != null && <p className="cn-display cn-num text-[56px] text-cn-ink">{formatPrice(product.priceCents, menu.currencyCode)}</p>}
+            {product.priceCents != null && <p className="cn-display cn-num text-[44px] text-cn-ink sm:text-[56px]">{formatPrice(product.priceCents, menu.currencyCode)}</p>}
             <p className="inline-flex items-baseline gap-2 text-[16px] text-cn-ink-2"><span className="cn-dot bg-cn-ok" aria-hidden="true" />In stock · order for pickup</p>
           </div>
-          <dl className="mt-2 text-[16px]">
+          {/* Buy first: on a phone the photo follows this column, so Add to bag sits right under the price. */}
+          {product.priceCents != null && <AddToBag product={{ id: product.id, name: product.name, priceCents: product.priceCents }} />}
+          <dl className="mt-6 text-[16px]">
             {specs.map(([term, value]) => <div key={term} className="grid gap-1 border-b border-cn-line py-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-6"><dt className="text-cn-ink-3">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
           </dl>
           {product.description && <p className="mt-6 max-w-prose whitespace-pre-line break-words text-[17px] [text-wrap:pretty] leading-[28px] text-cn-ink-2">{product.description}</p>}
-          {product.priceCents != null && <AddToBag product={{ id: product.id, name: product.name, priceCents: product.priceCents }} />}
           <div className="mt-8 flex flex-wrap gap-2">
             {directions && <a href={directions} target="_blank" rel="noreferrer" data-tone="ink" className="cn-btn">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
             <Link href={formHref} className="cn-btn">More {product.form.toLowerCase()}</Link>
