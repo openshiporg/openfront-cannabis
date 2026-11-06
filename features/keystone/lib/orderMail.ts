@@ -42,3 +42,26 @@ export async function sendPickupOrderConfirmationEmail(order: OrderConfirmationE
     return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
   }
 }
+
+export type OrderReadyEmail = { to: string; storeName: string; reference: string; name: string; whenLabel: string; address?: string };
+
+/** "Your order is ready" (Dutchie / Jane): sent once when staff stage a pickup order. */
+export async function sendPickupOrderReadyEmail(order: OrderReadyEmail): Promise<{ sent: boolean; error?: string; messageId?: string; response?: string }> {
+  if (!order.to) return { sent: false, error: "no_recipient" };
+  try {
+    const info = await pickupMailTransport().sendMail({
+      to: order.to,
+      from: process.env.SMTP_FROM,
+      subject: `Order ${order.reference} is ready for pickup at ${order.storeName}`,
+      html: `<body style="font-family:Helvetica,Arial,sans-serif;color:#222;max-width:560px;margin:auto">
+        <h2>${escapeHtml(order.name ? `${order.name}, your` : "Your")} order is ready</h2>
+        <p>Order <strong>${escapeHtml(order.reference)}</strong> is packed and waiting at ${escapeHtml(order.storeName)}${order.address ? `, ${escapeHtml(order.address)}` : ""}.<br/>Pickup: ${escapeHtml(order.whenLabel)}</p>
+        <p>Bring the valid government ID you ordered with. The name on the ID must match the order.</p>
+        <p style="color:#666;font-size:13px">Use the link in your order confirmation email to view or cancel the order.</p>
+      </body>`,
+    });
+    return { sent: true, messageId: typeof (info as any)?.messageId === "string" ? (info as any).messageId : undefined, response: typeof (info as any)?.response === "string" ? (info as any).response : undefined };
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
+  }
+}

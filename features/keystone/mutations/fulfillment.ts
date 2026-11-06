@@ -64,7 +64,7 @@ export async function transitionCannabisCartPreparation(_root: unknown, args: { 
   if (!visible || visible.id !== input.cartId) throw new Error('Cart is outside current access');
   const scope = await context.sudo().query.Cart.findOne({ where: { id: input.cartId }, query: 'id organization { id } premises { id }' });
   assertFulfillmentScope(scope, authority);
-  return runControlledOperation(context, input, {
+  const result = await runControlledOperation(context, input, {
     permission: 'canManageSales', activity: 'sale', scope: 'transitionCannabisCartPreparation',
     resourceType: 'Cart', action: 'cart.preparation.transitioned', emitStateEvent: false,
     authorize: async (current, fresh) => {
@@ -132,4 +132,10 @@ export async function transitionCannabisCartPreparation(_root: unknown, args: { 
       packages: groups.map(group => ({ ...group, version: packages.find(pkg => pkg.id === group.packageId)!.version })),
       verification: 'preparation_only_not_sale_or_handoff' };
   });
+  // Staged = packed and waiting: tell an online pickup customer (once per cart, after commit).
+  if (input.nextStatus === 'staged') {
+    const { deliverPickupReadyNotice } = await import('../utils/orderConfirmation');
+    await deliverPickupReadyNotice(context, input.cartId);
+  }
+  return result;
 }
