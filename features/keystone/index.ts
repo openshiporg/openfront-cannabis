@@ -10,6 +10,7 @@ import { sendPasswordResetEmail } from "./lib/mail";
 import { OPERATOR_SESSION_MAX_AGE_SECONDS } from "../../lib/security";
 import { readRuntimeEnvironment } from "./config/environment";
 import { pooledDatabaseUrl } from './database-url';
+import { throwKeystonePrismaErrors } from './lib/keystonePrismaErrors';
 
 const runtimeEnvironment = readRuntimeEnvironment();
 
@@ -80,6 +81,8 @@ export default withAuth(
     db: {
       provider: "postgresql",
       url: pooledDatabaseUrl(runtimeEnvironment.databaseUrl),
+      // Keystone returns failed queries as values; this makes them throw so transactions roll back.
+      extendPrismaClient: throwKeystonePrismaErrors,
     },
     lists: withDeleteAwareUi(withCreateAwareUi(models)),
     storage: {
