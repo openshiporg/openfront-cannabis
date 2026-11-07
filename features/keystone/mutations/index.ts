@@ -5,7 +5,7 @@ import runCannabisOnboarding, { dismissCannabisOnboarding, provisionStaffAuthori
 import { cannabisCommandReceipt, cannabisSaleReceipt } from "./receipts";
 import { receiveCannabisPackage, postCannabisInventoryEvent, recordCannabisCountCorrection, releasePackageHold } from "./inventory";
 import { publicCannabisMenu, publicCannabisStorefrontSettings, submitCannabisCustomerIntake, recordEligibilityDecision } from "./public";
-import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabisCart, addCannabisCartLine, cancelCannabisCart, finalizeCannabisSale } from "./commerce";
+import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabisCart, addCannabisCartLine, cancelCannabisCart, finalizeCannabisSale, voidCannabisSale } from "./commerce";
 import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, retryStateOutboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
@@ -78,6 +78,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         closeRegisterShift(input: JSON!): JSON!
         approveCashVariance(input: JSON!): JSON!
         refundCannabisSale(input: JSON!): JSON!
+        voidCannabisSale(input: JSON!): JSON!
         recordComplianceIncident(input: JSON!): JSON!
         activateIntegrationInstallation(input: JSON!): JSON!
         recordStateInboxEvent(input: JSON!): JSON!
@@ -130,6 +131,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         closeRegisterShift,
         approveCashVariance,
         refundCannabisSale,
+        voidCannabisSale,
         recordComplianceIncident,
         activateIntegrationInstallation,
         recordStateInboxEvent,

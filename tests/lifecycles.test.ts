@@ -66,3 +66,14 @@ test("count correction: only shelf stock, never below zero or below open carts",
     assert.ok(countCorrectionError({ ...shelf, status }, 1_000_000), status);
   }
 });
+
+test("void: only a whole, unrefunded cash sale on an open shift with its packages still shelved", async () => {
+  const { saleVoidError } = await import("../features/keystone/domain/lifecycles.ts");
+  const sale = { status: "state_queued", refundedCents: 0, shiftStatus: "open", tenderTypes: ["cash"], tenderStatuses: ["received"], packageStatuses: ["saleable"] };
+  assert.equal(saleVoidError(sale), null);
+  assert.match(String(saleVoidError({ ...sale, status: "reversed" })), /already voided/);
+  assert.match(String(saleVoidError({ ...sale, refundedCents: 100, status: "partially_refunded" })), /refund/);
+  assert.match(String(saleVoidError({ ...sale, shiftStatus: "closed" })), /still-open shift/);
+  assert.match(String(saleVoidError({ ...sale, tenderTypes: ["debit"] })), /card sale/);
+  assert.match(String(saleVoidError({ ...sale, packageStatuses: ["depleted"] })), /no longer on the shelf/);
+});

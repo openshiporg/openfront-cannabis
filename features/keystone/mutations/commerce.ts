@@ -13,7 +13,8 @@ import { serializableTransaction } from '../domain/transaction.ts';
 import { capturePayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { releaseOnlinePayment } from "./onlinePayments";
-import { customerBlocksSale, FINALIZABLE_CART_STATUSES, tenderStatusFromCapture } from "../domain/lifecycles";
+import { customerBlocksSale, FINALIZABLE_CART_STATUSES, saleVoidError, tenderStatusFromCapture } from "../domain/lifecycles";
+import { verifySecondApprover, withApprover } from "./approval";
 
 /** Server-internal marker for expiring abandoned online orders; it can never arrive through GraphQL JSON. */
 export const SYSTEM_CANCEL = Symbol("system-cancel");
@@ -493,5 +494,45 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     if (completed.count !== 1) throw new Error("Reserved cart state changed concurrently");
     if (online?.source === "pickup") await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: cardAuthorization ? "captured" : "paid_at_pickup" }, query: "id" });
     return { id: sale.id, status: sale.status, reference: sale.receiptNumber, totalCents: cart.totalCents, stateReport: { receiptNumber: sale.receiptNumber, finalizedAt: now.toISOString(), customerCapacity: cart.customer.capacity, rulePackVersion: pack.version, packages: cart.lines.map((line: any) => ({ packageUid: line.packageUidSnapshot, quantityMicrounits: line.quantityMicrounits, unitOfMeasure: salePackageSnapshots.get(line.package.id)!.unitOfMeasure })) } };
+  });
+}
+
+/**
+ * Void a sale at the counter: the whole sale is undone on the shift that took it. Every line's quantity
+ * goes back to its package, the cash leaves the drawer, tenders are reversed and the sale becomes reversed.
+ * Needs a second finance approver and a written reason.
+ */
+export async function voidCannabisSale(_root: unknown, args: { input: any }, context: Context) {
+  requireRuntimeCapability("finance.verified-refunds", "Voids are disabled with refunds.");
+  const raw = args.input || {};
+  const reason = assertText(raw.reason, "Void reason", 4, 500);
+  const input = withApprover(raw, await verifySecondApprover(context, raw, "canManageFinance"));
+  const saleId = assertText(input.saleId, "Sale ID");
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "voidCannabisSale", resourceType: "Sale", action: "sale.voided", lockKeys: [saleId] }, async (tx, authority, correlationId) => {
+    const sudo = tx.sudo(); const now = new Date();
+    const sale = await sudo.query.Sale.findOne({ where: { id: saleId }, query: "id receiptNumber status totalCents refundedCents organization { id } premises { id } shift { id status } lines(take: 251) { id quantityMicrounits package { id } } tenders(take: 11) { id typeSnapshot status amountCents }" });
+    if (!sale || sale.organization?.id !== authority.organizationId || sale.premises?.id !== authority.premisesId) throw new Error("Sale is outside this premises");
+    const packageIds = [...new Set<string>(sale.lines.map((line: any) => line.package.id))];
+    for (const id of packageIds) await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-package", id);
+    const packages = await sudo.query.InventoryPackage.findMany({ where: { id: { in: packageIds } }, query: "id status version quantityOnHandMicrounits" });
+    const refused = saleVoidError({ status: sale.status, refundedCents: sale.refundedCents, shiftStatus: sale.shift?.status, tenderTypes: sale.tenders.map((t: any) => t.typeSnapshot), tenderStatuses: sale.tenders.map((t: any) => t.status), packageStatuses: packages.map((p: any) => p.status) });
+    if (refused) throw new Error(refused);
+    const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageFinance }" });
+    if (!approver || approver.id === authority.actor.id || approver.status !== "active" || !approver.role?.canManageFinance || approver.organization?.id !== authority.organizationId || approver.premises?.id !== authority.premisesId) throw new Error("The second approver needs finance authority at this premises");
+    const voided = await tx.prisma.sale.updateMany({ where: { id: sale.id, status: sale.status as any, refundedCents: 0 }, data: { status: "reversed" } });
+    if (voided.count !== 1) throw new Error("This sale changed while voiding; refresh it");
+    const onHand = new Map<string, any>(packages.map((p: any) => [p.id, { ...p }]));
+    for (const [index, line] of sale.lines.entries()) {
+      const pkg = onHand.get(line.package.id);
+      const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: pkg.version, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits }, data: { quantityOnHandMicrounits: { increment: line.quantityMicrounits }, version: { increment: 1 } } });
+      if (changed.count !== 1) throw new Error("A package on this sale changed while voiding; refresh it");
+      const before = pkg.quantityOnHandMicrounits; const after = before + line.quantityMicrounits;
+      pkg.quantityOnHandMicrounits = after; pkg.version += 1;
+      await sudo.query.InventoryEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, package: { connect: { id: pkg.id } }, eventType: "adjustment", quantityDeltaMicrounits: line.quantityMicrounits, beforeQuantityMicrounits: before, afterQuantityMicrounits: after, reasonCode: "sale_voided", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, sourceType: "SaleLine", sourceId: line.id, idempotencyKey: `${correlationId}:void:${index}`, occurredAt: now, evidenceHash: stableHash({ saleId: sale.id, saleLineId: line.id, before, after, reason }), stateReportStatus: "queued" }, query: "id" });
+    }
+    for (const tender of sale.tenders) await sudo.query.Tender.updateOne({ where: { id: tender.id }, data: { status: "reversed" }, query: "id" });
+    const cashCents = sale.tenders.reduce((sum: number, tender: any) => sum + tender.amountCents, 0);
+    await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: sale.shift.id } }, type: "refund", amountCents: -cashCents, reasonCode: "sale_voided", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, occurredAt: now, idempotencyKey: `${correlationId}:void-cash`, evidenceHash: stableHash({ saleId: sale.id, reason }) }, query: "id" });
+    return { id: sale.id, status: "reversed", reference: sale.receiptNumber, returnedMicrounits: sale.lines.reduce((sum: number, line: any) => sum + line.quantityMicrounits, 0), stateReport: { receiptNumber: sale.receiptNumber, voided: true, reason } };
   });
 }

@@ -51,3 +51,18 @@ export function customerBlocksSale(status: string | null | undefined) {
 
 /** Carts that hold stock and can be swept once their hold has run out. */
 export const EXPIRABLE_CART_STATUSES = ["preliminarily_eligible", "reserved", "picking", "staged"] as const;
+
+/**
+ * Why a sale cannot be voided at the counter, or null. A void undoes the whole sale on the shift that
+ * took it: nothing refunded yet, the shift still open, cash only (a card sale is refunded through its terminal),
+ * and every package still on the shelf so its stock can go back.
+ */
+export function saleVoidError(sale: { status: string; refundedCents: number; shiftStatus: string | null | undefined; tenderTypes: string[]; tenderStatuses: string[]; packageStatuses: string[] }): string | null {
+  if (["reversed", "reversal_pending"].includes(sale.status)) return "This sale is already voided";
+  if (["refunded", "partially_refunded"].includes(sale.status) || sale.refundedCents > 0) return "A sale with a refund can't be voided; refund the rest instead";
+  if (sale.shiftStatus !== "open") return "Only a sale on a still-open shift can be voided; refund it instead";
+  if (sale.tenderTypes.some(type => type !== "cash")) return "A card sale is refunded through its terminal, not voided";
+  if (sale.tenderStatuses.some(status => status !== "received")) return "A tender on this sale has already moved; refund it instead";
+  if (sale.packageStatuses.some(status => !["saleable", "quarantined"].includes(status))) return "A package on this sale is no longer on the shelf; refund the sale and correct the count instead";
+  return null;
+}

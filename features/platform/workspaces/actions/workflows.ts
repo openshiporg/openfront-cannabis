@@ -489,6 +489,17 @@ export async function refundSaleFromDesk(_state: CommandState, formData: FormDat
   return runCommand('refundCannabisSale', 'refundCannabisSale', { idempotencyKey, saleId: text(formData, 'saleId'), originalTenderId: text(formData, 'originalTenderId'), amountCents, reasonCode: text(formData, 'reasonCode'), inventoryDisposition, ...(providerReference ? { providerReference } : {}), ...approver }, 'Refund recorded.');
 }
 
+/** Void a whole cash sale on its open shift: stock goes back to its packages, cash leaves the drawer. */
+export async function voidSaleFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const reason = text(formData, 'reason');
+  if (reason.length < 4) errors.reason = 'Say why the sale is voided';
+  const approver = approverFields(formData, errors);
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('voidCannabisSale', 'voidCannabisSale', { idempotencyKey, saleId: text(formData, 'saleId'), reason, ...approver }, 'Sale voided. Its stock is back on the shelf.');
+}
+
 /** Upload or remove the storefront cover photo (Store Settings). */
 export async function setStorefrontCoverFromSettings(_state: CommandState, formData: FormData): Promise<CommandState> {
   const photo = imageFile(formData, 'photo');

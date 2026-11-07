@@ -2,7 +2,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { ButtonLink, Dot, DotLabel, Panel, Ref, StatusText, statusTone, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { getSaleReceipt } from '../actions/receipt';
-import { RefundForm } from '@/features/platform/operations/components/SaleForms';
+import { RefundForm, VoidSaleForm } from '@/features/platform/operations/components/SaleForms';
 import { formatInstant } from '@/features/platform/lib/time';
 
 const readable = (value: string | null | undefined) => (value || '').replaceAll('_', ' ');
@@ -47,6 +47,7 @@ export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashbo
         <section aria-label="Refunds"><h3 className="text-xs font-semibold text-foreground">Refunds</h3>
           {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · {codeLabel(refund.reasonCode)} · {readable(refund.status)}</span><span className="tabular-nums">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}
           {refundable && <div className="mt-3"><RefundForm saleId={sale.id} tenders={sale.tenders.filter(tender => tender.status !== 'reversed' && tender.status !== 'failed')} remainingCents={sale.totalCents - sale.refundedCents} currencyCode={sale.currencyCode} /></div>}
+          {refundable && sale.refundedCents === 0 && !['reversed', 'reversal_pending', 'refunded', 'partially_refunded'].includes(sale.status) && <div className="mt-3"><VoidSaleForm saleId={sale.id} /></div>}
         </section>
       </div>
     </div>

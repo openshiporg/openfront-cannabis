@@ -9,7 +9,7 @@ import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quan
 import { getAllocationQuote, type AllocationQuoteReadback } from '@/features/platform/fulfillment/actions/allocationQuote';
 import {
   addCartLineFromDesk, advanceRecallFromDesk, cancelCartFromDesk, correctCountFromDesk, checkInAndStartSaleFromDesk, closeShiftFromDesk, finalizeSaleFromDesk,
-  recordLabResultFromDesk, refundSaleFromDesk, releaseHoldFromDesk, releasePackageFromDesk,
+  recordLabResultFromDesk, refundSaleFromDesk, voidSaleFromDesk, releaseHoldFromDesk, releasePackageFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
 
@@ -306,6 +306,22 @@ export function RefundForm({ saleId, tenders, remainingCents, currencyCode }: { 
       </fieldset>
       <ApproverFields errors={errors} role="finance" />
       <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Refunding…' : 'Record refund'}</Button></Actions>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </Disclosure>;
+}
+
+/** Undo a whole cash sale on its still-open shift. The server refuses anything else and says why. */
+export function VoidSaleForm({ saleId }: { saleId: string }) {
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(voidSaleFromDesk);
+  const errors = state.fieldErrors;
+  return <Disclosure label="Void sale">
+    <form onSubmit={onSubmit(() => window.confirm('Void this whole sale and return its stock?'))} onChange={markDirty} className="space-y-3" aria-label="Void this sale">
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="saleId" value={saleId} />
+      <p className="text-xs text-muted-foreground">Undoes the whole sale: every line goes back to its package and the cash leaves the drawer. Only for a cash sale on a shift that is still open.</p>
+      <fieldset disabled={pending}><Field name="reason" title="Reason" errors={errors} required placeholder="Rung up in error" /></fieldset>
+      <ApproverFields errors={errors} role="finance" />
+      <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Voiding…' : 'Void sale'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;
