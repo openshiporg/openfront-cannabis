@@ -1,3 +1,4 @@
+import { FINALIZABLE_CART_STATUSES } from "./lifecycles.ts";
 const MAX_DATABASE_INT = 2_147_483_647;
 
 export type SalePackageGroup = {
@@ -69,7 +70,7 @@ export function planSaleLineBalances(lines: readonly SaleCartLine[], group: Sale
 }
 
 export function assertFinalSaleCartFence(expected: { id: string; status: string; version: number }, current: { id: string; status: string; version: number }) {
-  if (expected.status !== "reserved" || current.id !== expected.id || current.status !== expected.status || current.version !== expected.version) {
+  if (!FINALIZABLE_CART_STATUSES.includes(expected.status) || current.id !== expected.id || current.status !== expected.status || current.version !== expected.version) {
     throw new Error("Reserved cart state changed concurrently");
   }
 }

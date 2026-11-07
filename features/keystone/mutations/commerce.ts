@@ -13,6 +13,7 @@ import { serializableTransaction } from '../domain/transaction.ts';
 import { capturePayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { releaseOnlinePayment } from "./onlinePayments";
+import { customerBlocksSale, FINALIZABLE_CART_STATUSES, tenderStatusFromCapture } from "../domain/lifecycles";
 
 /** Server-internal marker for expiring abandoned online orders; it can never arrive through GraphQL JSON. */
 export const SYSTEM_CANCEL = Symbol("system-cancel");
@@ -243,7 +244,8 @@ export async function cancelCannabisCart(_root: unknown, args: { input: any }, c
   } else if (input.system !== SYSTEM_CANCEL && (!input.proof || cart.guestProofHash !== hash(input.proof))) {
     throw new Error("Cart ownership proof is invalid");
   }
-  if (cart.status === "cancelled") return { id: cart.id, status: "cancelled", reference: cart.reference, replayed: true };
+  // A replay also retries a card release that failed or was interrupted (it does nothing once released).
+  if (cart.status === "cancelled") { await releaseOnlinePayment(context, cart.id); return { id: cart.id, status: "cancelled", reference: cart.reference, replayed: true }; }
 
   const cancelled = await serializableTransaction(context, async tx => {
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-cart", cart.id);
@@ -365,13 +367,14 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     // Online pickup orders carry no shift and only a declared identity. Completing one is the ID check:
     // staff confirm the customer's ID, which makes the declared eligibility current and puts the sale on their open shift.
     let cardAuthorization: string | null = null;
-    const online = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id source shift { id } paymentMethod paymentStatus paymentReference eligibilityEvidence { id } customer { id } organization { id } premises { id } pickupWindowStart" });
+    const online = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id source shift { id } paymentMethod paymentStatus paymentReference eligibilityEvidence { id } customer { id status } organization { id } premises { id } pickupWindowStart" });
     if (online && online.source === "pickup" && !online.shift) {
       if (online.organization?.id !== authority.organizationId || online.premises?.id !== authority.premisesId) throw new Error("Cart is outside current staff authority");
       if (input.idVerified !== true) throw new Error("Check the customer\u2019s ID against the order and confirm it before completing a pickup order");
       const openShifts = await sudo.query.RegisterShift.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, take: 1, query: "id" });
       if (openShifts.length !== 1) throw new Error("Open your register shift before completing a pickup order");
       if (!online.eligibilityEvidence || !online.customer) throw new Error("Pickup order has no customer on file");
+      if (customerBlocksSale(online.customer.status)) throw new Error("This customer can no longer be served; see a manager");
       await sudo.query.EligibilityEvidence.updateOne({ where: { id: online.eligibilityEvidence.id }, data: { result: "eligible", verifiedAt: now, reasonCodes: ["checked_at_pickup"] }, query: "id" });
       await sudo.query.Customer.updateOne({ where: { id: online.customer.id }, data: { status: "eligible" }, query: "id" });
       await sudo.query.Cart.updateOne({ where: { id: online.id }, data: { shift: { connect: { id: openShifts[0].id } } }, query: "id" });
@@ -383,7 +386,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       }
     }
     const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference status expiresAt totalCents subtotalCents discountCents taxCents version organization { id } premises { id } shift { id status operator { id } } customer { id capacity status } eligibilityEvidence { id result capacity dateOfBirth identityExpiresAt registryExpiresAt evidenceHash allotmentRemainingMicrounits } rulePack { id version } lines(take: 251) { id package { id version status testStatus expiresAt unitOfMeasure premises { id } quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } } product { id categoryCode } titleSnapshot skuSnapshot categoryCodeSnapshot packageUidSnapshot batchSnapshot potencySnapshot quantityMicrounits equivalencyMicrounits unitPriceCents discountCents discountSnapshot taxCents totalCents }" });
-    if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || cart.status !== "reserved" || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
+    if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || !FINALIZABLE_CART_STATUSES.includes(cart.status) || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
     if (!cart.shift || cart.shift.status !== "open" || cart.shift.operator?.id !== authority.actor.id) throw new Error("Actor must own the cart's open register shift");
     const evidence = cart.eligibilityEvidence; if (!evidence || evidence.result !== "eligible" || evidence.capacity !== cart.customer.capacity || new Date(evidence.identityExpiresAt) <= now) throw new Error("Current eligibility evidence is required at final verification");
     assertEligibility({ capacity: cart.customer.capacity, age: ageAt(evidence.dateOfBirth, now), identityValid: true, registryValid: cart.customer.capacity === "adult_use" || Boolean(evidence.registryExpiresAt && new Date(evidence.registryExpiresAt) > now), representedPatientValid: cart.customer.capacity !== "caregiver" || Boolean(input.representedPatientVerified) }, pack as any);
@@ -419,7 +422,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
           throw new Error("Payment capture is ambiguous; incident recorded and reconciliation is required");
         }
         tender.providerReference = String(result.paymentIntentId || result.transactionId || tender.providerReference);
-        tender.providerStatus = result.status;
+        tender.providerStatus = tenderStatusFromCapture(result.status);
         tender.paymentProviderId = provider.id;
       }
       tenderConfigs.push(configurations[0]);
@@ -486,7 +489,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     const cartFence = await sudo.query.Cart.findOne({ where: { id: cart.id }, query: "id status version" });
     if (!cartFence) throw new Error("Reserved cart is missing during finalization");
     assertFinalSaleCartFence({ id: cart.id, status: cart.status, version: cart.version }, { id: cartFence.id, status: cartFence.status, version: cartFence.version });
-    const completed = await tx.prisma.cart.updateMany({ where: { id: cart.id, version: cart.version, status: "reserved" }, data: { status: "completed", version: { increment: 1 } } });
+    const completed = await tx.prisma.cart.updateMany({ where: { id: cart.id, version: cart.version, status: cart.status as any }, data: { status: "completed", version: { increment: 1 } } });
     if (completed.count !== 1) throw new Error("Reserved cart state changed concurrently");
     if (online?.source === "pickup") await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: cardAuthorization ? "captured" : "paid_at_pickup" }, query: "id" });
     return { id: sale.id, status: sale.status, reference: sale.receiptNumber, totalCents: cart.totalCents, stateReport: { receiptNumber: sale.receiptNumber, finalizedAt: now.toISOString(), customerCapacity: cart.customer.capacity, rulePackVersion: pack.version, packages: cart.lines.map((line: any) => ({ packageUid: line.packageUidSnapshot, quantityMicrounits: line.quantityMicrounits, unitOfMeasure: salePackageSnapshots.get(line.package.id)!.unitOfMeasure })) } };

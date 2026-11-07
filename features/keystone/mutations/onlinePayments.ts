@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Context } from ".keystone/types";
 import { refundPayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
+import { RELEASABLE_PAYMENT_STATUSES } from "../domain/lifecycles";
 
 export const CARD_PROVIDER_CODE = "pp_authorizenet_authorizenet";
 const PROVIDER_SELECTION = "id code isInstalled credentials createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction";
@@ -37,7 +38,7 @@ export async function onlineCardProvider(context: Context, scope: { organization
 export async function releaseOnlinePayment(context: Context, cartId: string) {
   const sudo = context.sudo();
   const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference paymentMethod paymentStatus paymentReference totalCents organization { id } premises { id }" });
-  if (!cart || cart.paymentMethod !== "card" || cart.paymentStatus !== "authorized" || !cart.paymentReference) return null;
+  if (!cart || cart.paymentMethod !== "card" || !RELEASABLE_PAYMENT_STATUSES.includes(cart.paymentStatus) || !cart.paymentReference) return null;
   const provider = await sudo.query.PaymentProvider.findOne({ where: { code: CARD_PROVIDER_CODE }, query: PROVIDER_SELECTION });
   let released = false;
   try {

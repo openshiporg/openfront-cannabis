@@ -9,7 +9,8 @@ import { createPayment } from "../utils/paymentProviderAdapter";
 import { getPublicPaymentProviderConfig } from "../utils/paymentProviderConfig";
 import { ALLOCATION_PACKAGE_SELECTION, cancelCannabisCart, purchaseWindowTotals, SYSTEM_CANCEL } from "./commerce";
 import { documentHash } from "./customers";
-import { CARD_PROVIDER_CODE, onlineCardProvider } from "./onlinePayments";
+import { CARD_PROVIDER_CODE, onlineCardProvider, releaseOnlinePayment } from "./onlinePayments";
+import { EXPIRABLE_CART_STATUSES, RELEASABLE_PAYMENT_STATUSES } from "../domain/lifecycles";
 import { publicAuthority } from "./public";
 import { assertInteger, assertText, stableHash } from "./workflow";
 import { deliverPickupConfirmation } from "../utils/orderConfirmation";
@@ -32,10 +33,15 @@ const orderReference = (idempotencyKey: string) => `PU-${sha(`pickup-ref:${idemp
 
 /** Abandoned online orders give their stock back (and release any card hold) once their hold has run out. */
 async function releaseExpiredOrders(context: Context) {
-  const expired = await context.sudo().query.Cart.findMany({ where: { source: { equals: "pickup" }, status: { in: ["reserved", "preliminarily_eligible"] }, expiresAt: { lt: new Date() } }, take: 20, query: "id" });
+  const sudo = context.sudo();
+  // Every cart that holds stock (online or at the counter, packed or not) gives it back once its hold has run out.
+  const expired = await sudo.query.Cart.findMany({ where: { status: { in: [...EXPIRABLE_CART_STATUSES] }, expiresAt: { lt: new Date() } }, take: 20, query: "id" });
   for (const cart of expired) {
     try { await cancelCannabisCart(null as any, { input: { cartId: cart.id, system: SYSTEM_CANCEL, idempotencyKey: `expire:${cart.id}`, reasonCode: "order_expired" } }, context); } catch { /* retried on the next visit */ }
   }
+  // A cancelled order whose card hold is still standing (the release failed or was interrupted) is released again.
+  const stuck = await sudo.query.Cart.findMany({ where: { status: { equals: "cancelled" }, paymentMethod: { equals: "card" }, paymentStatus: { in: [...RELEASABLE_PAYMENT_STATUSES] } }, take: 10, query: "id" });
+  for (const cart of stuck) { try { await releaseOnlinePayment(context, cart.id); } catch { /* retried on the next visit */ } }
 }
 
 /** What the checkout needs before it renders: pickup windows, whether pickup is on, whether cards can be taken. */
