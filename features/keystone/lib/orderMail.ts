@@ -1,4 +1,5 @@
 import { createTransport } from "nodemailer";
+import { emailButton, emailItems, emailLayout, emailMuted, emailPanel, emailParagraph, emailTotals, escapeHtml } from "./email-layout";
 
 function pickupMailTransport() {
   const port = Number(process.env.SMTP_PORT);
@@ -7,7 +8,6 @@ function pickupMailTransport() {
 }
 
 
-const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] as string);
 
 export type OrderConfirmationEmail = {
   to: string;
@@ -28,14 +28,17 @@ export async function sendPickupOrderConfirmationEmail(order: OrderConfirmationE
       to: order.to,
       from: process.env.SMTP_FROM,
       subject: `Your order ${order.reference} at ${order.storeName}`,
-      html: `<body style="font-family:Helvetica,Arial,sans-serif;color:#222;max-width:560px;margin:auto">
-        <h2>Thanks ${escapeHtml(order.name)}, we have your order</h2>
-        <p>Order <strong>${escapeHtml(order.reference)}</strong> at ${escapeHtml(order.storeName)}.<br/>Pickup: ${escapeHtml(order.whenLabel)}</p>
-        <table width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #ddd;border-bottom:1px solid #ddd">${rows}
-          <tr><td style="padding:8px 0"><strong>Total</strong></td><td align="right"><strong>${escapeHtml(order.total)}</strong></td></tr></table>
-        <p><a href="${escapeHtml(order.link)}">View or cancel your order</a></p>
-        <p style="color:#666;font-size:13px">Bring a valid government ID to pickup.</p>
-      </body>`,
+      html: emailLayout({
+        storeName: order.storeName,
+        preheader: `Order ${order.reference}: pickup ${order.whenLabel}`,
+        title: "We have your order",
+        body: `${emailParagraph(`Thanks ${escapeHtml(order.name)}. Order <strong>${escapeHtml(order.reference)}</strong> at ${escapeHtml(order.storeName)}.`)}
+${emailPanel(`Pickup: ${escapeHtml(order.whenLabel)}`)}
+${emailItems(order.lines.map((line) => ({ title: line.title, quantity: line.units, amount: line.total })))}
+${emailTotals([{ label: "Total", value: order.total }])}
+${emailButton("View or cancel your order", order.link)}
+${emailMuted("Bring a valid government ID to pickup.")}`,
+      }),
     });
     return { sent: true, messageId: typeof (info as any)?.messageId === "string" ? (info as any).messageId : undefined, response: typeof (info as any)?.response === "string" ? (info as any).response : undefined };
   } catch (error) {
@@ -53,12 +56,15 @@ export async function sendPickupOrderReadyEmail(order: OrderReadyEmail): Promise
       to: order.to,
       from: process.env.SMTP_FROM,
       subject: `Order ${order.reference} is ready for pickup at ${order.storeName}`,
-      html: `<body style="font-family:Helvetica,Arial,sans-serif;color:#222;max-width:560px;margin:auto">
-        <h2>${escapeHtml(order.name ? `${order.name}, your` : "Your")} order is ready</h2>
-        <p>Order <strong>${escapeHtml(order.reference)}</strong> is packed and waiting at ${escapeHtml(order.storeName)}${order.address ? `, ${escapeHtml(order.address)}` : ""}.<br/>Pickup: ${escapeHtml(order.whenLabel)}</p>
-        <p>Bring the valid government ID you ordered with. The name on the ID must match the order.</p>
-        <p style="color:#666;font-size:13px">Use the link in your order confirmation email to view or cancel the order.</p>
-      </body>`,
+      html: emailLayout({
+        storeName: order.storeName,
+        preheader: `Order ${order.reference} is ready for pickup`,
+        title: `${order.name ? `${order.name}, your` : "Your"} order is ready`,
+        body: `${emailParagraph(`Order <strong>${escapeHtml(order.reference)}</strong> is packed and waiting at ${escapeHtml(order.storeName)}${order.address ? `, ${escapeHtml(order.address)}` : ""}.`)}
+${emailPanel(`Pickup: ${escapeHtml(order.whenLabel)}`)}
+${emailParagraph("Bring the valid government ID you ordered with. The name on the ID must match the order.")}
+${emailMuted("Use the link in your order confirmation email to view or cancel the order.")}`,
+      }),
     });
     return { sent: true, messageId: typeof (info as any)?.messageId === "string" ? (info as any).messageId : undefined, response: typeof (info as any)?.response === "string" ? (info as any).response : undefined };
   } catch (error) {
