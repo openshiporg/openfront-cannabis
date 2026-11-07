@@ -9,6 +9,7 @@ import { extendGraphqlSchema } from "./mutations";
 import { sendPasswordResetEmail } from "./lib/mail";
 import { OPERATOR_SESSION_MAX_AGE_SECONDS } from "../../lib/security";
 import { readRuntimeEnvironment } from "./config/environment";
+import { pooledDatabaseUrl } from './database-url';
 
 const runtimeEnvironment = readRuntimeEnvironment();
 
@@ -78,7 +79,7 @@ export default withAuth(
   config({
     db: {
       provider: "postgresql",
-      url: runtimeEnvironment.databaseUrl,
+      url: pooledDatabaseUrl(runtimeEnvironment.databaseUrl),
     },
     lists: withDeleteAwareUi(withCreateAwareUi(models)),
     storage: {
