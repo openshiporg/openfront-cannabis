@@ -3,7 +3,7 @@ import type { GraphQLSchema } from "graphql";
 import redirectToInit from "./redirectToInit";
 import runCannabisOnboarding, { dismissCannabisOnboarding, provisionStaffAuthority } from "./onboarding";
 import { cannabisCommandReceipt, cannabisSaleReceipt } from "./receipts";
-import { receiveCannabisPackage, postCannabisInventoryEvent, releasePackageHold } from "./inventory";
+import { receiveCannabisPackage, postCannabisInventoryEvent, recordCannabisCountCorrection, releasePackageHold } from "./inventory";
 import { publicCannabisMenu, publicCannabisStorefrontSettings, submitCannabisCustomerIntake, recordEligibilityDecision } from "./public";
 import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabisCart, addCannabisCartLine, cancelCannabisCart, finalizeCannabisSale } from "./commerce";
 import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, retryStateOutboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
@@ -54,6 +54,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         advanceRecallCase(input: JSON!): JSON!
         recordPackageLabResult(input: JSON!): JSON!
         releaseCannabisPackage(input: JSON!): JSON!
+        recordCannabisCountCorrection(input: JSON!): JSON!
         checkInCannabisCustomer(input: JSON!): JSON!
         setStaffTemporaryPassword(input: JSON!): JSON!
         changeStaffPermissions(input: JSON!): JSON!
@@ -104,6 +105,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         advanceRecallCase,
         recordPackageLabResult,
         releaseCannabisPackage,
+        recordCannabisCountCorrection,
         checkInCannabisCustomer,
         setStaffTemporaryPassword,
         changeStaffPermissions,

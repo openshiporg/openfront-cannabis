@@ -166,3 +166,16 @@ export const CART_TRANSITIONS: Record<string, string[]> = {
   draft: ["preliminarily_eligible", "cancelled"], preliminarily_eligible: ["reserved", "rejected"], reserved: ["picking", "expired", "cancelled"],
   picking: ["staged", "cancelled"], staged: ["final_verification", "cancelled"], final_verification: ["completed", "rejected"], completed: [], expired: [], cancelled: [], rejected: [],
 };
+
+/** Statuses whose shelf count staff may correct. Held, recalled, closed and in-flight packages settle through their own workflows. */
+export const COUNT_CORRECTABLE_STATUSES = new Set(["saleable", "quarantined"]);
+
+/** Why a count correction is refused, or null. The package keeps its status; only on-hand moves. */
+export function countCorrectionError(pkg: { status: string | null | undefined; quantityOnHandMicrounits: number; reservedMicrounits: number }, deltaMicrounits: number): string | null {
+  if (!COUNT_CORRECTABLE_STATUSES.has(String(pkg.status))) return `A ${String(pkg.status).replaceAll("_", " ")} package's count can't be corrected here`;
+  if (!Number.isSafeInteger(deltaMicrounits) || deltaMicrounits === 0) return "Enter the counted difference, more or less than zero";
+  const after = pkg.quantityOnHandMicrounits + deltaMicrounits;
+  if (!Number.isSafeInteger(after) || after < 0) return "The correction would leave less than zero on hand";
+  if (after < pkg.reservedMicrounits) return "The correction would leave less than open carts hold; cancel those carts first";
+  return null;
+}

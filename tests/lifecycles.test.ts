@@ -53,3 +53,16 @@ test("a suspended or ineligible customer is not served from an old pickup order"
   assert.equal(customerBlocksSale("pending_verification"), false);
   assert.equal(customerBlocksSale("eligible"), false);
 });
+
+test("count correction: only shelf stock, never below zero or below open carts", async () => {
+  const { countCorrectionError } = await import("../features/keystone/domain/cannabisPolicy.ts");
+  const shelf = { status: "saleable", quantityOnHandMicrounits: 273_000_000, reservedMicrounits: 0 };
+  assert.equal(countCorrectionError(shelf, 3_500_000), null);
+  assert.equal(countCorrectionError(shelf, -3_500_000), null);
+  assert.match(String(countCorrectionError(shelf, 0)), /more or less than zero/);
+  assert.match(String(countCorrectionError(shelf, -273_000_001)), /less than zero/);
+  assert.match(String(countCorrectionError({ ...shelf, reservedMicrounits: 10_000_000 }, -270_000_000)), /open carts/);
+  for (const status of ["recalled", "depleted", "destroyed", "reserved", "in_transit", "waste_pending"]) {
+    assert.ok(countCorrectionError({ ...shelf, status }, 1_000_000), status);
+  }
+});

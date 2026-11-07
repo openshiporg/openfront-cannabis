@@ -6,7 +6,7 @@ import type { WorkspaceData } from '@/features/platform/workspaces/lib/contract'
 import { formatUsableThrough, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { ButtonLink, Dot, DotLabel, Panel, Ref, StatusText, statusTone, TabBar, TabLink, Tabs, type DotTone, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { PlaceHoldForm } from './PlaceHoldForm';
-import { LabResultForm, ReleaseHoldForm, ReleasePackageForm } from '@/features/platform/operations/components/SaleForms';
+import { CountCorrectionForm, LabResultForm, ReleaseHoldForm, ReleasePackageForm } from '@/features/platform/operations/components/SaleForms';
 import { hasDiscrepancy, readable, readinessReasons, type CustodyPackage } from '../lib/custody';
 
 type Props = { data: WorkspaceData<'inventory'>; params: Record<string, string | undefined> };
@@ -53,6 +53,7 @@ function PackageDetail({ pkg, release, timezone }: { pkg: CustodyPackage; releas
       {pkg.holds.length ? <ul className="mt-1.5 space-y-2">{pkg.holds.map(hold => <li key={hold.id} className="space-y-1.5 text-sm"><DotLabel tone="danger" >{sentenceCase(hold.type)} · {codeLabel(hold.reasonCode)}</DotLabel>{hold.reason && <p className="mt-0.5 pl-3.5 text-xs text-muted-foreground">{hold.reason}</p>}{hold.type === 'recall' ? <p className="pl-3.5 text-xs text-muted-foreground">Released by closing its recall</p> : <ReleaseHoldForm holdId={hold.id} label={`${sentenceCase(hold.type)} hold on ${pkg.packageUid}`} />}</li>)}</ul> : <p className="mt-1.5 text-sm text-muted-foreground">No active holds.</p>}
     </section>
     {!['depleted', 'destroyed'].includes(pkg.status) && <PlaceHoldForm key={pkg.id} packageId={pkg.id} packageUid={pkg.packageUid} />}
+    {['saleable', 'quarantined'].includes(pkg.status) && <CountCorrectionForm key={`count-${pkg.id}-${pkg.version}`} packageId={pkg.id} packageUid={pkg.packageUid} version={pkg.version} unitOfMeasure={pkg.unitOfMeasure} />}
     <section>
       <h3 className="text-xs font-semibold text-foreground">History {pkg.eventsCount > pkg.events.length && <span className="font-normal text-muted-foreground">· latest {pkg.events.length} of {pkg.eventsCount}</span>}</h3>
       <ol className="mt-2 space-y-3 border-l border-border pl-3">{pkg.events.length ? pkg.events.map(event => <li key={event.id} className="text-xs">

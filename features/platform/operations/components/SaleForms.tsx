@@ -8,7 +8,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quantity';
 import { getAllocationQuote, type AllocationQuoteReadback } from '@/features/platform/fulfillment/actions/allocationQuote';
 import {
-  addCartLineFromDesk, advanceRecallFromDesk, cancelCartFromDesk, checkInAndStartSaleFromDesk, closeShiftFromDesk, finalizeSaleFromDesk,
+  addCartLineFromDesk, advanceRecallFromDesk, cancelCartFromDesk, correctCountFromDesk, checkInAndStartSaleFromDesk, closeShiftFromDesk, finalizeSaleFromDesk,
   recordLabResultFromDesk, refundSaleFromDesk, releaseHoldFromDesk, releasePackageFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
@@ -54,6 +54,24 @@ export function LabResultForm({ packageId, packageUid, labName, labResultReferen
         <Field name="coaReference" title="COA reference" errors={errors} defaultValue={coaReference ?? ''} required className="font-mono" />
       </fieldset>
       <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Save lab result'}</Button></Actions>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </Disclosure>;
+}
+
+export function CountCorrectionForm({ packageId, packageUid, version, unitOfMeasure }: { packageId: string; packageUid: string; version: number; unitOfMeasure: string }) {
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(correctCountFromDesk);
+  const errors = state.fieldErrors;
+  return <Disclosure label="Count correction">
+    <form onSubmit={onSubmit(form => window.confirm(`${form.get('direction') === 'remove' ? 'Remove' : 'Add'} ${form.get('quantity')} ${unitOfMeasure} on ${packageUid}?`))} onChange={markDirty} className="space-y-3" aria-label={`Count correction for ${packageUid}`}>
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="packageId" value={packageId} /><input type="hidden" name="expectedVersion" value={version} />
+      <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
+        <Select name="direction" title="The count found" errors={errors} required defaultValue=""><option value="" disabled>Choose</option><option value="add">More than recorded</option><option value="remove">Less than recorded</option></Select>
+        <Field name="quantity" title={`Difference (${unitOfMeasure})`} errors={errors} required inputMode="decimal" className="font-mono" />
+        <div className="sm:col-span-2"><Field name="note" title="What the count found" errors={errors} required minLength={4} maxLength={500} /></div>
+      </fieldset>
+      <ApproverFields errors={errors} role="compliance" />
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Record count correction'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>
   </Disclosure>;

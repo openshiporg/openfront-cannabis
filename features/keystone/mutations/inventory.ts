@@ -1,5 +1,5 @@
 import type { Context, InventoryEventEventTypeType } from ".keystone/types";
-import { PACKAGE_TRANSITIONS, assertInventoryDestructionQuantityDelta, assertInventoryEventQuantityDelta, assertTransition } from "../domain/cannabisPolicy";
+import { PACKAGE_TRANSITIONS, countCorrectionError, assertInventoryDestructionQuantityDelta, assertInventoryEventQuantityDelta, assertTransition } from "../domain/cannabisPolicy";
 import { requireRuntimeCapability } from "../domain/runtimeCapabilities";
 import { endOfLocalDate } from "../domain/premisesTime";
 import { verifySecondApprover, withApprover } from "./approval";
@@ -121,5 +121,48 @@ export async function postCannabisInventoryEvent(_root: unknown, args: { input: 
       await sudo.query.RecallCase.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference: assertText(input.recallReference, "Recall reference"), status: "active", authorityReference: assertText(input.recallAuthorityReference, "Recall authority reference"), packageUids: [pkg.packageUid], batchNumbers: input.batchNumbers || [], reason: input.reason, openedAt: new Date(), evidenceHash }, query: "id" });
     }
     return { id: pkg.id, status: input.nextStatus, reference: pkg.packageUid, quantityOnHandMicrounits: after, version: expectedVersion + 1, stateReport: { eventType, packageUid: pkg.packageUid, quantityDeltaMicrounits: delta, manifestNumber: manifest.manifestNumber, reasonCode: input.reasonCode } };
+  });
+}
+
+const MAX_COUNT_CORRECTION_MICROUNITS = 1_000_000_000;
+
+/**
+ * Correct a package's on-hand quantity after a physical count ("Count correction").
+ * Signed delta, second (compliance) approver, version fence, never below the
+ * reserved quantity, and the package keeps its status. Writes one count event and manifest.
+ */
+export async function recordCannabisCountCorrection(_root: unknown, args: { input: any }, context: Context) {
+  const raw = args.input || {};
+  const delta = Number(raw.quantityDeltaMicrounits);
+  if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > MAX_COUNT_CORRECTION_MICROUNITS) throw new Error("Enter the counted difference, more or less than zero");
+  const expectedVersion = assertInteger(raw.expectedVersion, "Expected package version", 1);
+  const note = assertText(raw.note, "Count note", 4, 500);
+  const input = withApprover(raw, await verifySecondApprover(context, raw, "canManageCompliance"));
+  const packageId = assertText(input.packageId, "Package ID");
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordCannabisCountCorrection", resourceType: "InventoryPackage", action: "inventory.count_correction", lockKeys: [`package:${packageId}`] }, async (tx, authority, correlationId) => {
+    const sudo = tx.sudo();
+    const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status quantityOnHandMicrounits reservedMicrounits version organization { id } premises { id }" });
+    if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");
+    if (pkg.version !== expectedVersion) throw new Error("This package changed since you counted it. Refresh and count again.");
+    const refused = countCorrectionError(pkg as { status: string; quantityOnHandMicrounits: number; reservedMicrounits: number }, delta);
+    if (refused) throw new Error(refused);
+    const after = pkg.quantityOnHandMicrounits + delta;
+    const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageCompliance }" });
+    if (!approver || approver.id === authority.actor.id || approver.status !== "active" || !approver.role?.canManageCompliance || approver.organization?.id !== authority.organizationId || approver.premises?.id !== authority.premisesId) throw new Error("The second approver needs compliance authority at this premises");
+    const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: expectedVersion, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits, status: pkg.status as any }, data: { quantityOnHandMicrounits: after, version: { increment: 1 } } });
+    if (changed.count !== 1) throw new Error("This package changed since you counted it. Refresh and count again.");
+    const evidence = { note, countedBy: authority.actor.id, approvedBy: approver.id };
+    const evidenceHash = stableHash(evidence);
+    const manifest = await sudo.query.RegulatedManifest.createOne({ data: {
+      organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, manifestNumber: `COUNT-${correlationId}`, type: "count", status: "accepted",
+      sourceLicenseNumber: authority.license.licenseNumber, destinationLicenseNumber: authority.license.licenseNumber, regulatorManifestId: "", occurredAt: new Date(), reasonCode: "count_correction",
+      evidence, evidenceHash, actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } },
+    }, query: "id manifestNumber" });
+    await sudo.query.InventoryEvent.createOne({ data: {
+      organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, package: { connect: { id: pkg.id } }, manifest: { connect: { id: manifest.id } }, eventType: "count",
+      quantityDeltaMicrounits: delta, beforeQuantityMicrounits: pkg.quantityOnHandMicrounits, afterQuantityMicrounits: after, reasonCode: "count_correction", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } },
+      sourceType: "RegulatedManifest", sourceId: manifest.id, idempotencyKey: `${correlationId}:count`, occurredAt: new Date(), evidenceHash, stateReportStatus: "queued",
+    }, query: "id" });
+    return { id: pkg.id, status: String(pkg.status), reference: pkg.packageUid, quantityOnHandMicrounits: after, version: expectedVersion + 1, stateReport: { eventType: "count", packageUid: pkg.packageUid, quantityDeltaMicrounits: delta, manifestNumber: manifest.manifestNumber, reasonCode: "count_correction" } };
   });
 }

@@ -346,6 +346,23 @@ export async function releasePackageFromDesk(_state: CommandState, formData: For
   return runCommand('releaseCannabisPackage', 'releaseCannabisPackage', { idempotencyKey, packageId: text(formData, 'packageId') }, 'Released. The package is ready to sell.');
 }
 
+/** Correct a package's on-hand count after a physical count. Difference is signed (e.g. 3.5 or -1). */
+export async function correctCountFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const direction = text(formData, 'direction');
+  if (!['add', 'remove'].includes(direction)) errors.direction = 'Choose found or missing';
+  const magnitude = parseQuantityToMicrounits(text(formData, 'quantity'));
+  if (magnitude == null) errors.quantity = 'Enter the counted difference, such as 3.5';
+  const note = text(formData, 'note');
+  if (note.length < 4) errors.note = 'Say what the count found';
+  const expectedVersion = Number(text(formData, 'expectedVersion'));
+  const approver = approverFields(formData, errors);
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  const quantityDeltaMicrounits = direction === 'remove' ? -magnitude! : magnitude!;
+  return runCommand('recordCannabisCountCorrection', 'recordCannabisCountCorrection', { idempotencyKey, packageId: text(formData, 'packageId'), expectedVersion, quantityDeltaMicrounits, note, ...approver }, 'Count corrected.');
+}
+
 export async function releaseHoldFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
   const errors: FieldErrors = {};
   if (text(formData, 'releaseAuthorityReference').length < 2) errors.releaseAuthorityReference = 'Enter the release reference';
