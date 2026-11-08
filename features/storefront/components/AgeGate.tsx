@@ -16,7 +16,12 @@ export function AgeGate({ storeName, logo, confirmed, adultAge, medicalAge }: { 
   if (state === 'ok') return null;
 
   const confirm = () => {
-    document.cookie = `${AGE_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+    // Over HTTPS the answer is SameSite=None; Secure; Partitioned so it survives
+    // the next page load when the shop is framed (the Oathkeeper Browser, an
+    // embed): Safari keeps a cookie in a cross-site frame only when it is
+    // partitioned. Development over HTTP stays Lax.
+    const scope = window.location.protocol === 'https:' ? 'samesite=none; secure; partitioned' : 'samesite=lax';
+    document.cookie = `${AGE_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 30}; ${scope}`;
     setState('ok');
   };
 
