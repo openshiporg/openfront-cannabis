@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type { Context } from ".keystone/types";
 import { assertEffectiveRulePack, assertEligibility } from "../domain/cannabisPolicy";
+import { ageAtPremises, endOfLocalDate } from "../domain/premisesTime";
 import { assertText, requireRulePack, runControlledOperation, stableHash } from "./workflow";
 
 const CAPACITIES = new Set(["adult_use", "patient", "caregiver"]);
@@ -51,11 +52,13 @@ export async function checkInCannabisCustomer(_root: unknown, args: { input: any
   return runControlledOperation(context, input, { permission: "canManageSales", activity: "eligibility", scope: "checkInCannabisCustomer", resourceType: "Customer", action: "eligibility.checked_in", emitStateEvent: false }, async (tx, authority) => {
     const sudo = tx.sudo(); const now = new Date();
     const pack = await requireRulePack(tx, authority.organizationId!, authority.premisesId!); assertEffectiveRulePack(pack as any);
-    let age = now.getUTCFullYear() - dateOfBirth.getUTCFullYear();
-    if (now.getUTCMonth() < dateOfBirth.getUTCMonth() || (now.getUTCMonth() === dateOfBirth.getUTCMonth() && now.getUTCDate() < dateOfBirth.getUTCDate())) age -= 1;
-    // An ID that expires today is still good through today.
-    const validThrough = (date: Date) => date.getTime() + 86400_000 > now.getTime();
-    assertEligibility({ capacity: capacity as any, age, identityValid: validThrough(identityExpiresAt), registryValid: !medical || validThrough(registryExpiresAt!), representedPatientValid: capacity !== "caregiver" || Boolean(patientNumber) }, pack as any);
+    // Birthdays and "expires today" are the store's calendar day, not UTC's (UTC midnight is 5 pm in Denver).
+    const timezone = authority.actor.premises?.timezone;
+    const age = ageAtPremises(dateOfBirth, now, timezone);
+    if (age === null) throw new Error("Date of birth must be a real date that is not in the future");
+    const identityValidUntil = endOfLocalDate(identityExpiresAt.toISOString().slice(0, 10), timezone);
+    const registryValidUntil = registryExpiresAt ? endOfLocalDate(registryExpiresAt.toISOString().slice(0, 10), timezone) : null;
+    assertEligibility({ capacity: capacity as any, age, identityValid: identityValidUntil > now, registryValid: !medical || Boolean(registryValidUntil && registryValidUntil > now), representedPatientValid: capacity !== "caregiver" || Boolean(patientNumber) }, pack as any);
     const identityReferenceHash = documentHash(authority.premisesId!, identityMethod, identityNumber);
     const prior = await sudo.query.EligibilityEvidence.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, identityReferenceHash: { equals: identityReferenceHash }, capacity: { equals: capacity as any } }, orderBy: [{ createdAt: "desc" }], take: 1, query: "customer { id reference status }" });
     const known = prior[0]?.customer;
@@ -64,8 +67,8 @@ export async function checkInCannabisCustomer(_root: unknown, args: { input: any
     if (known && known.status !== "eligible") await sudo.query.Customer.updateOne({ where: { id: known.id }, data: { status: "eligible" }, query: "id" });
     const evidence = await sudo.query.EligibilityEvidence.createOne({ data: {
       organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, customer: { connect: { id: customer.id } }, capacity: capacity as any,
-      identityMethod, identityReferenceHash, dateOfBirth, identityExpiresAt: new Date(identityExpiresAt.getTime() + 86400_000),
-      registryName, registryReferenceHash: registryNumber ? documentHash(authority.premisesId!, `registry:${registryName}`, registryNumber) : "", registryVerifiedAt: medical ? now : null, registryExpiresAt: registryExpiresAt ? new Date(registryExpiresAt.getTime() + 86400_000) : null,
+      identityMethod, identityReferenceHash, dateOfBirth, identityExpiresAt: identityValidUntil,
+      registryName, registryReferenceHash: registryNumber ? documentHash(authority.premisesId!, `registry:${registryName}`, registryNumber) : "", registryVerifiedAt: medical ? now : null, registryExpiresAt: registryValidUntil,
       representedPatientReferenceHash: patientNumber ? documentHash(authority.premisesId!, "patient", patientNumber) : "",
       result: "eligible", reasonCodes: ["checked_in_person"], evidenceHash: stableHash({ capacity, identityMethod, identityReferenceHash, verifier: authority.actor.id, rulePack: pack.version }), verifiedAt: now,
     }, query: "id" });

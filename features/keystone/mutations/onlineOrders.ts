@@ -3,7 +3,8 @@ import type { Context } from ".keystone/types";
 import { assertEffectiveRulePack, assertPackageSaleable, evaluatePurchaseLimits, type EffectiveRulePack } from "../domain/cannabisPolicy";
 import { calculateAllocationQuote, type AllocationQuotePackage } from "../domain/allocationQuote";
 import { assertReservationLedger, choosePackageForProduct, planReservationBalances } from "../domain/packageAllocation";
-import { ageOnDate, pickupSlots } from "../domain/pickupWindows";
+import { pickupSlots } from "../domain/pickupWindows";
+import { ageAtPremises } from "../domain/premisesTime";
 import { serializableTransaction } from "../domain/transaction";
 import { createPayment } from "../utils/paymentProviderAdapter";
 import { getPublicPaymentProviderConfig } from "../utils/paymentProviderConfig";
@@ -31,8 +32,12 @@ function guestProof(idempotencyKey: string) {
 
 const orderReference = (idempotencyKey: string) => `PU-${sha(`pickup-ref:${idempotencyKey}`).slice(0, 12).toUpperCase()}`;
 
-/** Abandoned online orders give their stock back (and release any card hold) once their hold has run out. */
-async function releaseExpiredOrders(context: Context) {
+/**
+ * Abandoned online orders give their stock back (and release any card hold) once their hold has run out.
+ * Runs on every checkout visit and once a minute from instrumentation.ts, so stock comes back even when
+ * nobody opens the checkout.
+ */
+export async function releaseExpiredOrders(context: Context) {
   const sudo = context.sudo();
   // Every cart that holds stock (online or at the counter, packed or not) gives it back once its hold has run out.
   const expired = await sudo.query.Cart.findMany({ where: { status: { in: [...EXPIRABLE_CART_STATUSES] }, expiresAt: { lt: new Date() } }, take: 20, query: "id" });
@@ -105,7 +110,7 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   const { organization, premises, pack } = await publicAuthority(context);
   assertEffectiveRulePack(pack as unknown as EffectiveRulePack);
   if (pack.pickupEnabled !== true) throw new Error("This store is not taking pickup orders right now");
-  const age = ageOnDate(dateOfBirth);
+  const age = ageAtPremises(dateOfBirth, new Date(), premises.timezone || "UTC");
   if (age === null) throw new Error("Enter your date of birth as a real past date");
   if (age < pack.adultMinimumAge) throw new Error(`You must be ${pack.adultMinimumAge} or older to order`);
 

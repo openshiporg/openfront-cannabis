@@ -13,6 +13,7 @@ import { serializableTransaction } from '../domain/transaction.ts';
 import { capturePayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { releaseOnlinePayment } from "./onlinePayments";
+import { ageAtPremises } from "../domain/premisesTime";
 import { customerBlocksSale, FINALIZABLE_CART_STATUSES, saleVoidError, tenderStatusFromCapture } from "../domain/lifecycles";
 import { verifySecondApprover, withApprover } from "./approval";
 
@@ -40,10 +41,9 @@ type FinalSalePackageSnapshot = CancellationPackageSnapshot & {
   holds: Array<{ id: string }>;
 };
 
-function ageAt(dobValue: string | Date, now: Date) {
-  const dob = new Date(dobValue); let age = now.getUTCFullYear() - dob.getUTCFullYear();
-  if (now.getUTCMonth() < dob.getUTCMonth() || (now.getUTCMonth() === dob.getUTCMonth() && now.getUTCDate() < dob.getUTCDate())) age -= 1;
-  return age;
+/** Age on today's date at the premises (a birthday starts at local midnight, not UTC midnight). */
+function ageAt(dobValue: string | Date, now: Date, timezone: string) {
+  return ageAtPremises(dobValue, now, timezone) ?? -1;
 }
 
 function localMinute(now: Date, timezone: string) {
@@ -390,7 +390,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || !FINALIZABLE_CART_STATUSES.includes(cart.status) || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
     if (!cart.shift || cart.shift.status !== "open" || cart.shift.operator?.id !== authority.actor.id) throw new Error("Actor must own the cart's open register shift");
     const evidence = cart.eligibilityEvidence; if (!evidence || evidence.result !== "eligible" || evidence.capacity !== cart.customer.capacity || new Date(evidence.identityExpiresAt) <= now) throw new Error("Current eligibility evidence is required at final verification");
-    assertEligibility({ capacity: cart.customer.capacity, age: ageAt(evidence.dateOfBirth, now), identityValid: true, registryValid: cart.customer.capacity === "adult_use" || Boolean(evidence.registryExpiresAt && new Date(evidence.registryExpiresAt) > now), representedPatientValid: cart.customer.capacity !== "caregiver" || Boolean(input.representedPatientVerified) }, pack as any);
+    assertEligibility({ capacity: cart.customer.capacity, age: ageAt(evidence.dateOfBirth, now, authority.actor.premises?.timezone), identityValid: true, registryValid: cart.customer.capacity === "adult_use" || Boolean(evidence.registryExpiresAt && new Date(evidence.registryExpiresAt) > now), representedPatientValid: cart.customer.capacity !== "caregiver" || Boolean(input.representedPatientVerified) }, pack as any);
     const salePackageGroups = groupSaleLinesByPackage(cart.lines);
     const categoryTotals: Record<string, number> = {}; for (const line of cart.lines) categoryTotals[line.categoryCodeSnapshot] = (categoryTotals[line.categoryCodeSnapshot] || 0) + line.equivalencyMicrounits;
     const priorWindowTotals = await purchaseWindowTotals(sudo, cart.customer.id, pack, now);

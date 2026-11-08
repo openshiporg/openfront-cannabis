@@ -5170,6 +5170,7 @@ type Mutation {
   advanceRecallCase(input: JSON!): JSON!
   recordPackageLabResult(input: JSON!): JSON!
   releaseCannabisPackage(input: JSON!): JSON!
+  recordCannabisCountCorrection(input: JSON!): JSON!
   checkInCannabisCustomer(input: JSON!): JSON!
   setStaffTemporaryPassword(input: JSON!): JSON!
   changeStaffPermissions(input: JSON!): JSON!
@@ -5193,6 +5194,7 @@ type Mutation {
   closeRegisterShift(input: JSON!): JSON!
   approveCashVariance(input: JSON!): JSON!
   refundCannabisSale(input: JSON!): JSON!
+  voidCannabisSale(input: JSON!): JSON!
   recordComplianceIncident(input: JSON!): JSON!
   activateIntegrationInstallation(input: JSON!): JSON!
   recordStateInboxEvent(input: JSON!): JSON!
