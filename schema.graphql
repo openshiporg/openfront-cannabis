@@ -4249,140 +4249,6 @@ input IdempotencyKeyCreateInput {
   updatedAt: DateTime
 }
 
-type OutboxEvent {
-  id: ID!
-  organization: Organization
-  premises: Premises
-  eventKey: String
-  topic: String
-  aggregateType: String
-  aggregateId: String
-  payload: JSON
-  requestHash: String
-  idempotencyKey: String
-  status: OutboxEventStatusType
-  attempts: Int
-  availableAt: DateTime
-  lastAttemptAt: DateTime
-  acceptedAt: DateTime
-  regulatorReference: String
-  lastErrorCode: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-enum OutboxEventStatusType {
-  queued
-  sending
-  accepted
-  rejected
-  retryable
-  dead_letter
-  reconciled
-}
-
-input OutboxEventWhereUniqueInput {
-  id: ID
-  eventKey: String
-}
-
-input OutboxEventWhereInput {
-  AND: [OutboxEventWhereInput!]
-  OR: [OutboxEventWhereInput!]
-  NOT: [OutboxEventWhereInput!]
-  id: IDFilter
-  organization: OrganizationWhereInput
-  premises: PremisesWhereInput
-  eventKey: StringFilter
-  topic: StringFilter
-  aggregateType: StringFilter
-  aggregateId: StringFilter
-  requestHash: StringFilter
-  idempotencyKey: StringFilter
-  status: OutboxEventStatusTypeNullableFilter
-  attempts: IntNullableFilter
-  availableAt: DateTimeFilter
-  lastAttemptAt: DateTimeNullableFilter
-  acceptedAt: DateTimeNullableFilter
-  regulatorReference: StringFilter
-  lastErrorCode: StringFilter
-  createdAt: DateTimeFilter
-  updatedAt: DateTimeFilter
-}
-
-input OutboxEventStatusTypeNullableFilter {
-  equals: OutboxEventStatusType
-  in: [OutboxEventStatusType!]
-  notIn: [OutboxEventStatusType!]
-  not: OutboxEventStatusTypeNullableFilter
-}
-
-input OutboxEventOrderByInput {
-  id: OrderDirection
-  eventKey: OrderDirection
-  topic: OrderDirection
-  aggregateType: OrderDirection
-  aggregateId: OrderDirection
-  requestHash: OrderDirection
-  idempotencyKey: OrderDirection
-  status: OrderDirection
-  attempts: OrderDirection
-  availableAt: OrderDirection
-  lastAttemptAt: OrderDirection
-  acceptedAt: OrderDirection
-  regulatorReference: OrderDirection
-  lastErrorCode: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input OutboxEventUpdateInput {
-  organization: OrganizationRelateToOneForUpdateInput
-  premises: PremisesRelateToOneForUpdateInput
-  eventKey: String
-  topic: String
-  aggregateType: String
-  aggregateId: String
-  payload: JSON
-  requestHash: String
-  idempotencyKey: String
-  status: OutboxEventStatusType
-  attempts: Int
-  availableAt: DateTime
-  lastAttemptAt: DateTime
-  acceptedAt: DateTime
-  regulatorReference: String
-  lastErrorCode: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input OutboxEventUpdateArgs {
-  where: OutboxEventWhereUniqueInput!
-  data: OutboxEventUpdateInput!
-}
-
-input OutboxEventCreateInput {
-  organization: OrganizationRelateToOneForCreateInput
-  premises: PremisesRelateToOneForCreateInput
-  eventKey: String
-  topic: String
-  aggregateType: String
-  aggregateId: String
-  payload: JSON
-  requestHash: String
-  idempotencyKey: String
-  status: OutboxEventStatusType
-  attempts: Int
-  availableAt: DateTime
-  lastAttemptAt: DateTime
-  acceptedAt: DateTime
-  regulatorReference: String
-  lastErrorCode: String
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
 type StateEventInbox {
   id: ID!
   organization: Organization
@@ -5118,12 +4984,6 @@ type Mutation {
   updateIdempotencyKeys(data: [IdempotencyKeyUpdateArgs!]!): [IdempotencyKey]
   deleteIdempotencyKey(where: IdempotencyKeyWhereUniqueInput!): IdempotencyKey
   deleteIdempotencyKeys(where: [IdempotencyKeyWhereUniqueInput!]!): [IdempotencyKey]
-  createOutboxEvent(data: OutboxEventCreateInput!): OutboxEvent
-  createOutboxEvents(data: [OutboxEventCreateInput!]!): [OutboxEvent]
-  updateOutboxEvent(where: OutboxEventWhereUniqueInput!, data: OutboxEventUpdateInput!): OutboxEvent
-  updateOutboxEvents(data: [OutboxEventUpdateArgs!]!): [OutboxEvent]
-  deleteOutboxEvent(where: OutboxEventWhereUniqueInput!): OutboxEvent
-  deleteOutboxEvents(where: [OutboxEventWhereUniqueInput!]!): [OutboxEvent]
   createStateEventInbox(data: StateEventInboxCreateInput!): StateEventInbox
   createStateEventInboxes(data: [StateEventInboxCreateInput!]!): [StateEventInbox]
   updateStateEventInbox(where: StateEventInboxWhereUniqueInput!, data: StateEventInboxUpdateInput!): StateEventInbox
@@ -5198,7 +5058,6 @@ type Mutation {
   recordComplianceIncident(input: JSON!): JSON!
   activateIntegrationInstallation(input: JSON!): JSON!
   recordStateInboxEvent(input: JSON!): JSON!
-  retryStateOutboxEvent(input: JSON!): JSON!
   recordReconciliationRun(input: JSON!): JSON!
   approveReconciliationRun(input: JSON!): JSON!
 }
@@ -5319,9 +5178,6 @@ type Query {
   idempotencyKey(where: IdempotencyKeyWhereUniqueInput!): IdempotencyKey
   idempotencyKeys(where: IdempotencyKeyWhereInput! = {}, orderBy: [IdempotencyKeyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: IdempotencyKeyWhereUniqueInput): [IdempotencyKey!]
   idempotencyKeysCount(where: IdempotencyKeyWhereInput! = {}): Int
-  outboxEvent(where: OutboxEventWhereUniqueInput!): OutboxEvent
-  outboxEvents(where: OutboxEventWhereInput! = {}, orderBy: [OutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxEventWhereUniqueInput): [OutboxEvent!]
-  outboxEventsCount(where: OutboxEventWhereInput! = {}): Int
   stateEventInbox(where: StateEventInboxWhereUniqueInput!): StateEventInbox
   stateEventInboxes(where: StateEventInboxWhereInput! = {}, orderBy: [StateEventInboxOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: StateEventInboxWhereUniqueInput): [StateEventInbox!]
   stateEventInboxesCount(where: StateEventInboxWhereInput! = {}): Int

@@ -19,7 +19,7 @@ export async function placePackageHold(_root: unknown, args: { input: any }, con
   if (!HOLD_TYPES.has(type)) throw new Error("Hold type must be quarantine, test hold, discrepancy, authority or expiry");
   const reasonCode = assertReasonCode(input.reasonCode);
   const reason = assertText(input.reason, "Hold reason", 4, 1000);
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "inventory", scope: "placePackageHold", resourceType: "PackageHold", action: "inventory.hold.placed", emitStateEvent: false, lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "inventory", scope: "placePackageHold", resourceType: "PackageHold", action: "inventory.hold.placed", lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status organization { id } premises { id }" });
     if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");
@@ -94,7 +94,7 @@ export async function recordPackageLabResult(_root: unknown, args: { input: any 
   const labName = assertText(input.labName, "Lab name", 2, 200);
   const labResultReference = assertText(input.labResultReference, "Lab result reference", 2, 200);
   const coaReference = assertText(input.coaReference, "COA reference", 2, 200);
-  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordPackageLabResult", resourceType: "InventoryPackage", action: "inventory.lab_result.recorded", emitStateEvent: false, lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordPackageLabResult", resourceType: "InventoryPackage", action: "inventory.lab_result.recorded", lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status version organization { id } premises { id }" });
     if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");

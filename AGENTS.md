@@ -19,3 +19,6 @@ Work in this repo is normal software and design work: storefront UI, admin, onbo
 - **Demo admin:** `~/Code/Euler/state/qa-loop/demo-logins/cannabis.json`. Never print the password.
 - **Product photos:** no printed text or brand logos.
 - **Don't name competitors in the UI or the copy.**
+
+## Notifications
+NEVER build outbox/texting/email notification machinery or cron/worker services. External events = Openfront Commerce webhooks (features/webhooks) only.

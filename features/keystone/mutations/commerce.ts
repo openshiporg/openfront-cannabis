@@ -91,7 +91,7 @@ export async function createCustomerPickupCart(_root: unknown, args: { input: an
 export async function createPosCannabisCart(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("commerce.pos-cart", "POS carts are disabled until the verified customer and register workflow is implemented.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageSales", activity: "sale", scope: "createPosCannabisCart", resourceType: "Cart", action: "cart.pos.created", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageSales", activity: "sale", scope: "createPosCannabisCart", resourceType: "Cart", action: "cart.pos.created" }, async (tx, authority) => {
     const sudo = tx.sudo(); const pack = await requireRulePack(tx, authority.organizationId!, authority.premisesId!); assertEffectiveRulePack(pack as any);
     const customer = await sudo.query.Customer.findOne({ where: { id: assertText(input.customerId, "Customer ID") }, query: "id capacity status organization { id } premises { id }" });
     const evidence = await sudo.query.EligibilityEvidence.findOne({ where: { id: assertText(input.eligibilityEvidenceId, "Eligibility evidence ID") }, query: "id customer { id } result identityExpiresAt registryExpiresAt" });
@@ -154,7 +154,7 @@ export async function addCannabisCartLine(_root: unknown, args: { input: unknown
   if (!cart || staffAuthority.organizationId !== cart.organization?.id || staffAuthority.premisesId !== cart.premises?.id) throw new Error("Cart is outside current staff authority");
   const operationKey = `${cart.id}:${input.idempotencyKey}`;
   return runControlledOperation(context, { ...input, idempotencyKey: operationKey }, {
-    permission: "canManageSales", activity: "sale", scope: "addCannabisCartLine", resourceType: "CartLine", action: "cart.line.reserved", emitStateEvent: false,
+    permission: "canManageSales", activity: "sale", scope: "addCannabisCartLine", resourceType: "CartLine", action: "cart.line.reserved",
     authorize: async (current, authority, phase, result) => {
       const readable = await current.query.Cart.findOne({ where: { id: input.cartId }, query: "id" });
       if (!readable || readable.id !== input.cartId) throw new Error("Cart is outside current access");
@@ -360,7 +360,7 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-cart", cartId);
     const sudo = tx.sudo(); const now = new Date(); const pack = await requireRulePack(tx, authority.organizationId!, authority.premisesId!); assertEffectiveRulePack(pack as any, now); assertOperatingWindow(pack as any, localMinute(now, authority.actor.premises.timezone));
     if (pack.offlineSalesAllowed !== false) throw new Error("Bounded launch requires offline regulated sales to remain disabled");
-    // The sale's state report is queued in the outbox (status state_queued). With no connected
+    // The sale carries status state_queued. With no connected
     // traceability provider it is reported through the state system directly (Reconciliation shows it);
     // a connected provider must be the only one and validated.
     const traceability = await sudo.query.IntegrationInstallation.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, providerType: { equals: "traceability" }, status: { equals: "active" } }, take: 2, query: "id providerCode validatedAt authorityReference" });

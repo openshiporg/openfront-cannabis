@@ -169,12 +169,6 @@ export async function transitionIncidentFromDesk(_state: CommandState, formData:
   }, 'Incident updated.');
 }
 
-export async function retryOutboxEventFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
-  const idempotencyKey = commandKey(formData); const outboxEventId = text(formData, 'outboxEventId');
-  if (!idempotencyKey || !outboxEventId) return { error: 'Select an event to requeue.' };
-  return runCommand('retryStateOutboxEvent', 'retryStateOutboxEvent', { idempotencyKey, outboxEventId }, 'Event requeued.');
-}
-
 export async function configureRegisterFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
   const errors: FieldErrors = {};
   if (!text(formData, 'code')) errors.code = 'Enter a register code';

@@ -70,7 +70,7 @@ Capture intake and eligibility evidence, create pickup or staff POS carts, alloc
 Receive regulated packages, record inventory events, manage holds, and track manifests, recalls, and package disposition.
 
 ### Cash, Authority & Compliance
-Open and close register shifts, record tenders and refunds, approve cash variances, manage authority records, track incidents, and review reconciliation. Integration inbox and outbox records do not constitute state-provider certification.
+Open and close register shifts, record tenders and refunds, approve cash variances, manage authority records, track incidents, and review reconciliation. Integration inbox records do not constitute state-provider certification.
 
 ## Architecture
 
@@ -170,7 +170,7 @@ The [model registry](features/keystone/models/index.ts) and [Prisma schema](sche
 Use a disposable development database for migration generation. Review the script before running it against any existing data.
 
 ### Regulated Operations
-The [registered commands](features/keystone/mutations/index.ts) cover eligibility, inventory, POS, cash, reconciliation, and integration inbox/outbox operations. Configure jurisdiction policies and approved provider connections before enabling regulated operations.
+The [registered commands](features/keystone/mutations/index.ts) cover eligibility, inventory, POS, cash, reconciliation, and integration inbox operations. Configure jurisdiction policies and approved provider connections before enabling regulated operations.
 
 ## Documentation
 

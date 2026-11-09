@@ -11,7 +11,7 @@ const RESOURCES: Array<[string, string]> = [
 const ACTION_WORDS: Record<string, string> = {
   'authority_pack.installed': 'Sales rules installed', 'authority.rule_pack.amended': 'Sales rules amended', 'staff.authority.provisioned': 'Staff added',
   'cart.pos.created': 'POS cart created', 'cart.line.reserved': 'Cart line reserved', 'state.inbox.recorded': 'State event recorded',
-  'state.outbox.requeued': 'State report requeued', 'storefront.settings.configured': 'Store settings saved',
+  'storefront.settings.configured': 'Store settings saved',
 };
 
 /** "catalog.product.amended" → "Product amended". */

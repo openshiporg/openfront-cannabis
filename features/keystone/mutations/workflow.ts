@@ -134,7 +134,7 @@ const OPERATION_RECEIPT_SELECTION = "id requestHash status scope responseSnapsho
 export async function runControlledOperation(
   context: Context,
   input: { idempotencyKey: string },
-  options: { permission: CannabisPermission; activity: string; scope: string; resourceType: keyof Context['query'] & string; action: string; lockKeys?: string[]; emitStateEvent?: boolean;
+  options: { permission: CannabisPermission; activity: string; scope: string; resourceType: keyof Context['query'] & string; action: string; lockKeys?: string[];
     authorize?: (context: Context, authority: OperationalAuthority, phase: "execute" | "replay", result?: OperationResult) => Promise<void> },
   work: (tx: Context, authority: Awaited<ReturnType<typeof requireOperationalAuthority>>, correlationId: string) => Promise<OperationResult>,
 ): Promise<OperationResult & { replayed: boolean }> {
@@ -205,10 +205,6 @@ export async function runControlledOperation(
     await sudo.query.AuditEvent.createOne({ data: {
       organization: { connect: { id: currentAuthority.organizationId } }, premises: { connect: { id: currentAuthority.premisesId } }, actor: { connect: { id: currentAuthority.actor.id } }, action: options.action,
       resourceType: options.resourceType, resourceId: result.id, correlationId, reasonCode: "controlled_workflow", evidence: responseSnapshot, evidenceHash, occurredAt: new Date(),
-    }, query: "id" });
-    if (options.emitStateEvent !== false) await sudo.query.OutboxEvent.createOne({ data: {
-      organization: { connect: { id: currentAuthority.organizationId } }, premises: { connect: { id: currentAuthority.premisesId } }, eventKey: `${correlationId}:${options.action}`, topic: options.action,
-      aggregateType: options.resourceType, aggregateId: result.id, payload: responseSnapshot, requestHash: evidenceHash, idempotencyKey: key, status: "queued", availableAt: new Date(),
     }, query: "id" });
     return { ...result, replayed: false };
   });

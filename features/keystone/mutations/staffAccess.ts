@@ -11,7 +11,7 @@ export async function setStaffTemporaryPassword(_root: unknown, args: { input: a
   const input = args.input || {};
   const userId = assertText(input.userId, "Staff member");
   const password = assertText(input.temporaryPassword, "Temporary password", 10, 1000);
-  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "setStaffTemporaryPassword", resourceType: "User", action: "staff.password.reset", emitStateEvent: false, lockKeys: [userId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "setStaffTemporaryPassword", resourceType: "User", action: "staff.password.reset", lockKeys: [userId] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const target = await sudo.query.User.findOne({ where: { id: userId }, query: "id status organization { id } premises { id } role { canManageOnboarding }" });
     if (!target || target.organization?.id !== authority.organizationId || target.premises?.id !== authority.premisesId) throw new Error("Staff member is outside this premises");
@@ -35,7 +35,7 @@ export async function changeStaffPermissions(_root: unknown, args: { input: any 
   const userId = assertText(input.userId, "Staff member");
   const requested = input.permissions && typeof input.permissions === "object" && !Array.isArray(input.permissions) ? input.permissions : null;
   if (!requested) throw new Error("Choose the staff member's permissions");
-  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "changeStaffPermissions", resourceType: "User", action: "staff.permissions.changed", emitStateEvent: false, lockKeys: [userId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "changeStaffPermissions", resourceType: "User", action: "staff.permissions.changed", lockKeys: [userId] }, async (tx, authority) => {
     const sudo = tx.sudo();
     if (userId === authority.actor.id) throw new Error("You cannot change your own permissions");
     const target = await sudo.query.User.findOne({ where: { id: userId }, query: `id name status organization { id } premises { id } role { id name ${permissionNames.join(" ")} }` });

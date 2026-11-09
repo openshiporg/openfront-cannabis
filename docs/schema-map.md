@@ -7,7 +7,7 @@ Every list uses `immutable*Access`: the generic GraphQL create/update/delete ope
 - a current role permission and a current staff credential covering the activity
 - a current license for the premises
 - an idempotency key (`IdempotencyKey` receipt)
-- an `AuditEvent`, plus an `OutboxEvent` for state-reported actions
+- an `AuditEvent` for each controlled action
 
 Reads for the platform pages go through one resolver, `cannabisOperationsWorkspace(section, options)`, validated client-side by `features/platform/workspaces/lib/contract.ts`.
 
@@ -45,10 +45,9 @@ Runtime capabilities (`domain/runtimeCapabilities.ts`) gate commands whose workf
 | Refund | Refund | amount, reason, inventoryDisposition, status | sale | `refundCannabisSale` (gated) | pending → completed |
 | AuditEvent | Who did what | action, resourceType/Id, actor, reasonCode, evidence | actor | every controlled command | append-only |
 | IdempotencyKey | Command receipts | scope, status, responseSnapshot | actor | every controlled command | processing → succeeded / failed |
-| OutboxEvent | State-reporting queue | topic, aggregate, status (7), attempts, errors | — | controlled commands | queued → … → accepted / dead_letter; `retryStateOutboxEvent` |
 | StateEventInbox | Inbound regulator events | providerCode, providerEventId, status | — | `recordStateInboxEvent` (gated) | received → verified → processed / rejected |
 | IntegrationInstallation | Traceability or other provider | providerCode, providerType, status, capabilities | — | onboarding (traceability) | unconfigured → active (`activateIntegrationInstallation`, gated) |
-| ReconciliationRun | Inventory, sales, cash or outbox reconciliation | type, status, discrepancies | owner, approvedBy | `recordReconciliationRun` (gated) | pending → … → approved (gated) |
+| ReconciliationRun | Inventory, sales, tender, tax or cash reconciliation | type, status, discrepancies | owner, approvedBy | `recordReconciliationRun` (gated) | pending → … → approved (gated) |
 | ComplianceIncident | Incident register | reference, type (14), severity, status (6), occurred / detected / notification due / reported | actor, owner | `recordComplianceIncident` | open → contained → investigating → reported → resolved → closed (`transitionComplianceIncident`) |
 
 ## Merchant workflows
@@ -64,7 +63,7 @@ Runtime capabilities (`domain/runtimeCapabilities.ts`) gate commands whose workf
 9. **Sell:** Cart, CartLine, Sale, SaleLine, Tender (POS cart, price and add, take payment, cancel; pickup carts gated).
 10. **Refunds:** Refund (from the receipt, with a second approver).
 11. **Cash:** Register, RegisterShift, CashEvent, TenderConfiguration (open shift, blind count and close, variance approval).
-12. **Report and reconcile:** OutboxEvent, StateEventInbox, IntegrationInstallation, ReconciliationRun.
+12. **Report and reconcile:** StateEventInbox, IntegrationInstallation, ReconciliationRun.
 13. **Incidents:** ComplianceIncident.
 14. **Audit:** AuditEvent (inspection trail).
 15. **Storefront:** StorefrontSettings, Product, InventoryPackage (public menu, product, visit details).
@@ -87,7 +86,7 @@ Runtime capabilities (`domain/runtimeCapabilities.ts`) gate commands whose workf
 | Sale, SaleLine, Tender, Refund | latest receipts in POS | **MISSING**: no sales history with filters or detail page |
 | Register, RegisterShift, CashEvent | `/platform/cash` | **THIN**: no shift detail (cash events) |
 | TenderConfiguration | none | **MISSING** (parent: Cash) |
-| OutboxEvent, ReconciliationRun | `/platform/reconciliation` | OK |
+| ReconciliationRun | `/platform/reconciliation` | OK |
 | IntegrationInstallation, StateEventInbox | count only | **MISSING** (parent: Reconciliation) |
 | ComplianceIncident | `/platform/incidents` | OK |
 | AuditEvent | none | **MISSING** |

@@ -10,7 +10,7 @@ import {
 import { Empty, formatUsableThrough, formatWhen, Pager, SearchForm, Workboard } from '../components/WorkspaceKit';
 import { CartPanel, CheckInForm, CloseShiftForm } from '../components/SaleForms';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
-import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RetryOutboxButton, RevokeCredentialForm } from '../components/OperatorForms';
+import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RevokeCredentialForm } from '../components/OperatorForms';
 
 import { frame, readParams, type SearchParams } from '../lib/frame';
 
@@ -429,35 +429,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
 export async function ReconciliationWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('reconciliation', '/dashboard/platform/reconciliation', 'Reconciliation', params, data => <Workboard>
-    {!data.delivery.workerAvailable && <Notice tone="warn">State reporting not connected. Report through the state system directly.</Notice>}
-    <section>
-      <SectionTitle meta={data.exceptions.total}>Failed or rejected reports</SectionTitle>
-      <Table label="Failed or rejected reports" minWidth={620}>
-        <THead><Th>Topic</Th><Th align="right">Attempts</Th><Th>Last attempt</Th><Th>Error</Th><Th>Status</Th><Th align="right"><span className="sr-only">Action</span></Th></THead>
-        <tbody>{data.exceptions.items.length ? data.exceptions.items.map(event => <Tr key={event.id}>
-          <Td><Ref>{event.topic}</Ref></Td>
-          <Td align="right">{event.attempts}</Td>
-          <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(event.lastAttemptAt, data.timezone)}</Td>
-          <Td><Ref className="text-muted-foreground">{event.lastErrorCode || 'No error code'}</Ref></Td>
-          <Td><StatusText tone="danger">{sentenceCase(event.status)}</StatusText></Td>
-          <Td align="right" className="w-px py-1.5">{data.operating.open ? <RetryOutboxButton eventId={event.id} /> : null}</Td>
-        </Tr>) : <TEmpty colSpan={6}>No failed or rejected reports.</TEmpty>}</tbody>
-      </Table>
-      {data.exceptions.nextCursor && <p className="mt-1.5 text-xs text-muted-foreground">Oldest {data.exceptions.items.length} of {data.exceptions.total}</p>}
-    </section>
     <Split side="minmax(0,1fr)">
-      <section>
-        <SectionTitle meta={data.pending.total}>Waiting to send</SectionTitle>
-        <Table label="Waiting to send" minWidth={380}>
-          <THead><Th>Topic</Th><Th>Queued since</Th><Th>Status</Th></THead>
-          <tbody>{data.pending.items.length ? data.pending.items.map(event => <Tr key={event.id}>
-            <Td><Ref>{event.topic}</Ref></Td>
-            <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(event.availableAt, data.timezone)}</Td>
-            <Td><StatusText tone={statusTone(event.status)}>{sentenceCase(event.status)}</StatusText></Td>
-          </Tr>) : <TEmpty colSpan={3}>Nothing is waiting to send.</TEmpty>}</tbody>
-        </Table>
-        {data.pending.nextCursor && <p className="mt-1.5 text-xs text-muted-foreground">Oldest {data.pending.items.length} of {data.pending.total}</p>}
-      </section>
       <section data-testid="reconciliation-workbench">
         <SectionTitle meta={data.runs.total}>Reconciliation runs</SectionTitle>
         <Table label="Reconciliation runs" minWidth={420}>
@@ -497,7 +469,7 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
         </Table>
       </section>
     </Split>
-  </Workboard>, data => data.exceptions.total ? { tone: 'danger', state: `${data.exceptions.total} failed report${data.exceptions.total === 1 ? '' : 's'}` } : data.pending.total ? { tone: 'warn', state: `${data.pending.total} waiting to send` } : operatingState(data.operating));
+  </Workboard>, data => operatingState(data.operating));
 }
 
 const INCIDENT_COLUMNS = 'minmax(0,1.3fr) minmax(0,0.9fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,0.9fr)';

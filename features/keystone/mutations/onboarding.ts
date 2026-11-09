@@ -78,7 +78,7 @@ function validate(input: AuthorityPackInput) {
  */
 export async function provisionStaffAuthority(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "provisionStaffAuthority", resourceType: "StaffCredential", action: "staff.authority.provisioned", emitStateEvent: false, lockKeys: [String(input.email).toLowerCase()] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "provisionStaffAuthority", resourceType: "StaffCredential", action: "staff.authority.provisioned", lockKeys: [String(input.email).toLowerCase()] }, async (tx, authority) => {
     const sudo = tx.sudo(); const email = assertText(input.email, "Staff email", 3, 320).toLowerCase();
     if (await sudo.query.User.findOne({ where: { email }, query: "id" })) throw new Error("Staff email already exists");
     const password = assertText(input.temporaryPassword, "Temporary password", 10, 1000);

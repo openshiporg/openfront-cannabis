@@ -52,7 +52,6 @@ export async function configureCannabisStorefrontSettings(_root: unknown, args: 
     lockKeys: ["storefront-settings"],
     resourceType: "StorefrontSettings",
     action: "storefront.settings.configured",
-    emitStateEvent: false,
   }, async (tx, authority) => {
     const settings = normalizeStorefrontSettingsInput(input);
     const logo = normalizeLogoSettings(input);
@@ -96,7 +95,7 @@ export async function setCannabisStorefrontCover(_root: unknown, args: { input: 
   const stored = upload ? await storePublicImage(context, upload) : null;
   return runControlledOperation(context, input, {
     permission: "canManageAuthority", activity: "authority", scope: "setCannabisStorefrontCover", lockKeys: ["storefront-settings"],
-    resourceType: "StorefrontSettings", action: "storefront.cover.set", emitStateEvent: false,
+    resourceType: "StorefrontSettings", action: "storefront.cover.set",
   }, async (tx, authority) => {
     const existing = await scopedSettings(tx, authority.organizationId, authority.premisesId);
     if (existing.length !== 1) throw new Error("Save Store Settings before adding a cover photo");

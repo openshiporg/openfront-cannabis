@@ -244,13 +244,10 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
 
   if (section === "reconciliation") {
     const runs = await page(context, "ReconciliationRun", { where: scope, orderBy: [{ startedAt: "desc" }], cursor: options.cursor, query: "id type status discrepancyCount startedAt completedAt" });
-    const pending = await page(context, "OutboxEvent", { where: { ...scope, status: { in: ["queued", "sending"] } }, orderBy: [{ availableAt: "asc" }], take: 25, query: "id topic status attempts availableAt" });
-    const exceptions = await page(context, "OutboxEvent", { where: { ...scope, status: { in: ["rejected", "retryable", "dead_letter"] } }, orderBy: [{ availableAt: "asc" }], query: "id topic status attempts availableAt lastAttemptAt lastErrorCode" });
-    // No delivery worker or provider adapter exists in this repository, so queued events are not sent.
     const installations = await sudo.query.IntegrationInstallation.count({ where: { ...scope, status: { equals: "active" } } });
     const integrations = await sudo.query.IntegrationInstallation.findMany({ where: scope, orderBy: [{ providerType: "asc" }], take: 20, query: "id providerCode providerType status facilityReference authorityReference validatedAt lastSuccessfulSyncAt" });
     const inbox = await page(context, "StateEventInbox", { where: scope, orderBy: [{ receivedAt: "desc" }], take: 25, query: "id providerCode providerEventId status receivedAt processedAt rejectionReason" });
-    return { ...base, runs, pending, exceptions, delivery: { workerAvailable: false, activeInstallations: installations }, integrations, inbox };
+    return { ...base, runs, integrations, inbox };
   }
 
   if (section === "staff") {

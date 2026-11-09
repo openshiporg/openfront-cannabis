@@ -25,16 +25,6 @@ export const IdempotencyKey = list({
   },
 });
 
-export const OutboxEvent = list({
-  access: immutablePremisesAccess("canManageIntegrations"),
-  fields: {
-    organization: org(), premises: site(), eventKey: text({ validation: { isRequired: true }, isIndexed: "unique" }), topic: text({ validation: { isRequired: true } }), aggregateType: text({ validation: { isRequired: true } }), aggregateId: text({ validation: { isRequired: true } }),
-    payload: json({ defaultValue: {} }), requestHash: text({ validation: { isRequired: true } }), idempotencyKey: text({ validation: { isRequired: true } }),
-    status: status(["queued", "sending", "accepted", "rejected", "retryable", "dead_letter", "reconciled"], "queued"), attempts: integer({ defaultValue: 0, validation: { min: 0 } }), availableAt: timestamp({ validation: { isRequired: true } }), lastAttemptAt: timestamp(), acceptedAt: timestamp(), regulatorReference: text(), lastErrorCode: text(),
-    ...trackingFields,
-  },
-});
-
 export const StateEventInbox = list({
   access: immutablePremisesAccess("canManageIntegrations"),
   fields: {

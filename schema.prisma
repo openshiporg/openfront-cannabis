@@ -116,7 +116,6 @@ model Organization {
   from_Refund_organization                  Refund[]                  @relation("Refund_organization")
   from_AuditEvent_organization              AuditEvent[]              @relation("AuditEvent_organization")
   from_IdempotencyKey_organization          IdempotencyKey[]          @relation("IdempotencyKey_organization")
-  from_OutboxEvent_organization             OutboxEvent[]             @relation("OutboxEvent_organization")
   from_StateEventInbox_organization         StateEventInbox[]         @relation("StateEventInbox_organization")
   from_IntegrationInstallation_organization IntegrationInstallation[] @relation("IntegrationInstallation_organization")
   from_ReconciliationRun_organization       ReconciliationRun[]       @relation("ReconciliationRun_organization")
@@ -162,7 +161,6 @@ model Premises {
   from_Refund_premises                  Refund[]                  @relation("Refund_premises")
   from_AuditEvent_premises              AuditEvent[]              @relation("AuditEvent_premises")
   from_IdempotencyKey_premises          IdempotencyKey[]          @relation("IdempotencyKey_premises")
-  from_OutboxEvent_premises             OutboxEvent[]             @relation("OutboxEvent_premises")
   from_StateEventInbox_premises         StateEventInbox[]         @relation("StateEventInbox_premises")
   from_IntegrationInstallation_premises IntegrationInstallation[] @relation("IntegrationInstallation_premises")
   from_ReconciliationRun_premises       ReconciliationRun[]       @relation("ReconciliationRun_premises")
@@ -927,33 +925,6 @@ model IdempotencyKey {
   @@index([actorId])
 }
 
-model OutboxEvent {
-  id                 String                @id @default(cuid())
-  organization       Organization?         @relation("OutboxEvent_organization", fields: [organizationId], references: [id])
-  organizationId     String?               @map("organization")
-  premises           Premises?             @relation("OutboxEvent_premises", fields: [premisesId], references: [id])
-  premisesId         String?               @map("premises")
-  eventKey           String                @unique @default("")
-  topic              String                @default("")
-  aggregateType      String                @default("")
-  aggregateId        String                @default("")
-  payload            Json?                 @default("{}")
-  requestHash        String                @default("")
-  idempotencyKey     String                @default("")
-  status             OutboxEventStatusType @default(queued)
-  attempts           Int?                  @default(0)
-  availableAt        DateTime
-  lastAttemptAt      DateTime?
-  acceptedAt         DateTime?
-  regulatorReference String                @default("")
-  lastErrorCode      String                @default("")
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @default(now()) @updatedAt
-
-  @@index([organizationId])
-  @@index([premisesId])
-}
-
 model StateEventInbox {
   id                String                    @id @default(cuid())
   organization      Organization?             @relation("StateEventInbox_organization", fields: [organizationId], references: [id])
@@ -1344,16 +1315,6 @@ enum IdempotencyKeyStatusType {
   processing
   succeeded
   failed
-}
-
-enum OutboxEventStatusType {
-  queued
-  sending
-  accepted
-  rejected
-  retryable
-  dead_letter
-  reconciled
 }
 
 enum StateEventInboxStatusType {

@@ -66,7 +66,7 @@ export async function transitionCannabisCartPreparation(_root: unknown, args: { 
   assertFulfillmentScope(scope, authority);
   const result = await runControlledOperation(context, input, {
     permission: 'canManageSales', activity: 'sale', scope: 'transitionCannabisCartPreparation',
-    resourceType: 'Cart', action: 'cart.preparation.transitioned', emitStateEvent: false,
+    resourceType: 'Cart', action: 'cart.preparation.transitioned',
     authorize: async (current, fresh) => {
       // Acknowledging original preparation never reruns its expiry/version edge.
       const allowed = await current.query.Cart.findOne({ where: { id: input.cartId }, query: 'id' });

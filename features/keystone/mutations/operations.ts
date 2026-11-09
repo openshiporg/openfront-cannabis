@@ -16,7 +16,7 @@ export async function configureCannabisProduct(_root: unknown, args: { input: an
   const input = args.input;
   assertInteger(input.unitQuantityMicrounits, "Unit quantity", 1); assertInteger(input.equivalencyMicrounits, "Equivalency", 1); assertInteger(input.priceCents, "Price", 0);
   if (input.adultUseEligible !== true && input.medicalEligible !== true) throw new Error("Product must be explicitly eligible for at least one configured channel");
-  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "configureCannabisProduct", resourceType: "Product", action: "catalog.product.configured", emitStateEvent: false, lockKeys: [String(input.sku)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "configureCannabisProduct", resourceType: "Product", action: "catalog.product.configured", lockKeys: [String(input.sku)] }, async (tx, authority) => {
     const sudo = tx.sudo(); const existing = await sudo.query.Product.findOne({ where: { sku: assertText(input.sku, "SKU") }, query: "id name" }); if (existing) throw new Error(`SKU ${input.sku.trim()} is already used by ${existing.name}`);
     const product = await sudo.query.Product.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sku: input.sku, name: assertText(input.name, "Product name"), brand: input.brand ? assertText(input.brand, "Brand", 1, 200) : "", form: assertText(input.form, "Product form"), categoryCode: assertText(input.categoryCode, "Category code"), unitOfMeasure: assertText(input.unitOfMeasure, "Unit of measure"), unitQuantityMicrounits: input.unitQuantityMicrounits, equivalencyMicrounits: input.equivalencyMicrounits, priceCents: input.priceCents, taxCategoryCode: assertText(input.taxCategoryCode, "Tax category"), adultUseEligible: input.adultUseEligible === true, medicalEligible: input.medicalEligible === true, status: "active", publicDescription: input.publicDescription ? assertText(input.publicDescription, "Public description", 1, 1000) : "", publicImageUrl: "" }, query: "id sku status" });
     return { id: product.id, status: product.status, reference: product.sku };
@@ -25,7 +25,7 @@ export async function configureCannabisProduct(_root: unknown, args: { input: an
 
 export async function linkTenderPaymentProvider(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input || {};
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "linkTenderPaymentProvider", resourceType: "TenderConfiguration", action: "tender.provider.linked", emitStateEvent: false, lockKeys: [String(input.tenderConfigurationId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "linkTenderPaymentProvider", resourceType: "TenderConfiguration", action: "tender.provider.linked", lockKeys: [String(input.tenderConfigurationId)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const tender = await sudo.query.TenderConfiguration.findOne({ where: { id: assertText(input.tenderConfigurationId, "Tender configuration") }, query: "id type organization { id } premises { id }" });
     const provider = await sudo.query.PaymentProvider.findOne({ where: { id: assertText(input.paymentProviderId, "Payment provider") }, query: "id code isInstalled" });
@@ -38,7 +38,7 @@ export async function linkTenderPaymentProvider(_root: unknown, args: { input: a
 
 export async function configureRegister(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "configureRegister", resourceType: "Register", action: "register.configured", emitStateEvent: false, lockKeys: [String(input.code)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "configureRegister", resourceType: "Register", action: "register.configured", lockKeys: [String(input.code)] }, async (tx, authority) => {
     const sudo = tx.sudo(); const existing = await sudo.query.Register.findOne({ where: { code: assertText(input.code, "Register code") }, query: "id name" }); if (existing) throw new Error(`Register code ${input.code.trim()} is already used by ${existing.name}`);
     const register = await sudo.query.Register.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, code: input.code, name: assertText(input.name, "Register name"), status: "active" }, query: "id code status" });
     return { id: register.id, status: register.status, reference: register.code };
@@ -47,7 +47,7 @@ export async function configureRegister(_root: unknown, args: { input: any }, co
 
 export async function openRegisterShift(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input; const opening = assertInteger(input.openingFloatCents, "Opening float", 0);
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", emitStateEvent: false, lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const register = await sudo.query.Register.findOne({ where: { id: assertText(input.registerId, "Register ID") }, query: "id code status organization { id } premises { id }" });
     if (!register || register.status !== "active" || register.organization?.id !== authority.organizationId || register.premises?.id !== authority.premisesId) throw new Error("Active register is outside actor authority");
     const existing = await sudo.query.RegisterShift.findMany({ where: { register: { id: { equals: register.id } }, status: { in: ["open", "count_pending", "counted", "variance_review"] } }, take: 2, query: "id" });
@@ -64,7 +64,7 @@ export async function closeRegisterShift(_root: unknown, args: { input: any }, c
   const actual = assertInteger(args.input?.actualCashCents, "Actual cash", 0);
   const input = withApprover(args.input, await verifySecondApprover(context, args.input, "canManageFinance"));
   if (!input.approvedById || input.approvedById === (context.session as any)?.itemId) throw new Error("Shift close requires an independent approver");
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "closeRegisterShift", resourceType: "RegisterShift", action: "cash.shift.closed", emitStateEvent: false, lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "closeRegisterShift", resourceType: "RegisterShift", action: "cash.shift.closed", lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status openingFloatCents organization { id } premises { id } operator { id } cashEvents(take: 500) { type amountCents }" });
     if (!shift || shift.status !== "open" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId || shift.operator?.id !== authority.actor.id) throw new Error("Actor does not own this open shift");
     if (!isCompleteShiftCashEventRead(shift.cashEvents)) throw new Error("Shift cash event read is incomplete; reconcile before close");
@@ -81,7 +81,7 @@ export async function closeRegisterShift(_root: unknown, args: { input: any }, c
 
 export async function approveCashVariance(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "approveCashVariance", resourceType: "RegisterShift", action: "cash.variance.approved", emitStateEvent: false, lockKeys: [String(input.shiftId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "approveCashVariance", resourceType: "RegisterShift", action: "cash.variance.approved", lockKeys: [String(input.shiftId)] }, async (tx, authority) => {
     const sudo = tx.sudo(); const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status varianceCents organization { id } premises { id } operator { id }" });
     if (!shift || shift.status !== "variance_review" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId || shift.operator?.id === authority.actor.id) throw new Error("An independent finance actor must approve this variance-review shift");
     // The approver's credential ceiling bounds the variance they may clear; zero grants no approval authority.
@@ -153,7 +153,7 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
 
 export async function recordComplianceIncident(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "recordComplianceIncident", resourceType: "ComplianceIncident", action: "incident.recorded", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "recordComplianceIncident", resourceType: "ComplianceIncident", action: "incident.recorded" }, async (tx, authority) => {
     if (!['refusal_of_sale','identity','patient_registry_outage','traceability_outage','payment_ambiguity','inventory_discrepancy','theft','loss','diversion','recall','privacy','security','system_outage','offline_attempt'].includes(input.type)) throw new Error("Unsupported incident type");
     if (input.type === "offline_attempt" && input.outageMode !== "fail_closed") throw new Error("Offline regulated sale attempts must fail closed");
     if (!["low", "medium", "high", "critical"].includes(input.severity)) throw new Error("Select an incident severity");
@@ -170,7 +170,7 @@ export async function recordComplianceIncident(_root: unknown, args: { input: an
 export async function activateIntegrationInstallation(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("provider.installation-verification", "Provider installation activation is disabled until a provider adapter verifies capabilities and authority directly.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "activateIntegrationInstallation", resourceType: "IntegrationInstallation", action: "integration.validated", emitStateEvent: false, lockKeys: [String(input.installationId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "activateIntegrationInstallation", resourceType: "IntegrationInstallation", action: "integration.validated", lockKeys: [String(input.installationId)] }, async (tx, authority) => {
     const sudo = tx.sudo(); const installation = await sudo.query.IntegrationInstallation.findOne({ where: { id: assertText(input.installationId, "Installation ID") }, query: "id status providerType organization { id } premises { id }" });
     if (!installation || installation.organization?.id !== authority.organizationId || installation.premises?.id !== authority.premisesId || !["unconfigured", "pending_validation", "suspended"].includes(installation.status)) throw new Error("Integration installation is outside this authority scope");
     const credentialReference = assertText(input.credentialReference, "External secret-manager credential reference", 8, 500);
@@ -184,7 +184,7 @@ export async function activateIntegrationInstallation(_root: unknown, args: { in
 export async function recordStateInboxEvent(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("provider.authenticated-inbox", "Provider inbox records are disabled until signatures are verified by a trusted adapter.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "recordStateInboxEvent", resourceType: "StateEventInbox", action: "state.inbox.recorded", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "recordStateInboxEvent", resourceType: "StateEventInbox", action: "state.inbox.recorded" }, async (tx, authority) => {
     if (!input.signatureEvidence) throw new Error("Provider signature evidence is required for later adapter verification");
     const providerEventId = assertText(input.providerEventId, "Provider event ID");
     const providerCode = assertText(input.providerCode, "Provider code");
@@ -203,22 +203,10 @@ export async function recordStateInboxEvent(_root: unknown, args: { input: any }
   });
 }
 
-export async function retryStateOutboxEvent(_root: unknown, args: { input: any }, context: Context) {
-  const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "retryStateOutboxEvent", resourceType: "OutboxEvent", action: "state.outbox.requeued", emitStateEvent: false, lockKeys: [String(input.outboxEventId)] }, async (tx, authority) => {
-    const event = await tx.sudo().query.OutboxEvent.findOne({ where: { id: assertText(input.outboxEventId, "Outbox event ID") }, query: "id eventKey topic status attempts lastAttemptAt lastErrorCode organization { id } premises { id }" });
-    if (!event || event.organization?.id !== authority.organizationId || event.premises?.id !== authority.premisesId || !['rejected','retryable','dead_letter'].includes(event.status)) throw new Error("Outbox event is not eligible for controlled retry");
-    // `attempts` counts delivery attempts, so a requeue leaves it unchanged. The prior failure is kept
-    // in this command's receipt and audit evidence before the current queue fields are reset.
-    await tx.sudo().query.OutboxEvent.updateOne({ where: { id: event.id }, data: { status: "queued", availableAt: new Date(), lastErrorCode: "" }, query: "id" });
-    return { id: event.id, status: "queued", reference: event.eventKey, previous: { status: event.status, lastErrorCode: event.lastErrorCode || null, attempts: event.attempts, lastAttemptAt: event.lastAttemptAt || null } };
-  });
-}
-
 export async function approveReconciliationRun(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("provider.computed-reconciliation", "Reconciliation approval is disabled until the comparison is computed from trusted source snapshots.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "approveReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.approved", emitStateEvent: false, lockKeys: [String(input.runId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "approveReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.approved", lockKeys: [String(input.runId)] }, async (tx, authority) => {
     const sudo = tx.sudo(); const run = await sudo.query.ReconciliationRun.findOne({ where: { id: assertText(input.runId, "Reconciliation run ID") }, query: "id status discrepancyCount owner { id } organization { id } premises { id }" });
     if (!run || run.organization?.id !== authority.organizationId || run.premises?.id !== authority.premisesId || run.owner?.id === authority.actor.id || run.status !== "balanced" || run.discrepancyCount !== 0) throw new Error("Independent approval requires a balanced zero-discrepancy run");
     await sudo.query.ReconciliationRun.updateOne({ where: { id: run.id }, data: { status: "approved", approvedBy: { connect: { id: authority.actor.id } } }, query: "id" });
@@ -229,7 +217,7 @@ export async function approveReconciliationRun(_root: unknown, args: { input: an
 export async function recordReconciliationRun(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("provider.computed-reconciliation", "Reconciliation recording is disabled until local and external snapshots are computed and linked to evidence.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "recordReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.recorded", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "recordReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.recorded" }, async (tx, authority) => {
     const submission = validateReconciliationSubmission(input.discrepancies);
     const run = await tx.sudo().query.ReconciliationRun.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, type: input.type, status: submission.status, startedAt: new Date(input.startedAt || Date.now()), completedAt: null, localSnapshotHash: assertText(input.localSnapshotHash, "Local snapshot hash", 16), externalSnapshotHash: input.externalSnapshotHash || "", discrepancyCount: submission.discrepancyCount, discrepancies: submission.discrepancies, owner: { connect: { id: authority.actor.id } }, evidenceHash: stableHash({ local: input.localSnapshotHash, external: input.externalSnapshotHash, discrepancies: submission.discrepancies }) }, query: "id status" });
     return { id: run.id, status: run.status, reference: String(submission.discrepancyCount) };
@@ -247,7 +235,7 @@ export async function transitionComplianceIncident(_root: unknown, args: { input
   if (!INCIDENT_TRANSITIONS[expectedStatus]?.includes(nextStatus)) throw new Error(`An incident cannot move from ${expectedStatus} to ${nextStatus}`);
   const reasonCode = assertReasonCode(input.reasonCode);
   const authorityReference = nextStatus === "reported" ? assertText(input.authorityReference, "Report reference", 2, 200) : "";
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "transitionComplianceIncident", resourceType: "ComplianceIncident", action: "incident.transitioned", emitStateEvent: false, lockKeys: [incidentId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "transitionComplianceIncident", resourceType: "ComplianceIncident", action: "incident.transitioned", lockKeys: [incidentId] }, async (tx, authority) => {
     const incident = await tx.sudo().query.ComplianceIncident.findOne({ where: { id: incidentId }, query: "id reference status organization { id } premises { id }" });
     if (!incident || incident.organization?.id !== authority.organizationId || incident.premises?.id !== authority.premisesId) throw new Error("Incident is outside this premises");
     const changed = await tx.prisma.complianceIncident.updateMany({ where: { id: incident.id, status: expectedStatus as any }, data: { status: nextStatus as any, ...(nextStatus === "reported" ? { reportedAt: new Date(), authorityReference } : {}), ownerId: authority.actor.id } });
@@ -282,7 +270,7 @@ export async function amendCannabisProduct(_root: unknown, args: { input: any; p
   // Stored before the transaction: an S3 write must not hold row locks. A rejected command leaves only an unreferenced object.
   if (upload) await requireOperationalAuthority(context, "canManageInventory", "inventory");
   const stored = upload ? await storePublicImage(context, upload) : null;
-  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", emitStateEvent: false, lockKeys: [productId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", lockKeys: [productId] }, async (tx, authority) => {
     const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription categoryCode taxCategoryCode photo { id } updatedAt organization { id } premises { id }" });
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) throw new Error("Product is outside this premises");
     // The form sends every field; only real differences count as an amendment.
@@ -311,7 +299,7 @@ export async function revokeStaffCredential(_root: unknown, args: { input: any }
   const credentialId = assertText(input.credentialId, "Credential ID"); const nextStatus = assertText(input.nextStatus, "Credential status");
   if (!["suspended", "terminated"].includes(nextStatus)) throw new Error("Credentials can be suspended or terminated here");
   const reasonCode = assertReasonCode(input.reasonCode);
-  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "revokeStaffCredential", resourceType: "StaffCredential", action: "staff.credential.revoked", emitStateEvent: false, lockKeys: [credentialId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "revokeStaffCredential", resourceType: "StaffCredential", action: "staff.credential.revoked", lockKeys: [credentialId] }, async (tx, authority) => {
     const credential = await tx.sudo().query.StaffCredential.findOne({ where: { id: credentialId }, query: "id status user { id } organization { id } premises { id }" });
     if (!credential || credential.organization?.id !== authority.organizationId || credential.premises?.id !== authority.premisesId) throw new Error("Credential is outside this premises");
     if (credential.user?.id === authority.actor.id) throw new Error("You cannot revoke your own credential");
@@ -325,7 +313,7 @@ export async function amendRegister(_root: unknown, args: { input: any }, contex
   const input = args.input;
   const registerId = assertText(input.registerId, "Register ID");
   if (!["active", "inactive", "maintenance"].includes(input.status)) throw new Error("Register status must be active, inactive or maintenance");
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "amendRegister", resourceType: "Register", action: "register.amended", emitStateEvent: false, lockKeys: [registerId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "amendRegister", resourceType: "Register", action: "register.amended", lockKeys: [registerId] }, async (tx, authority) => {
     const register = await tx.sudo().query.Register.findOne({ where: { id: registerId }, query: "id code name status organization { id } premises { id }" });
     if (!register || register.organization?.id !== authority.organizationId || register.premises?.id !== authority.premisesId) throw new Error("Register is outside this premises");
     if (input.status !== "active") {

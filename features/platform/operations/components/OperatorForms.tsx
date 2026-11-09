@@ -6,7 +6,7 @@ import { Actions, buttonClass, inputClass, labelClass, Button, textareaClass } f
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
 import {
   amendProductFromMenu, amendRegisterFromDesk, approveVarianceFromDesk, renewAuthorityFromDesk, configureProductFromMenu, configureRegisterFromDesk, openShiftFromDesk,
-  provisionStaffFromDesk, changeStaffPermissionsFromDesk, recordIncidentFromDesk, setTemporaryPasswordFromDesk, amendPremisesDetailsFromDesk, retryOutboxEventFromDesk, revokeCredentialFromDesk, transitionIncidentFromDesk,
+  provisionStaffFromDesk, changeStaffPermissionsFromDesk, recordIncidentFromDesk, setTemporaryPasswordFromDesk, amendPremisesDetailsFromDesk, revokeCredentialFromDesk, transitionIncidentFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
 import { zonedLocalToInstant } from '@/features/platform/lib/time';
@@ -153,15 +153,6 @@ export function IncidentTransitionForm({ incident }: { incident: { id: string; r
       <Field name="authorityReference" title="Report reference (when reporting)" errors={errors} />
     </fieldset>
     <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Saving…' : 'Update incident'}</Button></Actions>
-    <CommandStatus state={state} summary={summary} />
-  </form>;
-}
-
-export function RetryOutboxButton({ eventId }: { eventId: string }) {
-  const { state, onSubmit, pending, key, summary } = useCommand(retryOutboxEventFromDesk);
-  return <form onSubmit={onSubmit()} className="flex flex-wrap items-center gap-2">
-    <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="outboxEventId" value={eventId} />
-    <Actions><Button type="submit" disabled={pending || Boolean(state.success)}>{pending ? 'Requeuing…' : 'Requeue'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
 }

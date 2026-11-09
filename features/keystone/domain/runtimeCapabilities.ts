@@ -17,7 +17,7 @@ const enabledCapabilities: ReadonlySet<string> = new Set([
   "commerce.pos-cart",
   "commerce.reservation-ledger", // cart lines reserve stock; cancel releases it
   "commerce.sale-finalization",
-  "provider.traceability-acceptance", // the sale's state report is queued in the outbox
+  "provider.traceability-acceptance",
   "provider.payment-capture", // non-cash tenders carry the card terminal's approval reference
   "finance.action-bound-approval", // blind-count shift close
   "finance.verified-refunds",

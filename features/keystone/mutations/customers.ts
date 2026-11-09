@@ -49,7 +49,7 @@ export async function checkInCannabisCustomer(_root: unknown, args: { input: any
   if (capacity === "caregiver" && raw.representedPatientVerified !== true) throw new Error("Confirm the caregiver is authorised for this patient");
   // The stored command keeps only what is needed to replay it: no document numbers.
   const { identityNumber: _id, registryNumber: _registry, representedPatientNumber: _patient, ...input } = raw;
-  return runControlledOperation(context, input, { permission: "canManageSales", activity: "eligibility", scope: "checkInCannabisCustomer", resourceType: "Customer", action: "eligibility.checked_in", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageSales", activity: "eligibility", scope: "checkInCannabisCustomer", resourceType: "Customer", action: "eligibility.checked_in" }, async (tx, authority) => {
     const sudo = tx.sudo(); const now = new Date();
     const pack = await requireRulePack(tx, authority.organizationId!, authority.premisesId!); assertEffectiveRulePack(pack as any);
     // Birthdays and "expires today" are the store's calendar day, not UTC's (UTC midnight is 5 pm in Denver).

@@ -6,7 +6,7 @@ import { cannabisCommandReceipt, cannabisSaleReceipt } from "./receipts";
 import { receiveCannabisPackage, postCannabisInventoryEvent, recordCannabisCountCorrection, releasePackageHold } from "./inventory";
 import { publicCannabisMenu, publicCannabisStorefrontSettings, submitCannabisCustomerIntake, recordEligibilityDecision } from "./public";
 import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabisCart, addCannabisCartLine, cancelCannabisCart, finalizeCannabisSale, voidCannabisSale } from "./commerce";
-import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, retryStateOutboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
+import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
 import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings, setCannabisStorefrontCover } from "./storefrontSettings";
@@ -82,7 +82,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         recordComplianceIncident(input: JSON!): JSON!
         activateIntegrationInstallation(input: JSON!): JSON!
         recordStateInboxEvent(input: JSON!): JSON!
-        retryStateOutboxEvent(input: JSON!): JSON!
         recordReconciliationRun(input: JSON!): JSON!
         approveReconciliationRun(input: JSON!): JSON!
       }
@@ -135,7 +134,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         recordComplianceIncident,
         activateIntegrationInstallation,
         recordStateInboxEvent,
-        retryStateOutboxEvent,
         recordReconciliationRun,
         approveReconciliationRun,
       }),

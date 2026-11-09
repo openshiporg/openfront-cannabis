@@ -127,17 +127,17 @@ async function generatePaymentLinkFunction2() {
 }
 async function handleWebhookFunction2({ headers = {}, rawBody = "" }) {
   const supplied = headers["x-aeropay-signature"] || headers["X-Aeropay-Signature"] || "";
-  const expected = (0, import_node_crypto3.createHmac)("sha256", process.env.AEROPAY_WEBHOOK_SECRET || "").update(rawBody).digest("hex");
+  const expected = (0, import_node_crypto2.createHmac)("sha256", process.env.AEROPAY_WEBHOOK_SECRET || "").update(rawBody).digest("hex");
   const a = Buffer.from(supplied.replace(/^sha256=/i, "").toLowerCase());
   const b = Buffer.from(expected);
-  const isValid = Boolean(process.env.AEROPAY_WEBHOOK_SECRET) && a.length === b.length && (0, import_node_crypto3.timingSafeEqual)(a, b);
+  const isValid = Boolean(process.env.AEROPAY_WEBHOOK_SECRET) && a.length === b.length && (0, import_node_crypto2.timingSafeEqual)(a, b);
   return { isValid, event: isValid ? JSON.parse(rawBody) : null, type: "aeropay", resource: isValid ? JSON.parse(rawBody) : null };
 }
-var import_node_crypto3, tokenCache, configured, base;
+var import_node_crypto2, tokenCache, configured, base;
 var init_aeropay = __esm({
   "features/integrations/payment/aeropay.ts"() {
     "use strict";
-    import_node_crypto3 = require("node:crypto");
+    import_node_crypto2 = require("node:crypto");
     configured = () => Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID);
     base = () => process.env.AEROPAY_ENV === "production" ? "https://api.aeropay.com" : "https://api.sandbox-pay.aero.inc";
   }
@@ -301,18 +301,18 @@ async function handleWebhookFunction3({ rawBody, headers = {} }) {
   if (!signatureKey) throw new Error("Authorize.net webhook signature key is not configured");
   if (!rawBody) throw new Error("Raw webhook body is required");
   const supplied = String(headers["x-anet-signature"] || "").toLowerCase();
-  const expected = `sha512=${(0, import_node_crypto4.createHmac)("sha512", signatureKey).update(rawBody).digest("hex")}`;
+  const expected = `sha512=${(0, import_node_crypto3.createHmac)("sha512", signatureKey).update(rawBody).digest("hex")}`;
   const a = Buffer.from(supplied);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !(0, import_node_crypto4.timingSafeEqual)(a, b)) throw new Error("Webhook signature verification failed");
+  if (a.length !== b.length || !(0, import_node_crypto3.timingSafeEqual)(a, b)) throw new Error("Webhook signature verification failed");
   const event = JSON.parse(rawBody);
   return { isValid: true, event: { ...event, id: event.notificationId }, type: String(event.eventType || ""), resource: event.payload || {} };
 }
-var import_node_crypto4, isProduction, endpoint, ref, dollars, cents, STATUS;
+var import_node_crypto3, isProduction, endpoint, ref, dollars, cents, STATUS;
 var init_authorizenet = __esm({
   "features/integrations/payment/authorizenet.ts"() {
     "use strict";
-    import_node_crypto4 = require("node:crypto");
+    import_node_crypto3 = require("node:crypto");
     isProduction = () => process.env.AUTHORIZENET_ENV === "production";
     endpoint = () => isProduction() ? "https://api.authorize.net/xml/v1/request.api" : "https://apitest.authorize.net/xml/v1/request.api";
     ref = (value) => value.replace(/[^A-Za-z0-9-]/g, "").slice(-20);
@@ -335,6 +335,312 @@ var init_authorizenet = __esm({
       FDSPendingReview: "unknown",
       FDSAuthorizedPendingReview: "unknown"
     };
+  }
+});
+
+// features/keystone/lib/email-layout.ts
+function storeNameFromEnv(fallback = "Cannabis") {
+  const match = /^\s*"?([^"<]+?)"?\s*</.exec(process.env.SMTP_FROM || "");
+  return match?.[1]?.trim() || fallback;
+}
+function emailButton(label, href) {
+  return `<table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 24px;">
+<tr><td class="em-btn" align="center" bgcolor="${C.button}" style="border-radius:8px;background:${C.button};">
+<a class="em-btn-a" href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:600;line-height:20px;color:${C.buttonText};text-decoration:none;border-radius:8px;">${escapeHtml(label)}</a>
+</td></tr></table>`;
+}
+function emailPanel(html, align = "left") {
+  return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">
+<tr><td class="em-panel" align="${align}" bgcolor="${C.panel}" style="padding:16px 18px;background:${C.panel};border:1px solid ${C.line};border-radius:8px;font-family:${FONT};font-size:15px;line-height:22px;color:${C.text};">${html}</td></tr></table>`;
+}
+function emailItems(items) {
+  const rows = items.map(
+    (item) => `<tr>
+<td class="em-line" style="padding:14px 0;border-bottom:1px solid ${C.line};font-family:${FONT};vertical-align:top;">
+<div class="em-text" style="font-size:15px;line-height:21px;font-weight:600;color:${C.text};">${escapeHtml(item.title)}</div>
+<div class="em-muted" style="font-size:13px;line-height:19px;color:${C.muted};">${[item.detail, `Qty ${item.quantity}`].filter(Boolean).map(escapeHtml).join(" \xB7 ")}</div>
+</td>
+<td class="em-line em-text" align="right" style="padding:14px 0 14px 12px;border-bottom:1px solid ${C.line};font-family:${FONT};font-size:15px;line-height:21px;color:${C.text};vertical-align:top;white-space:nowrap;">${escapeHtml(item.amount || "")}</td>
+</tr>`
+  ).join("");
+  return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:0 0 8px;border-top:1px solid ${C.line};" class="em-line">${rows}</table>`;
+}
+function emailTotals(rows) {
+  const last = rows.length - 1;
+  const body = rows.map((row, i) => {
+    const strong = i === last;
+    const style = strong ? `padding:12px 0 0;border-top:1px solid ${C.line};font-size:17px;line-height:24px;font-weight:700;color:${C.text};` : `padding:4px 0;font-size:14px;line-height:20px;color:${C.muted};`;
+    const cls = strong ? "em-line em-text" : "em-muted";
+    return `<tr><td class="${cls}" style="font-family:${FONT};${style}">${escapeHtml(row.label)}</td><td class="${cls}" align="right" style="font-family:${FONT};${style}white-space:nowrap;">${escapeHtml(row.value)}</td></tr>`;
+  }).join("");
+  return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 8px;">${body}</table>`;
+}
+function emailLayout(input) {
+  const store = escapeHtml(input.storeName || storeNameFromEnv());
+  const support = escapeHtml(input.supportEmail || SUPPORT_EMAIL);
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${escapeHtml(input.title)}</title>
+<style>
+:root { color-scheme: light dark; supported-color-schemes: light dark; }
+body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+a { color:${C.link}; }
+@media (max-width: 620px) { .em-pad { padding-left:20px !important; padding-right:20px !important; } }
+@media (prefers-color-scheme: dark) {
+  .em-canvas { background:#09090b !important; }
+  .em-card { background:#18181b !important; border-color:#27272a !important; }
+  .em-text { color:#fafafa !important; }
+  .em-muted { color:#a1a1aa !important; }
+  .em-line { border-color:#3f3f46 !important; }
+  .em-panel { background:#27272a !important; border-color:#3f3f46 !important; color:#fafafa !important; }
+  .em-btn { background:#fafafa !important; }
+  .em-btn-a { color:#18181b !important; }
+  .em-link { color:#fafafa !important; }
+}
+[data-ogsc] .em-text { color:#fafafa !important; }
+[data-ogsc] .em-muted { color:#a1a1aa !important; }
+[data-ogsb] .em-canvas { background:#09090b !important; }
+[data-ogsb] .em-card { background:#18181b !important; }
+</style>
+</head>
+<body class="em-canvas" style="margin:0;padding:0;background:${C.canvas};">
+${input.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${escapeHtml(input.preheader)}</div>` : ""}
+<table role="presentation" class="em-canvas" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="${C.canvas}" style="background:${C.canvas};">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;">
+<tr><td class="em-pad" style="padding:8px 32px 20px;font-family:${FONT};font-size:18px;line-height:24px;font-weight:700;letter-spacing:-0.01em;"><span class="em-text" style="color:${C.text};">${store}</span></td></tr>
+<tr><td class="em-card" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.line};border-radius:12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr><td class="em-pad" style="padding:32px 32px 16px;">
+<h1 class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:24px;line-height:32px;font-weight:700;letter-spacing:-0.02em;color:${C.text};">${escapeHtml(input.title)}</h1>
+${input.body}
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="em-pad" style="padding:20px 32px 8px;font-family:${FONT};font-size:13px;line-height:20px;color:${C.subtle};">
+<span class="em-muted" style="color:${C.subtle};">${input.footerNote ? `${input.footerNote}<br>` : ""}Questions? Email <a class="em-link" href="mailto:${support}" style="color:${C.muted};text-decoration:underline;">${support}</a>.<br>${store}</span>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+var SUPPORT_EMAIL, FONT, C, escapeHtml, p, emailParagraph, emailMuted;
+var init_email_layout = __esm({
+  "features/keystone/lib/email-layout.ts"() {
+    "use strict";
+    SUPPORT_EMAIL = "hello@cannabis.openship.org";
+    FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+    C = {
+      canvas: "#f4f4f5",
+      card: "#ffffff",
+      text: "#18181b",
+      muted: "#52525b",
+      subtle: "#71717a",
+      line: "#e4e4e7",
+      panel: "#fafafa",
+      button: "#18181b",
+      buttonText: "#ffffff",
+      link: "#18181b"
+    };
+    escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    p = (html, style = "") => `<p class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:16px;line-height:24px;color:${C.text};${style}">${html}</p>`;
+    emailParagraph = p;
+    emailMuted = (html) => `<p class="em-muted" style="margin:0 0 16px;font-family:${FONT};font-size:14px;line-height:22px;color:${C.muted};">${html}</p>`;
+  }
+});
+
+// features/keystone/lib/orderMail.ts
+var orderMail_exports = {};
+__export(orderMail_exports, {
+  sendPickupOrderConfirmationEmail: () => sendPickupOrderConfirmationEmail,
+  sendPickupOrderReadyEmail: () => sendPickupOrderReadyEmail
+});
+function pickupMailTransport() {
+  const port = Number(process.env.SMTP_PORT);
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Email delivery is not configured");
+  return (0, import_nodemailer.createTransport)({ host: process.env.SMTP_HOST, port, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } });
+}
+async function sendPickupOrderConfirmationEmail(order) {
+  if (!order.to) return { sent: false, error: "no_recipient" };
+  try {
+    const rows = order.lines.map((line) => `<tr><td style="padding:4px 0">${escapeHtml(line.title)} \xD7 ${line.units}</td><td align="right" style="padding:4px 0">${escapeHtml(line.total)}</td></tr>`).join("");
+    const info = await pickupMailTransport().sendMail({
+      to: order.to,
+      from: process.env.SMTP_FROM,
+      subject: `Your order ${order.reference} at ${order.storeName}`,
+      html: emailLayout({
+        storeName: order.storeName,
+        preheader: `Order ${order.reference}: pickup ${order.whenLabel}`,
+        title: "We have your order",
+        body: `${emailParagraph(`Thanks ${escapeHtml(order.name)}. Order <strong>${escapeHtml(order.reference)}</strong> at ${escapeHtml(order.storeName)}.`)}
+${emailPanel(`Pickup: ${escapeHtml(order.whenLabel)}`)}
+${emailItems(order.lines.map((line) => ({ title: line.title, quantity: line.units, amount: line.total })))}
+${emailTotals([{ label: "Total", value: order.total }])}
+${emailButton("View or cancel your order", order.link)}
+${emailMuted("Bring a valid government ID to pickup.")}`
+      })
+    });
+    return { sent: true, messageId: typeof info?.messageId === "string" ? info.messageId : void 0, response: typeof info?.response === "string" ? info.response : void 0 };
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
+  }
+}
+async function sendPickupOrderReadyEmail(order) {
+  if (!order.to) return { sent: false, error: "no_recipient" };
+  try {
+    const info = await pickupMailTransport().sendMail({
+      to: order.to,
+      from: process.env.SMTP_FROM,
+      subject: `Order ${order.reference} is ready for pickup at ${order.storeName}`,
+      html: emailLayout({
+        storeName: order.storeName,
+        preheader: `Order ${order.reference} is ready for pickup`,
+        title: `${order.name ? `${order.name}, your` : "Your"} order is ready`,
+        body: `${emailParagraph(`Order <strong>${escapeHtml(order.reference)}</strong> is packed and waiting at ${escapeHtml(order.storeName)}${order.address ? `, ${escapeHtml(order.address)}` : ""}.`)}
+${emailPanel(`Pickup: ${escapeHtml(order.whenLabel)}`)}
+${emailParagraph("Bring the valid government ID you ordered with. The name on the ID must match the order.")}
+${emailMuted("Use the link in your order confirmation email to view or cancel the order.")}`
+      })
+    });
+    return { sent: true, messageId: typeof info?.messageId === "string" ? info.messageId : void 0, response: typeof info?.response === "string" ? info.response : void 0 };
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
+  }
+}
+var import_nodemailer;
+var init_orderMail = __esm({
+  "features/keystone/lib/orderMail.ts"() {
+    "use strict";
+    import_nodemailer = require("nodemailer");
+    init_email_layout();
+  }
+});
+
+// features/keystone/utils/orderConfirmation.ts
+var orderConfirmation_exports = {};
+__export(orderConfirmation_exports, {
+  deliverPickupConfirmation: () => deliverPickupConfirmation,
+  deliverPickupReadyNotice: () => deliverPickupReadyNotice
+});
+async function deliverPickupConfirmation(context, args, send) {
+  try {
+    const sudo = context.sudo();
+    const existing = await sudo.query.AuditEvent.findMany({ where: { action: { equals: "cart.confirmation_email" }, resourceId: { equals: args.cartId } }, take: 1, query: "id" });
+    if (existing.length) return;
+    let status5 = "skipped_not_configured";
+    let error;
+    let messageId;
+    let response;
+    const base2 = process.env.SMTP_STORE_LINK;
+    if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD && base2) {
+      try {
+        const cart = await sudo.query.Cart.findOne({ where: { id: args.cartId }, query: "pickupWindowStart pickupWindowEnd totalCents premises { name timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits totalCents product { unitQuantityMicrounits } }" });
+        const zone = cart.premises?.timezone || "UTC";
+        const currency = cart.premises?.currencyCode || "USD";
+        const money = (cents2) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format((cents2 || 0) / 100);
+        const when = (value) => new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+        const end = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(cart.pickupWindowEnd));
+        const deliver = send || (await Promise.resolve().then(() => (init_orderMail(), orderMail_exports))).sendPickupOrderConfirmationEmail;
+        const result = await deliver({
+          to: args.email,
+          storeName: cart.premises?.name || "Our store",
+          reference: args.reference,
+          name: args.name,
+          whenLabel: `${when(cart.pickupWindowStart)} to ${end}`,
+          lines: (cart.lines || []).map((line) => ({ title: line.titleSnapshot, units: Math.round(line.quantityMicrounits / (line.product?.unitQuantityMicrounits || line.quantityMicrounits)), total: money(line.totalCents) })),
+          total: money(cart.totalCents),
+          link: `${base2.replace(/\/$/, "")}/order/${encodeURIComponent(args.reference)}#${encodeURIComponent(args.proof)}`
+        });
+        status5 = result.sent ? "sent" : "failed";
+        error = result.error;
+        messageId = result.messageId;
+        response = result.response;
+      } catch (caught) {
+        status5 = "failed";
+        error = caught instanceof Error ? caught.message : "send_failed";
+      }
+    }
+    await sudo.query.AuditEvent.createOne({ data: {
+      organization: { connect: { id: args.scope.organizationId } },
+      premises: { connect: { id: args.scope.premisesId } },
+      action: "cart.confirmation_email",
+      resourceType: "Cart",
+      resourceId: args.cartId,
+      correlationId: args.reference,
+      reasonCode: status5,
+      evidence: { status: status5, ...messageId ? { messageId: messageId.slice(0, 200) } : {}, ...response ? { smtpResponse: response.slice(0, 300) } : {}, ...error ? { error: error.slice(0, 200) } : {} },
+      evidenceHash: (0, import_node_crypto9.createHash)("sha256").update(`${args.reference}:${status5}`).digest("hex"),
+      occurredAt: /* @__PURE__ */ new Date()
+    }, query: "id" });
+  } catch (caught) {
+    console.error("Order confirmation email bookkeeping failed:", caught instanceof Error ? caught.message : "unknown");
+  }
+}
+async function deliverPickupReadyNotice(context, cartId, send) {
+  try {
+    const sudo = context.sudo();
+    const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference source status pickupName pickupWindowStart pickupWindowEnd organization { id } premises { id name timezone addressSnapshot } customer { contact }" });
+    if (!cart || cart.source !== "pickup" || cart.status !== "staged" || !cart.organization?.id || !cart.premises?.id) return;
+    const prior = await sudo.query.AuditEvent.findMany({ where: { action: { equals: "cart.ready_email" }, resourceId: { equals: cartId } }, take: 1, query: "id" });
+    if (prior.length) return;
+    const record = (status5, evidence = {}) => sudo.query.AuditEvent.createOne({ data: {
+      organization: { connect: { id: cart.organization.id } },
+      premises: { connect: { id: cart.premises.id } },
+      action: "cart.ready_email",
+      resourceType: "Cart",
+      resourceId: cartId,
+      correlationId: cart.reference,
+      reasonCode: status5,
+      evidence: { status: status5, ...evidence },
+      evidenceHash: (0, import_node_crypto9.createHash)("sha256").update(`${cart.reference}:ready:${status5}`).digest("hex"),
+      occurredAt: /* @__PURE__ */ new Date()
+    }, query: "id" });
+    const contact = cart.customer?.contact || {};
+    const to = typeof contact.email === "string" ? contact.email : "";
+    if (!to) {
+      await record("skipped_no_recipient");
+      return;
+    }
+    if (!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD)) {
+      await record("skipped_not_configured");
+      return;
+    }
+    const zone = cart.premises.timezone || "UTC";
+    const when = (value) => new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+    const end = cart.pickupWindowEnd ? new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(cart.pickupWindowEnd)) : "";
+    const address = cart.premises.addressSnapshot && typeof cart.premises.addressSnapshot === "object" ? [cart.premises.addressSnapshot.line1, cart.premises.addressSnapshot.city].filter(Boolean).join(", ") : "";
+    let result;
+    try {
+      const deliver = send || (await Promise.resolve().then(() => (init_orderMail(), orderMail_exports))).sendPickupOrderReadyEmail;
+      result = await deliver({
+        to,
+        storeName: cart.premises.name || "Our store",
+        reference: cart.reference,
+        name: cart.pickupName || (typeof contact.name === "string" ? contact.name : ""),
+        whenLabel: cart.pickupWindowStart ? `${when(cart.pickupWindowStart)}${end ? ` to ${end}` : ""}` : "during store hours",
+        address
+      });
+    } catch (caught) {
+      result = { sent: false, error: caught instanceof Error ? caught.message : "send_failed" };
+    }
+    await record(result.sent ? "sent" : "failed", { ...result.messageId ? { messageId: result.messageId.slice(0, 200) } : {}, ...result.response ? { smtpResponse: result.response.slice(0, 300) } : {}, ...result.error ? { error: result.error.slice(0, 200) } : {} });
+  } catch (caught) {
+    console.error("Order ready email bookkeeping failed:", caught instanceof Error ? caught.message : "unknown");
+  }
+}
+var import_node_crypto9;
+var init_orderConfirmation = __esm({
+  "features/keystone/utils/orderConfirmation.ts"() {
+    "use strict";
+    import_node_crypto9 = require("node:crypto");
   }
 });
 
@@ -553,13 +859,39 @@ var User = (0, import_core.list)({
 var import_core2 = require("@keystone-6/core");
 var import_fields3 = require("@keystone-6/core/fields");
 var capability = (label) => (0, import_fields3.checkbox)({ defaultValue: false, label });
+var canManageRolesNow = activePermissions.canManageRoles;
+async function callerOrganizationId(context) {
+  const userId = context.session?.itemId;
+  if (!userId) return null;
+  const user = await context.sudo().query.User.findOne({ where: { id: userId }, query: "organization { id } role { " + permissionNames.join(" ") + " }" });
+  return user ? { organizationId: user.organization?.id ?? null, role: user.role ?? {} } : null;
+}
+async function manageableRoleFilter(args) {
+  const caller = await callerOrganizationId(args.context);
+  if (!caller?.organizationId) return false;
+  return { AND: [{ organization: { id: { equals: caller.organizationId } } }, { assignedTo: { none: {} } }] };
+}
 var Role = (0, import_core2.list)({
   access: {
-    operation: { query: activePermissions.canAccessDashboard, create: () => false, update: () => false, delete: () => false },
-    filter: { query: roleQueryFilter }
+    operation: { query: activePermissions.canAccessDashboard, create: canManageRolesNow, update: canManageRolesNow, delete: canManageRolesNow },
+    filter: { query: roleQueryFilter, update: manageableRoleFilter, delete: manageableRoleFilter }
+  },
+  hooks: {
+    resolveInput: {
+      create: async ({ resolvedData, context }) => {
+        if (!context.session?.itemId || resolvedData.organization) return resolvedData;
+        const caller = await callerOrganizationId(context);
+        if (!caller?.organizationId) throw new Error("An organization assignment is required");
+        return { ...resolvedData, organization: { connect: { id: caller.organizationId } } };
+      }
+    },
+    validate: {
+      create: validateGrants,
+      update: validateGrants
+    }
   },
   fields: {
-    organization: (0, import_fields3.relationship)({ ref: "Organization" }),
+    organization: (0, import_fields3.relationship)({ ref: "Organization", access: { create: () => false, update: () => false } }),
     name: (0, import_fields3.text)({ validation: { isRequired: true } }),
     canManagePeople: capability("Manage staff and customer identities"),
     canManageRoles: capability("Manage roles"),
@@ -572,17 +904,26 @@ var Role = (0, import_core2.list)({
     canManageFinance: capability("Manage tenders, refunds, shifts, and cash"),
     canManageIntegrations: capability("Manage external provider queues"),
     canViewReports: capability("View audits and reconciliation"),
-    assignedTo: (0, import_fields3.relationship)({ ref: "User.role", many: true }),
+    assignedTo: (0, import_fields3.relationship)({ ref: "User.role", many: true, access: { create: () => false, update: () => false } }),
     ...trackingFields
   }
 });
+async function validateGrants({ operation, inputData, item, resolvedData, context, addValidationError }) {
+  if (!context.session?.itemId || operation === "create" && inputData?.organization) return;
+  const caller = await callerOrganizationId(context);
+  for (const permission of permissionNames) {
+    if (resolvedData[permission] === true && caller?.role?.[permission] !== true) {
+      addValidationError(`A role cannot grant ${permission}, which you do not currently hold`);
+    }
+  }
+}
 
 // features/keystone/models/Authority.ts
 var import_core3 = require("@keystone-6/core");
 var import_fields4 = require("@keystone-6/core/fields");
 var import_access4 = require("@keystone-6/core/access");
 
-// features/lib/sanitize-store-logo.ts
+// features/keystone/utils/storeLogo.ts
 var ALLOWED_ELEMENTS = /* @__PURE__ */ new Set([
   "svg",
   "g",
@@ -644,8 +985,12 @@ var ATTRIBUTE_PATTERN = /\s+([A-Za-z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*')/g;
 var TAG_PATTERN = /<\/?\s*([A-Za-z][\w:-]*)([^<>]*)>/g;
 function sanitizeStoreLogoSvg(svg) {
   const source = svg.trim();
-  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) return "";
-  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) return "";
+  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) {
+    return "";
+  }
+  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) {
+    return "";
+  }
   let tagCount = 0;
   let match;
   TAG_PATTERN.lastIndex = 0;
@@ -674,9 +1019,9 @@ function sanitizeStoreLogoSvg(svg) {
   return source;
 }
 
-// features/lib/store-logo.ts
-var DEFAULT_STORE_LOGO_ICON = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" height="100%" width="100%" viewBox="0 0 200 200"><g clip-path="url(#restaurant-logo-clip)"><path fill-rule="evenodd" clip-rule="evenodd" d="M107.143 0H92.8571V63.2531L69.1621 4.60582L55.9166 9.95735L80.2255 70.1239L34.3401 24.2385L24.2386 34.3401L68.2177 78.3191L11.2241 53.4181L5.50459 66.5089L65.8105 92.8571H0V107.143H65.8104L5.50461 133.491L11.2241 146.582L68.2176 121.681L24.2386 165.66L34.3401 175.761L80.2255 129.876L55.9166 190.043L69.1621 195.394L92.8571 136.747V200H107.143V136.747L130.838 195.394L144.083 190.043L119.775 129.876L165.66 175.761L175.761 165.66L131.782 121.681L188.776 146.582L194.495 133.491L134.19 107.143H200V92.8571H134.189L194.495 66.5089L188.776 53.4181L131.782 78.3191L175.761 34.34L165.66 24.2385L119.775 70.1238L144.083 9.95735L130.838 4.60582L107.143 63.2531V0Z" fill="url(#restaurant-logo-gradient)"/></g><defs><linearGradient id="restaurant-logo-gradient" x1="14" y1="26" x2="179" y2="179.5" gradientUnits="userSpaceOnUse"><stop stop-color="#5c6bc0"/><stop offset="1" stop-color="#4f39f6"/></linearGradient><clipPath id="restaurant-logo-clip"><rect width="200" height="200" fill="white"/></clipPath></defs></svg>';
-var DEFAULT_STORE_LOGO_COLOR = "0";
+// features/platform/store-settings/lib/store-logo.ts
+var DEFAULT_STORE_LOGO_ICON = '<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m25.0008 24c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m25.0008 10c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6c0-3.31371 2.6863-6 6-6s6 2.68629 6 6z"/><path d="m37.125 31c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m37.127 17.0002c0 3.3137-2.6863 6-6 6-3.3138 0-6-2.6863-6-6s2.6862-6 6-6c3.3137 0 6 2.6863 6 6z"/><path d="m25.0008 38c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m12.877 17c0 3.3137-2.6863 6-6.00005 6-3.31371 0-5.999997-2.6863-5.999997-6s2.686287-6 5.999997-6c3.31375 0 6.00005 2.6863 6.00005 6z"/><path d="m12.875 30.9997c0 3.3137-2.6863 6-6 6-3.31371 0-6-2.6863-6-6s2.68629-6 6-6c3.3137 0 6 2.6863 6 6z"/></g></svg>';
+var DEFAULT_STORE_LOGO_COLOR = "270";
 function normalizeStoreLogoColor(value) {
   const numeric = Number.parseFloat(String(value ?? DEFAULT_STORE_LOGO_COLOR));
   if (!Number.isFinite(numeric)) return DEFAULT_STORE_LOGO_COLOR;
@@ -1312,28 +1657,6 @@ var IdempotencyKey = (0, import_core7.list)({
     ...trackingFields
   }
 });
-var OutboxEvent = (0, import_core7.list)({
-  access: immutablePremisesAccess("canManageIntegrations"),
-  fields: {
-    organization: org4(),
-    premises: site4(),
-    eventKey: (0, import_fields8.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    topic: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    aggregateType: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    aggregateId: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    payload: (0, import_fields8.json)({ defaultValue: {} }),
-    requestHash: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    idempotencyKey: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    status: status4(["queued", "sending", "accepted", "rejected", "retryable", "dead_letter", "reconciled"], "queued"),
-    attempts: (0, import_fields8.integer)({ defaultValue: 0, validation: { min: 0 } }),
-    availableAt: (0, import_fields8.timestamp)({ validation: { isRequired: true } }),
-    lastAttemptAt: (0, import_fields8.timestamp)(),
-    acceptedAt: (0, import_fields8.timestamp)(),
-    regulatorReference: (0, import_fields8.text)(),
-    lastErrorCode: (0, import_fields8.text)(),
-    ...trackingFields
-  }
-});
 var StateEventInbox = (0, import_core7.list)({
   access: immutablePremisesAccess("canManageIntegrations"),
   fields: {
@@ -1444,7 +1767,6 @@ var models = {
   PaymentProvider,
   AuditEvent,
   IdempotencyKey,
-  OutboxEvent,
   StateEventInbox,
   IntegrationInstallation,
   ReconciliationRun,
@@ -1480,7 +1802,6 @@ var LIST_VIEWS = {
   Refund: ["reasonCode", ["sale", "reasonCode", "status"]],
   AuditEvent: ["action", ["action", "resourceType", "actor"]],
   IdempotencyKey: ["scope", ["scope", "status"]],
-  OutboxEvent: ["topic", ["topic", "status", "attempts"]],
   StateEventInbox: ["providerEventId", ["providerCode", "providerEventId", "status"]],
   IntegrationInstallation: ["providerCode", ["providerCode", "providerType", "status"]],
   ReconciliationRun: ["type", ["type", "status", "discrepancyCount"]],
@@ -1516,7 +1837,6 @@ var LIST_PERMISSION = {
   RecallCase: "canManageCompliance",
   AuditEvent: "canViewReports",
   IdempotencyKey: "canViewReports",
-  OutboxEvent: "canManageIntegrations",
   StateEventInbox: "canManageIntegrations",
   IntegrationInstallation: "canManageIntegrations",
   ReconciliationRun: "canViewReports",
@@ -1527,12 +1847,61 @@ for (const [key, model] of Object.entries(models)) {
   const permission = LIST_PERMISSION[key];
   model.ui = {
     ...model.ui,
-    hideCreate: true,
-    hideDelete: true,
     ...permission ? { isHidden: ({ session }) => session?.data?.role?.[permission] !== true } : {},
     ...view ? { labelField: view[0], listView: { ...model.ui?.listView, initialColumns: view[1] } } : {},
     ...key === "User" ? {} : { itemView: { ...model.ui?.itemView, defaultFieldMode: "read" } }
   };
+}
+
+// features/keystone/ui-create-access.ts
+function operationRule(access, operation) {
+  if (typeof access === "function") return access;
+  const rules2 = access?.operation;
+  if (typeof rules2 === "function") return rules2;
+  if (typeof rules2?.[operation] === "function") return rules2[operation];
+  return void 0;
+}
+var createRule = (access) => operationRule(access, "create");
+async function allowed(listKey, list8, operation, args) {
+  const rule = operationRule(list8.access, operation);
+  if (!rule) return true;
+  try {
+    return Boolean(await rule({ session: args.session, context: args.context, listKey, operation }));
+  } catch {
+    return false;
+  }
+}
+var createAllowed = (listKey, list8, args) => allowed(listKey, list8, "create", args);
+function withDeleteAwareUi(lists) {
+  const out = {};
+  for (const [listKey, list8] of Object.entries(lists)) {
+    if (list8.ui?.hideDelete !== void 0 || !operationRule(list8.access, "delete")) {
+      out[listKey] = list8;
+      continue;
+    }
+    out[listKey] = {
+      ...list8,
+      ui: { ...list8.ui, hideDelete: async (args) => !await allowed(listKey, list8, "delete", args) }
+    };
+  }
+  return out;
+}
+function withCreateAwareUi(lists) {
+  const out = {};
+  for (const [listKey, list8] of Object.entries(lists)) {
+    if (list8.ui?.hideCreate !== void 0 || !createRule(list8.access)) {
+      out[listKey] = list8;
+      continue;
+    }
+    out[listKey] = {
+      ...list8,
+      ui: {
+        ...list8.ui,
+        hideCreate: async (args) => !await createAllowed(listKey, list8, args)
+      }
+    };
+  }
+  return out;
 }
 
 // features/keystone/index.ts
@@ -1565,7 +1934,7 @@ var NEUTRAL_STOREFRONT_SETTINGS = Object.freeze({
   description: null,
   brandHue: NEUTRAL_STOREFRONT_HUE,
   logoIcon: DEFAULT_STORE_LOGO_ICON,
-  logoColor: "0",
+  logoColor: DEFAULT_STORE_LOGO_COLOR,
   mode: "neutral",
   isConfigured: false
 });
@@ -1604,40 +1973,20 @@ function normalizeLogoSettings(input) {
   if (value !== void 0 && !logoIcon) throw new Error("Logo must be a valid, safe SVG document");
   return { logoIcon, logoColor: normalizeStoreLogoColor(input.logoColor) };
 }
-function projectPublicDemoCatalog(value) {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 6) return [];
-  try {
-    return value.map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("Invalid demo catalog entry");
-      const item = entry;
-      const id = requiredPublicText(item.id, "Demo item ID", 80);
-      const name = requiredPublicText(item.name, "Demo item name", 120);
-      const form = requiredPublicText(item.form, "Demo item form", 60);
-      const categoryCode = requiredPublicText(item.categoryCode, "Demo category", 60);
-      const description = requiredPublicText(item.description, "Demo item description", 200);
-      if (!/^demo-[a-z0-9-]+$/.test(id) || !name.startsWith("Fictional ") || !categoryCode.startsWith("demo_") || !description.startsWith("Fictional demonstration item.")) {
-        throw new Error("Demo catalog labels must remain explicitly fictional");
-      }
-      return { id, name, form, categoryCode, description, demoOnly: true, saleable: false, orderable: false };
-    });
-  } catch {
-    return [];
-  }
-}
 function projectPublicStorefrontSettings(value) {
   try {
     if (!value || typeof value !== "object" || value.publicationStatus !== "published") {
       return { ...NEUTRAL_STOREFRONT_SETTINGS };
     }
     const mode = value.storefrontMode;
-    if (mode !== "demo" && mode !== "configured") return { ...NEUTRAL_STOREFRONT_SETTINGS };
+    if (mode !== "configured") return { ...NEUTRAL_STOREFRONT_SETTINGS };
     const settings = normalizeStorefrontSettingsInput(value);
     const row = value;
     return {
       ...settings,
       logoIcon: sanitizeStoreLogoSvg(String(row.logoIcon || "")) || DEFAULT_STORE_LOGO_ICON,
       logoColor: normalizeStoreLogoColor(row.logoColor),
-      mode,
+      mode: "configured",
       isConfigured: true
     };
   } catch {
@@ -1705,6 +2054,31 @@ function endOfLocalDate(date2, timeZone) {
   let instant = localMidnight - zoneOffsetMs(localMidnight, timeZone);
   instant = localMidnight - zoneOffsetMs(instant, timeZone);
   return new Date(instant);
+}
+function localDateParts(now, timeZone) {
+  if (!isValidTimeZone(timeZone)) throw new Error("The premises needs a valid time zone");
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const get = (type) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: get("year"), month: get("month"), day: get("day") };
+}
+var DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+function calendarDate(value) {
+  const text8 = value instanceof Date ? Number.isFinite(value.getTime()) ? value.toISOString().slice(0, 10) : "" : typeof value === "string" ? value.trim() : "";
+  const match = DATE_ONLY.exec(text8);
+  if (!match) return null;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+  return { year, month, day, text: text8 };
+}
+function ageAtPremises(dateOfBirth, now, timeZone) {
+  const dob = calendarDate(dateOfBirth);
+  if (!dob) return null;
+  const today = localDateParts(now, timeZone);
+  if (dob.year * 1e4 + dob.month * 100 + dob.day > today.year * 1e4 + today.month * 100 + today.day) return null;
+  let age = today.year - dob.year;
+  if (today.month < dob.month || today.month === dob.month && today.day < dob.day) age -= 1;
+  return age;
 }
 
 // features/lib/money.ts
@@ -1902,19 +2276,6 @@ async function runControlledOperation(context, input, options, work) {
         evidenceHash,
         occurredAt: /* @__PURE__ */ new Date()
       }, query: "id" });
-      if (options.emitStateEvent !== false) await sudo.query.OutboxEvent.createOne({ data: {
-        organization: { connect: { id: currentAuthority.organizationId } },
-        premises: { connect: { id: currentAuthority.premisesId } },
-        eventKey: `${correlationId}:${options.action}`,
-        topic: options.action,
-        aggregateType: options.resourceType,
-        aggregateId: result.id,
-        payload: responseSnapshot,
-        requestHash: evidenceHash,
-        idempotencyKey: key,
-        status: "queued",
-        availableAt: /* @__PURE__ */ new Date()
-      }, query: "id" });
       return { ...result, replayed: false };
     });
   } catch (error) {
@@ -2019,8 +2380,8 @@ function calculateTaxCents(subtotalCents, discountCents, basisPoints) {
   if (discountCents > subtotalCents) throw new Error("Discount cannot exceed subtotal");
   return Math.round((subtotalCents - discountCents) * basisPoints / 1e4);
 }
-function assertTenderAllowed(type, amountCents, totalCents, allowed) {
-  if (!allowed.includes(type)) throw new Error("Tender type is not enabled by the active authority pack");
+function assertTenderAllowed(type, amountCents, totalCents, allowed2) {
+  if (!allowed2.includes(type)) throw new Error("Tender type is not enabled by the active authority pack");
   if (!Number.isSafeInteger(amountCents) || !Number.isSafeInteger(totalCents) || amountCents < 0 || totalCents < 0) throw new Error("Tender amounts must be non-negative integer cents");
 }
 function assertTransition(current, next, transitions) {
@@ -2051,6 +2412,15 @@ var PACKAGE_TRANSITIONS = {
   depleted: [],
   destroyed: []
 };
+var COUNT_CORRECTABLE_STATUSES = /* @__PURE__ */ new Set(["saleable", "quarantined"]);
+function countCorrectionError(pkg, deltaMicrounits) {
+  if (!COUNT_CORRECTABLE_STATUSES.has(String(pkg.status))) return `A ${String(pkg.status).replaceAll("_", " ")} package's count can't be corrected here`;
+  if (!Number.isSafeInteger(deltaMicrounits) || deltaMicrounits === 0) return "Enter the counted difference, more or less than zero";
+  const after = pkg.quantityOnHandMicrounits + deltaMicrounits;
+  if (!Number.isSafeInteger(after) || after < 0) return "The correction would leave less than zero on hand";
+  if (after < pkg.reservedMicrounits) return "The correction would leave less than open carts hold; cancel those carts first";
+  return null;
+}
 
 // features/keystone/mutations/onboarding.ts
 var REQUIRED_ACTIVITIES = ["authority", "eligibility", "inventory", "sale", "cash", "state_reporting", "incident"];
@@ -2128,7 +2498,7 @@ function validate(input) {
 }
 async function provisionStaffAuthority(_root, args, context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "provisionStaffAuthority", resourceType: "StaffCredential", action: "staff.authority.provisioned", emitStateEvent: false, lockKeys: [String(input.email).toLowerCase()] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "provisionStaffAuthority", resourceType: "StaffCredential", action: "staff.authority.provisioned", lockKeys: [String(input.email).toLowerCase()] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const email = assertText(input.email, "Staff email", 3, 320).toLowerCase();
     if (await sudo.query.User.findOne({ where: { email }, query: "id" })) throw new Error("Staff email already exists");
@@ -2264,7 +2634,6 @@ var enabledCapabilities = /* @__PURE__ */ new Set([
   // cart lines reserve stock; cancel releases it
   "commerce.sale-finalization",
   "provider.traceability-acceptance",
-  // the sale's state report is queued in the outbox
   "provider.payment-capture",
   // non-cash tenders carry the card terminal's approval reference
   "finance.action-bound-approval",
@@ -2318,21 +2687,21 @@ var EVENT_STATUS = {
 };
 var isManagedInventoryEventType = (value) => value in EVENT_STATUS;
 var DUAL_APPROVAL = /* @__PURE__ */ new Set(["count", "adjustment", "waste", "destruction", "recall_hold", "recall_release"]);
-var DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+var DATE_ONLY2 = /^\d{4}-\d{2}-\d{2}$/;
 var optionalText = (value, label, max = 200) => value == null || value === "" ? null : assertText(value, label, 1, max);
 async function receiveCannabisPackage(_root, args, context) {
   const input = args.input;
   assertInteger(input.quantityMicrounits, "Received quantity", 1);
   const expiresInput = assertText(input.expiresAt, "Expiry", 10, 40);
-  if (!DATE_ONLY.test(expiresInput) && !Number.isFinite(new Date(expiresInput).getTime())) throw new Error("Expiry must be a date");
+  if (!DATE_ONLY2.test(expiresInput) && !Number.isFinite(new Date(expiresInput).getTime())) throw new Error("Expiry must be a date");
   const manifestNumber = assertText(input.manifestNumber, "Manifest number");
   const reasonCode = assertReasonCode(input.reasonCode);
   return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "receiveCannabisPackage", resourceType: "InventoryPackage", action: "inventory.package.received", lockKeys: [`package:${String(input.packageUid)}`, `manifest:${manifestNumber}`] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo();
     const timezone = authority.actor.premises?.timezone;
-    const expiry = DATE_ONLY.test(expiresInput) ? endOfLocalDate(expiresInput, timezone) : new Date(expiresInput);
+    const expiry = DATE_ONLY2.test(expiresInput) ? endOfLocalDate(expiresInput, timezone) : new Date(expiresInput);
     if (!(expiry.getTime() > Date.now())) throw new Error("Received package expiry must be in the future");
-    const manufacturedAt = input.manufacturedAt ? DATE_ONLY.test(String(input.manufacturedAt)) ? endOfLocalDate(String(input.manufacturedAt), timezone) : new Date(String(input.manufacturedAt)) : null;
+    const manufacturedAt = input.manufacturedAt ? DATE_ONLY2.test(String(input.manufacturedAt)) ? endOfLocalDate(String(input.manufacturedAt), timezone) : new Date(String(input.manufacturedAt)) : null;
     if (manufacturedAt && !Number.isFinite(manufacturedAt.getTime())) throw new Error("Manufactured date is invalid");
     const product = await sudo.query.Product.findOne({ where: { id: assertText(input.productId, "Product ID") }, query: "id organization { id } premises { id } status unitOfMeasure" });
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId || product.status !== "active") throw new Error("Active product is not available in this premises");
@@ -2488,10 +2857,209 @@ async function postCannabisInventoryEvent(_root, args, context) {
     return { id: pkg.id, status: input.nextStatus, reference: pkg.packageUid, quantityOnHandMicrounits: after, version: expectedVersion + 1, stateReport: { eventType, packageUid: pkg.packageUid, quantityDeltaMicrounits: delta, manifestNumber: manifest.manifestNumber, reasonCode: input.reasonCode } };
   });
 }
+var MAX_COUNT_CORRECTION_MICROUNITS = 1e9;
+async function recordCannabisCountCorrection(_root, args, context) {
+  const raw = args.input || {};
+  const delta = Number(raw.quantityDeltaMicrounits);
+  if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > MAX_COUNT_CORRECTION_MICROUNITS) throw new Error("Enter the counted difference, more or less than zero");
+  const expectedVersion = assertInteger(raw.expectedVersion, "Expected package version", 1);
+  const note = assertText(raw.note, "Count note", 4, 500);
+  const input = withApprover(raw, await verifySecondApprover(context, raw, "canManageCompliance"));
+  const packageId = assertText(input.packageId, "Package ID");
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordCannabisCountCorrection", resourceType: "InventoryPackage", action: "inventory.count_correction", lockKeys: [`package:${packageId}`] }, async (tx, authority, correlationId) => {
+    const sudo = tx.sudo();
+    const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status quantityOnHandMicrounits reservedMicrounits version organization { id } premises { id }" });
+    if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");
+    if (pkg.version !== expectedVersion) throw new Error("This package changed since you counted it. Refresh and count again.");
+    const refused = countCorrectionError(pkg, delta);
+    if (refused) throw new Error(refused);
+    const after = pkg.quantityOnHandMicrounits + delta;
+    const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageCompliance }" });
+    if (!approver || approver.id === authority.actor.id || approver.status !== "active" || !approver.role?.canManageCompliance || approver.organization?.id !== authority.organizationId || approver.premises?.id !== authority.premisesId) throw new Error("The second approver needs compliance authority at this premises");
+    const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: expectedVersion, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits, status: pkg.status }, data: { quantityOnHandMicrounits: after, version: { increment: 1 } } });
+    if (changed.count !== 1) throw new Error("This package changed since you counted it. Refresh and count again.");
+    const evidence = { note, countedBy: authority.actor.id, approvedBy: approver.id };
+    const evidenceHash = stableHash(evidence);
+    const manifest = await sudo.query.RegulatedManifest.createOne({ data: {
+      organization: { connect: { id: authority.organizationId } },
+      premises: { connect: { id: authority.premisesId } },
+      manifestNumber: `COUNT-${correlationId}`,
+      type: "count",
+      status: "accepted",
+      sourceLicenseNumber: authority.license.licenseNumber,
+      destinationLicenseNumber: authority.license.licenseNumber,
+      regulatorManifestId: "",
+      occurredAt: /* @__PURE__ */ new Date(),
+      reasonCode: "count_correction",
+      evidence,
+      evidenceHash,
+      actor: { connect: { id: authority.actor.id } },
+      approvedBy: { connect: { id: approver.id } }
+    }, query: "id manifestNumber" });
+    await sudo.query.InventoryEvent.createOne({ data: {
+      organization: { connect: { id: authority.organizationId } },
+      premises: { connect: { id: authority.premisesId } },
+      package: { connect: { id: pkg.id } },
+      manifest: { connect: { id: manifest.id } },
+      eventType: "count",
+      quantityDeltaMicrounits: delta,
+      beforeQuantityMicrounits: pkg.quantityOnHandMicrounits,
+      afterQuantityMicrounits: after,
+      reasonCode: "count_correction",
+      actor: { connect: { id: authority.actor.id } },
+      approvedBy: { connect: { id: approver.id } },
+      sourceType: "RegulatedManifest",
+      sourceId: manifest.id,
+      idempotencyKey: `${correlationId}:count`,
+      occurredAt: /* @__PURE__ */ new Date(),
+      evidenceHash,
+      stateReportStatus: "queued"
+    }, query: "id" });
+    return { id: pkg.id, status: String(pkg.status), reference: pkg.packageUid, quantityOnHandMicrounits: after, version: expectedVersion + 1, stateReport: { eventType: "count", packageUid: pkg.packageUid, quantityDeltaMicrounits: delta, manifestNumber: manifest.manifestNumber, reasonCode: "count_correction" } };
+  });
+}
 
 // features/keystone/mutations/public.ts
-var import_node_crypto2 = require("node:crypto");
-var proofHash = (value) => (0, import_node_crypto2.createHash)("sha256").update(value).digest("hex");
+var import_node_crypto5 = require("node:crypto");
+
+// features/keystone/utils/paymentProviderConfig.ts
+function isPaymentProviderConfigured(code) {
+  if (code.startsWith("pp_manual")) return true;
+  if (code.startsWith("pp_aeropay")) return Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID && process.env.AEROPAY_WEBHOOK_SECRET && process.env.AEROPAY_BANK_ACCOUNT_ID);
+  if (code.startsWith("pp_authorizenet")) return Boolean(process.env.AUTHORIZENET_API_LOGIN_ID && process.env.AUTHORIZENET_TRANSACTION_KEY && process.env.NEXT_PUBLIC_AUTHORIZENET_CLIENT_KEY && process.env.NEXT_PUBLIC_AUTHORIZENET_API_LOGIN_ID === process.env.AUTHORIZENET_API_LOGIN_ID);
+  return false;
+}
+function getPublicPaymentProviderConfig(code) {
+  if (!isPaymentProviderConfigured(code)) return null;
+  if (code.startsWith("pp_authorizenet")) return { provider: "authorizenet", apiLoginId: process.env.AUTHORIZENET_API_LOGIN_ID, clientKey: process.env.NEXT_PUBLIC_AUTHORIZENET_CLIENT_KEY, env: process.env.AUTHORIZENET_ENV === "production" ? "production" : "sandbox" };
+  return null;
+}
+
+// features/keystone/mutations/onlinePayments.ts
+var import_node_crypto4 = require("node:crypto");
+
+// features/integrations/payment/index.ts
+var paymentProviderAdapters = {
+  manual: () => Promise.resolve().then(() => (init_manual(), manual_exports)),
+  aeropay: () => Promise.resolve().then(() => (init_aeropay(), aeropay_exports)),
+  authorizenet: () => Promise.resolve().then(() => (init_authorizenet(), authorizenet_exports))
+};
+
+// features/keystone/utils/paymentProviderAdapter.ts
+var ADAPTERS = new Set(Object.keys(paymentProviderAdapters));
+var OPERATIONS = /* @__PURE__ */ new Set(["createPaymentFunction", "capturePaymentFunction", "refundPaymentFunction", "getPaymentStatusFunction", "generatePaymentLinkFunction", "handleWebhookFunction"]);
+function paymentAdapterPayload(provider, args) {
+  const input = {};
+  for (const key of ["cart", "order", "amount", "currency", "idempotencyKey", "paymentId", "refundId", "event", "headers", "rawBody", "opaqueData", "captureNow"]) if (args?.[key] !== void 0) input[key] = args[key];
+  if (input.headers && typeof input.headers === "object") input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => key.toLowerCase().startsWith("x-aeropay-") || key.toLowerCase().startsWith("x-anet-") || key.toLowerCase().startsWith("stripe-") || key.toLowerCase().startsWith("paypal-")));
+  return { ...input, provider: { id: provider.id, code: provider.code, credentials: provider.credentials || {} } };
+}
+async function executeAdapterFunction({ provider, functionName, args }) {
+  if (!OPERATIONS.has(functionName)) throw new Error("Unknown payment adapter operation");
+  const selected = provider?.[functionName];
+  if (typeof selected !== "string") throw new Error("Payment adapter is not configured");
+  if (/^https?:/i.test(selected)) throw new Error("External payment adapters are not enabled for this vertical");
+  if (!ADAPTERS.has(selected)) throw new Error("Unknown registered payment adapter");
+  const adapter = await paymentProviderAdapters[selected]();
+  if (typeof adapter[functionName] !== "function") throw new Error("Payment adapter operation is unavailable");
+  try {
+    return await adapter[functionName](paymentAdapterPayload(provider, args));
+  } catch {
+    throw new Error(`Payment adapter ${functionName} failed; reconcile the original attempt before retrying`);
+  }
+}
+var createPayment = (p2) => executeAdapterFunction({ provider: p2.provider, functionName: "createPaymentFunction", args: p2 });
+var capturePayment = (p2) => executeAdapterFunction({ provider: p2.provider, functionName: "capturePaymentFunction", args: p2 });
+var refundPayment = (p2) => executeAdapterFunction({ provider: p2.provider, functionName: "refundPaymentFunction", args: p2 });
+
+// features/keystone/domain/lifecycles.ts
+function tenderStatusFromCapture(providerStatus) {
+  if (providerStatus === "captured" || providerStatus === "succeeded") return "captured";
+  throw new Error("Payment capture is ambiguous");
+}
+var FINALIZABLE_CART_STATUSES = ["reserved", "staged"];
+var RELEASABLE_PAYMENT_STATUSES = ["authorized", "void_failed"];
+function customerBlocksSale(status5) {
+  return status5 === "suspended" || status5 === "ineligible";
+}
+var EXPIRABLE_CART_STATUSES = ["preliminarily_eligible", "reserved", "picking", "staged"];
+function saleVoidError(sale) {
+  if (["reversed", "reversal_pending"].includes(sale.status)) return "This sale is already voided";
+  if (["refunded", "partially_refunded"].includes(sale.status) || sale.refundedCents > 0) return "A sale with a refund can't be voided; refund the rest instead";
+  if (sale.shiftStatus !== "open") return "Only a sale on a still-open shift can be voided; refund it instead";
+  if (sale.tenderTypes.some((type) => type !== "cash")) return "A card sale is refunded through its terminal, not voided";
+  if (sale.tenderStatuses.some((status5) => status5 !== "received")) return "A tender on this sale has already moved; refund it instead";
+  if (sale.packageStatuses.some((status5) => !["saleable", "quarantined"].includes(status5))) return "A package on this sale is no longer on the shelf; refund the sale and correct the count instead";
+  return null;
+}
+
+// features/keystone/mutations/onlinePayments.ts
+var CARD_PROVIDER_CODE = "pp_authorizenet_authorizenet";
+var PROVIDER_SELECTION = "id code isInstalled credentials createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction";
+async function onlineCardProvider(context, scope, ensure) {
+  if (!isPaymentProviderConfigured(CARD_PROVIDER_CODE)) return null;
+  const sudo = context.sudo();
+  let provider = await sudo.query.PaymentProvider.findOne({ where: { code: CARD_PROVIDER_CODE }, query: PROVIDER_SELECTION });
+  if (!provider && ensure) {
+    provider = await sudo.query.PaymentProvider.createOne({ data: {
+      name: "Authorize.net",
+      code: CARD_PROVIDER_CODE,
+      isInstalled: true,
+      credentials: {},
+      metadata: {},
+      createPaymentFunction: "authorizenet",
+      capturePaymentFunction: "authorizenet",
+      refundPaymentFunction: "authorizenet",
+      getPaymentStatusFunction: "authorizenet",
+      generatePaymentLinkFunction: "authorizenet",
+      handleWebhookFunction: "authorizenet"
+    }, query: PROVIDER_SELECTION });
+  }
+  if (provider && !provider.isInstalled) return null;
+  if (!ensure) return provider ?? { code: CARD_PROVIDER_CODE };
+  const now = /* @__PURE__ */ new Date();
+  const debit = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: scope.organizationId } }, premises: { id: { equals: scope.premisesId } }, type: { equals: "debit" }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id paymentProvider { id }" });
+  if (debit.length !== 1) return null;
+  if (!debit[0].paymentProvider) await sudo.query.TenderConfiguration.updateOne({ where: { id: debit[0].id }, data: { paymentProvider: { connect: { id: provider.id } }, providerCode: CARD_PROVIDER_CODE }, query: "id" });
+  else if (debit[0].paymentProvider.id !== provider.id) return null;
+  return provider;
+}
+async function releaseOnlinePayment(context, cartId) {
+  const sudo = context.sudo();
+  const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference paymentMethod paymentStatus paymentReference totalCents organization { id } premises { id }" });
+  if (!cart || cart.paymentMethod !== "card" || !RELEASABLE_PAYMENT_STATUSES.includes(cart.paymentStatus) || !cart.paymentReference) return null;
+  const provider = await sudo.query.PaymentProvider.findOne({ where: { code: CARD_PROVIDER_CODE }, query: PROVIDER_SELECTION });
+  let released = false;
+  try {
+    if (provider) {
+      const result = await refundPayment({ provider, paymentId: cart.paymentReference, amount: cart.totalCents, currency: "USD", idempotencyKey: `release${cart.reference}` });
+      released = ["refunded", "canceled", "voided"].includes(String(result?.status));
+    }
+  } catch {
+    released = false;
+  }
+  await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: released ? "voided" : "void_failed" }, query: "id" });
+  if (!released) {
+    await sudo.query.ComplianceIncident.createOne({ data: {
+      organization: { connect: { id: cart.organization.id } },
+      premises: { connect: { id: cart.premises.id } },
+      reference: `INC-PAY-${(0, import_node_crypto4.randomUUID)()}`,
+      type: "payment_ambiguity",
+      severity: "high",
+      status: "open",
+      occurredAt: /* @__PURE__ */ new Date(),
+      detectedAt: /* @__PURE__ */ new Date(),
+      description: `Card authorization for online order ${cart.reference} could not be released; void it in the card processor and reconcile.`,
+      affectedPackageUids: [],
+      customerReferenceHash: (0, import_node_crypto4.createHash)("sha256").update(cart.id).digest("hex"),
+      evidenceHash: (0, import_node_crypto4.createHash)("sha256").update(`${cart.id}:${cart.paymentReference}:release_failed`).digest("hex")
+    }, query: "id" });
+  }
+  return released ? "voided" : "void_failed";
+}
+
+// features/keystone/mutations/public.ts
+var proofHash = (value) => (0, import_node_crypto5.createHash)("sha256").update(value).digest("hex");
 var PublicScopeMissing = class extends Error {
 };
 async function publicScope(context) {
@@ -2512,6 +3080,8 @@ async function publicVisit(context, scope) {
   let tenders = [];
   let minimumAge = null;
   let medicalMinimumAge = null;
+  let cardOnline = false;
+  let pickupEnabled = false;
   try {
     const pack = await requireRulePack(context, scope.organization.id, scope.premises.id);
     assertEffectiveRulePack(pack);
@@ -2519,9 +3089,11 @@ async function publicVisit(context, scope) {
     tenders = Array.isArray(pack.allowedTenderTypes) ? pack.allowedTenderTypes.filter((type) => typeof type === "string").slice(0, 10) : [];
     minimumAge = pack.adultMinimumAge;
     medicalMinimumAge = pack.medicalEnabled ? pack.medicalMinimumAge : null;
+    pickupEnabled = pack.pickupEnabled === true;
+    cardOnline = pack.pickupEnabled === true && tenders.includes("debit") && isPaymentProviderConfigured(CARD_PROVIDER_CODE);
   } catch {
   }
-  return { address: { line1: pick("line1"), city: pick("city"), region: pick("region"), postalCode: pick("postalCode"), country: pick("country") }, phone: pick("phone"), timezone: scope.premises.timezone ?? null, hours, tenders, minimumAge, medicalMinimumAge };
+  return { address: { line1: pick("line1"), city: pick("city"), region: pick("region"), postalCode: pick("postalCode"), country: pick("country") }, phone: pick("phone"), timezone: scope.premises.timezone ?? null, hours, tenders, minimumAge, medicalMinimumAge, cardOnline, pickupEnabled };
 }
 async function publicCannabisStorefrontSettings(_root, _args, context) {
   let authority;
@@ -2554,41 +3126,16 @@ async function publicCannabisMenu(_root, _args, context) {
   try {
     authority = await publicAuthority(context);
   } catch (error) {
-    return { unavailable: true, reason: error instanceof PublicScopeMissing ? "not_set_up" : "sales_rules", products: [], demoProducts: [] };
+    return { unavailable: true, reason: error instanceof PublicScopeMissing ? "not_set_up" : "sales_rules", products: [] };
   }
-  if (!isRuntimeCapabilityEnabled("storefront.public-live-menu")) {
-    const demoSettings2 = await context.sudo().query.StorefrontSettings.findMany({
-      where: {
-        organization: { id: { equals: authority.organization.id } },
-        premises: { id: { equals: authority.premises.id } },
-        publicationStatus: { equals: "published" },
-        storefrontMode: { equals: "demo" }
-      },
-      orderBy: [{ createdAt: "asc" }],
-      take: 2,
-      query: "demoCatalog"
-    });
-    return {
-      jurisdictionCode: authority.organization.jurisdictionCode,
-      rulePackVersion: authority.pack.version,
-      currencyCode: authority.premises.currencyCode ?? null,
-      products: [],
-      demoProducts: demoSettings2.length === 1 ? projectPublicDemoCatalog(demoSettings2[0].demoCatalog) : []
-    };
-  }
+  if (!isRuntimeCapabilityEnabled("storefront.public-live-menu")) return { unavailable: true, reason: "sales_rules", products: [] };
   const scope = { organization: { id: { equals: authority.organization.id } }, premises: { id: { equals: authority.premises.id } } };
-  const [packages, demoSettings] = await Promise.all([
+  const [packages] = await Promise.all([
     context.sudo().query.InventoryPackage.findMany({
       where: { ...scope, status: { equals: "saleable" }, testStatus: { equals: "passed" }, expiresAt: { gt: /* @__PURE__ */ new Date() }, quantityOnHandMicrounits: { gt: 0 } },
       orderBy: [{ expiresAt: "asc" }, { createdAt: "asc" }],
       take: 201,
       query: "id status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku form categoryCode unitQuantityMicrounits priceCents publicDescription publicImageUrl photo { url } adultUseEligible medicalEligible status } premises { id }"
-    }),
-    context.sudo().query.StorefrontSettings.findMany({
-      where: { ...scope, publicationStatus: { equals: "published" }, storefrontMode: { equals: "demo" } },
-      orderBy: [{ createdAt: "asc" }],
-      take: 2,
-      query: "demoCatalog"
     })
   ]);
   if (packages.length > 200) throw new Error("Menu projection exceeds its bounded source page and requires operator review");
@@ -2603,8 +3150,7 @@ async function publicCannabisMenu(_root, _args, context) {
     }
     if (!products.has(pkg.product.id)) products.set(pkg.product.id, { id: pkg.product.id, name: pkg.product.name, sku: pkg.product.sku, form: pkg.product.form, categoryCode: pkg.product.categoryCode, priceCents: pkg.product.priceCents, description: pkg.product.publicDescription, imageUrl: pkg.product.photo?.url || pkg.product.publicImageUrl || null, adultUseEligible: pkg.product.adultUseEligible, medicalEligible: pkg.product.medicalEligible, available: true });
   }
-  const demoProducts = demoSettings.length === 1 ? projectPublicDemoCatalog(demoSettings[0].demoCatalog) : [];
-  return { jurisdictionCode: authority.organization.jurisdictionCode, rulePackVersion: authority.pack.version, currencyCode: authority.premises.currencyCode ?? null, products: [...products.values()], demoProducts };
+  return { jurisdictionCode: authority.organization.jurisdictionCode, rulePackVersion: authority.pack.version, currencyCode: authority.premises.currencyCode ?? null, products: [...products.values()] };
 }
 async function submitCannabisCustomerIntake(_root, args, context) {
   requireRuntimeCapability("privacy.approved-intake", "Customer identity intake is disabled until owner-approved privacy, retention, abuse-limiting, and atomic-recovery controls are implemented.");
@@ -2614,17 +3160,19 @@ async function submitCannabisCustomerIntake(_root, args, context) {
   if (!["adult_use", "patient", "caregiver"].includes(capacity)) throw new Error("Unsupported buyer capacity");
   if (capacity !== "adult_use" && !authority.pack.medicalEnabled) throw new Error("Medical intake is not enabled");
   const email = assertText(input.email, "Email", 3, 320).toLowerCase();
-  const dateOfBirth = new Date(assertText(input.dateOfBirth, "Date of birth"));
-  const identityExpiresAt = new Date(assertText(input.identityExpiresAt, "Identity expiry"));
-  if (!Number.isFinite(dateOfBirth.getTime()) || !Number.isFinite(identityExpiresAt.getTime())) throw new Error("Identity dates are invalid");
+  const dobDate = calendarDate(input.dateOfBirth);
+  const idExpiry = calendarDate(input.identityExpiresAt);
+  if (!dobDate || !idExpiry) throw new Error("Identity dates must be real calendar dates (YYYY-MM-DD)");
+  const dateOfBirth = /* @__PURE__ */ new Date(`${dobDate.text}T00:00:00.000Z`);
+  const identityExpiresAt = endOfLocalDate(idExpiry.text, authority.premises.timezone);
   const identityMethod = assertText(input.identityMethod, "Identity method");
   const identityReferenceHash = assertText(input.identityReferenceHash, "Identity reference hash", 16, 500);
   const optionalIntakeText = (value, label) => value == null || value === "" ? null : assertText(value, label, 1, 500);
   const registryName = optionalIntakeText(input.registryName, "Registry name");
   const registryReferenceHash = optionalIntakeText(input.registryReferenceHash, "Registry reference hash");
   const representedPatientReferenceHash = optionalIntakeText(input.representedPatientReferenceHash, "Represented patient reference hash");
-  const proof = (0, import_node_crypto2.randomBytes)(32).toString("base64url");
-  const reference = `INTAKE-${(0, import_node_crypto2.randomUUID)()}`;
+  const proof = (0, import_node_crypto5.randomBytes)(32).toString("base64url");
+  const reference = `INTAKE-${(0, import_node_crypto5.randomUUID)()}`;
   const sudo = context.sudo();
   const customer = await sudo.query.Customer.createOne({ data: { organization: { connect: { id: authority.organization.id } }, premises: { connect: { id: authority.premises.id } }, reference, capacity, status: "pending_verification", intakeProofHash: proofHash(proof), contact: { email }, marketingConsent: input.marketingConsent === true }, query: "id reference" });
   await sudo.query.EligibilityEvidence.createOne({ data: { organization: { connect: { id: authority.organization.id } }, premises: { connect: { id: authority.premises.id } }, customer: { connect: { id: customer.id } }, capacity, identityMethod, identityReferenceHash, dateOfBirth, identityExpiresAt, registryName, registryReferenceHash, representedPatientReferenceHash, result: "pending", reasonCodes: ["staff_verification_required"], evidenceHash: stableHash({ capacity, identityMethod, identityReferenceHash, dateOfBirth: dateOfBirth.toISOString() }) }, query: "id" });
@@ -2633,20 +3181,24 @@ async function submitCannabisCustomerIntake(_root, args, context) {
 async function recordEligibilityDecision(_root, args, context) {
   requireRuntimeCapability("identity.verified-eligibility", "Eligibility decisions are disabled until current identity and registry evidence can be independently verified and recorded.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "eligibility", scope: "recordEligibilityDecision", resourceType: "EligibilityEvidence", action: "eligibility.decided", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "eligibility", scope: "recordEligibilityDecision", resourceType: "EligibilityEvidence", action: "eligibility.decided" }, async (tx, authority) => {
     const sudo = tx.sudo();
     const pack = await requireRulePack(tx, authority.organizationId, authority.premisesId);
     assertEffectiveRulePack(pack);
     const customer = await sudo.query.Customer.findOne({ where: { id: assertText(input.customerId, "Customer ID") }, query: "id capacity status organization { id } premises { id }" });
     if (!customer || customer.organization?.id !== authority.organizationId || customer.premises?.id !== authority.premisesId) throw new Error("Customer is outside this premises authority");
-    const dob = new Date(assertText(input.dateOfBirth, "Date of birth"));
-    const identityExpiresAt = new Date(assertText(input.identityExpiresAt, "Identity expiry"));
+    const timezone = authority.actor.premises?.timezone;
     const now = /* @__PURE__ */ new Date();
-    let age = now.getUTCFullYear() - dob.getUTCFullYear();
-    if (now.getUTCMonth() < dob.getUTCMonth() || now.getUTCMonth() === dob.getUTCMonth() && now.getUTCDate() < dob.getUTCDate()) age -= 1;
-    assertEligibility({ capacity: customer.capacity, age, identityValid: identityExpiresAt > now && input.identityVerified === true, registryValid: input.registryVerified === true && (!input.registryExpiresAt || new Date(input.registryExpiresAt) > now), representedPatientValid: input.representedPatientVerified === true }, pack);
+    const dobDate = calendarDate(input.dateOfBirth);
+    const idExpiry = calendarDate(input.identityExpiresAt);
+    if (!dobDate || !idExpiry || input.registryExpiresAt && !calendarDate(input.registryExpiresAt)) throw new Error("Identity dates must be real calendar dates (YYYY-MM-DD)");
+    const dob = /* @__PURE__ */ new Date(`${dobDate.text}T00:00:00.000Z`);
+    const identityExpiresAt = endOfLocalDate(idExpiry.text, timezone);
+    const age = ageAtPremises(dobDate.text, now, timezone);
+    if (age === null) throw new Error("Date of birth must not be in the future");
+    assertEligibility({ capacity: customer.capacity, age, identityValid: identityExpiresAt > now && input.identityVerified === true, registryValid: input.registryVerified === true && (!input.registryExpiresAt || endOfLocalDate(calendarDate(input.registryExpiresAt).text, timezone) > now), representedPatientValid: input.representedPatientVerified === true }, pack);
     const evidenceHash = stableHash({ ...input, verifier: authority.actor.id, ruleVersion: pack.version });
-    const evidence = await sudo.query.EligibilityEvidence.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, customer: { connect: { id: customer.id } }, capacity: customer.capacity, identityMethod: input.identityMethod, identityReferenceHash: input.identityReferenceHash, dateOfBirth: dob, identityExpiresAt, registryName: input.registryName || "", registryReferenceHash: input.registryReferenceHash || "", registryVerifiedAt: input.registryVerified ? now : null, registryExpiresAt: input.registryExpiresAt ? new Date(input.registryExpiresAt) : null, representedPatientReferenceHash: input.representedPatientReferenceHash || "", allotmentRemainingMicrounits: input.allotmentRemainingMicrounits ?? null, result: "eligible", reasonCodes: ["configured_authority_verified"], evidenceHash, verifiedAt: now }, query: "id result" });
+    const evidence = await sudo.query.EligibilityEvidence.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, customer: { connect: { id: customer.id } }, capacity: customer.capacity, identityMethod: input.identityMethod, identityReferenceHash: input.identityReferenceHash, dateOfBirth: dob, identityExpiresAt, registryName: input.registryName || "", registryReferenceHash: input.registryReferenceHash || "", registryVerifiedAt: input.registryVerified ? now : null, registryExpiresAt: input.registryExpiresAt ? endOfLocalDate(calendarDate(input.registryExpiresAt).text, timezone) : null, representedPatientReferenceHash: input.representedPatientReferenceHash || "", allotmentRemainingMicrounits: input.allotmentRemainingMicrounits ?? null, result: "eligible", reasonCodes: ["configured_authority_verified"], evidenceHash, verifiedAt: now }, query: "id result" });
     await sudo.query.Customer.updateOne({ where: { id: customer.id }, data: { status: "eligible" }, query: "id" });
     return { id: evidence.id, status: evidence.result, reference: customer.id, rulePackVersion: pack.version };
   });
@@ -2755,7 +3307,7 @@ function planSaleLineBalances(lines, group, quantityOnHandMicrounits) {
   });
 }
 function assertFinalSaleCartFence(expected, current) {
-  if (expected.status !== "reserved" || current.id !== expected.id || current.status !== expected.status || current.version !== expected.version) {
+  if (!FINALIZABLE_CART_STATUSES.includes(expected.status) || current.id !== expected.id || current.status !== expected.status || current.version !== expected.version) {
     throw new Error("Reserved cart state changed concurrently");
   }
 }
@@ -2866,127 +3418,11 @@ function calculateAllocationQuote(pkg, cart, pack, quantity, promotionCode, auth
   };
 }
 
-// features/integrations/payment/index.ts
-var paymentProviderAdapters = {
-  manual: () => Promise.resolve().then(() => (init_manual(), manual_exports)),
-  aeropay: () => Promise.resolve().then(() => (init_aeropay(), aeropay_exports)),
-  authorizenet: () => Promise.resolve().then(() => (init_authorizenet(), authorizenet_exports))
-};
-
-// features/keystone/utils/paymentProviderAdapter.ts
-var ADAPTERS = new Set(Object.keys(paymentProviderAdapters));
-var OPERATIONS = /* @__PURE__ */ new Set(["createPaymentFunction", "capturePaymentFunction", "refundPaymentFunction", "getPaymentStatusFunction", "generatePaymentLinkFunction", "handleWebhookFunction"]);
-function paymentAdapterPayload(provider, args) {
-  const input = {};
-  for (const key of ["cart", "order", "amount", "currency", "idempotencyKey", "paymentId", "refundId", "event", "headers", "rawBody", "opaqueData", "captureNow"]) if (args?.[key] !== void 0) input[key] = args[key];
-  if (input.headers && typeof input.headers === "object") input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => key.toLowerCase().startsWith("x-aeropay-") || key.toLowerCase().startsWith("x-anet-") || key.toLowerCase().startsWith("stripe-") || key.toLowerCase().startsWith("paypal-")));
-  return { ...input, provider: { id: provider.id, code: provider.code, credentials: provider.credentials || {} } };
-}
-async function executeAdapterFunction({ provider, functionName, args }) {
-  if (!OPERATIONS.has(functionName)) throw new Error("Unknown payment adapter operation");
-  const selected = provider?.[functionName];
-  if (typeof selected !== "string") throw new Error("Payment adapter is not configured");
-  if (/^https?:/i.test(selected)) throw new Error("External payment adapters are not enabled for this vertical");
-  if (!ADAPTERS.has(selected)) throw new Error("Unknown registered payment adapter");
-  const adapter = await paymentProviderAdapters[selected]();
-  if (typeof adapter[functionName] !== "function") throw new Error("Payment adapter operation is unavailable");
-  try {
-    return await adapter[functionName](paymentAdapterPayload(provider, args));
-  } catch {
-    throw new Error(`Payment adapter ${functionName} failed; reconcile the original attempt before retrying`);
-  }
-}
-var createPayment = (p) => executeAdapterFunction({ provider: p.provider, functionName: "createPaymentFunction", args: p });
-var capturePayment = (p) => executeAdapterFunction({ provider: p.provider, functionName: "capturePaymentFunction", args: p });
-var refundPayment = (p) => executeAdapterFunction({ provider: p.provider, functionName: "refundPaymentFunction", args: p });
-
-// features/keystone/utils/paymentProviderConfig.ts
-function isPaymentProviderConfigured(code) {
-  if (code.startsWith("pp_manual")) return true;
-  if (code.startsWith("pp_aeropay")) return Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID && process.env.AEROPAY_WEBHOOK_SECRET && process.env.AEROPAY_BANK_ACCOUNT_ID);
-  if (code.startsWith("pp_authorizenet")) return Boolean(process.env.AUTHORIZENET_API_LOGIN_ID && process.env.AUTHORIZENET_TRANSACTION_KEY && process.env.NEXT_PUBLIC_AUTHORIZENET_CLIENT_KEY && process.env.NEXT_PUBLIC_AUTHORIZENET_API_LOGIN_ID === process.env.AUTHORIZENET_API_LOGIN_ID);
-  return false;
-}
-function getPublicPaymentProviderConfig(code) {
-  if (!isPaymentProviderConfigured(code)) return null;
-  if (code.startsWith("pp_authorizenet")) return { provider: "authorizenet", apiLoginId: process.env.AUTHORIZENET_API_LOGIN_ID, clientKey: process.env.NEXT_PUBLIC_AUTHORIZENET_CLIENT_KEY, env: process.env.AUTHORIZENET_ENV === "production" ? "production" : "sandbox" };
-  return null;
-}
-
-// features/keystone/mutations/onlinePayments.ts
-var import_node_crypto5 = require("node:crypto");
-var CARD_PROVIDER_CODE = "pp_authorizenet_authorizenet";
-var PROVIDER_SELECTION = "id code isInstalled credentials createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction";
-async function onlineCardProvider(context, scope, ensure) {
-  if (!isPaymentProviderConfigured(CARD_PROVIDER_CODE)) return null;
-  const sudo = context.sudo();
-  let provider = await sudo.query.PaymentProvider.findOne({ where: { code: CARD_PROVIDER_CODE }, query: PROVIDER_SELECTION });
-  if (!provider && ensure) {
-    provider = await sudo.query.PaymentProvider.createOne({ data: {
-      name: "Authorize.net",
-      code: CARD_PROVIDER_CODE,
-      isInstalled: true,
-      credentials: {},
-      metadata: {},
-      createPaymentFunction: "authorizenet",
-      capturePaymentFunction: "authorizenet",
-      refundPaymentFunction: "authorizenet",
-      getPaymentStatusFunction: "authorizenet",
-      generatePaymentLinkFunction: "authorizenet",
-      handleWebhookFunction: "authorizenet"
-    }, query: PROVIDER_SELECTION });
-  }
-  if (provider && !provider.isInstalled) return null;
-  if (!ensure) return provider ?? { code: CARD_PROVIDER_CODE };
-  const now = /* @__PURE__ */ new Date();
-  const debit = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: scope.organizationId } }, premises: { id: { equals: scope.premisesId } }, type: { equals: "debit" }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id paymentProvider { id }" });
-  if (debit.length !== 1) return null;
-  if (!debit[0].paymentProvider) await sudo.query.TenderConfiguration.updateOne({ where: { id: debit[0].id }, data: { paymentProvider: { connect: { id: provider.id } }, providerCode: CARD_PROVIDER_CODE }, query: "id" });
-  else if (debit[0].paymentProvider.id !== provider.id) return null;
-  return provider;
-}
-async function releaseOnlinePayment(context, cartId) {
-  const sudo = context.sudo();
-  const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference paymentMethod paymentStatus paymentReference totalCents organization { id } premises { id }" });
-  if (!cart || cart.paymentMethod !== "card" || cart.paymentStatus !== "authorized" || !cart.paymentReference) return null;
-  const provider = await sudo.query.PaymentProvider.findOne({ where: { code: CARD_PROVIDER_CODE }, query: PROVIDER_SELECTION });
-  let released = false;
-  try {
-    if (provider) {
-      const result = await refundPayment({ provider, paymentId: cart.paymentReference, amount: cart.totalCents, currency: "USD", idempotencyKey: `release${cart.reference}` });
-      released = ["refunded", "canceled", "voided"].includes(String(result?.status));
-    }
-  } catch {
-    released = false;
-  }
-  await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: released ? "voided" : "void_failed" }, query: "id" });
-  if (!released) {
-    await sudo.query.ComplianceIncident.createOne({ data: {
-      organization: { connect: { id: cart.organization.id } },
-      premises: { connect: { id: cart.premises.id } },
-      reference: `INC-PAY-${(0, import_node_crypto5.randomUUID)()}`,
-      type: "payment_ambiguity",
-      severity: "high",
-      status: "open",
-      occurredAt: /* @__PURE__ */ new Date(),
-      detectedAt: /* @__PURE__ */ new Date(),
-      description: `Card authorization for online order ${cart.reference} could not be released; void it in the card processor and reconcile.`,
-      affectedPackageUids: [],
-      customerReferenceHash: (0, import_node_crypto5.createHash)("sha256").update(cart.id).digest("hex"),
-      evidenceHash: (0, import_node_crypto5.createHash)("sha256").update(`${cart.id}:${cart.paymentReference}:release_failed`).digest("hex")
-    }, query: "id" });
-  }
-  return released ? "voided" : "void_failed";
-}
-
 // features/keystone/mutations/commerce.ts
 var SYSTEM_CANCEL = Symbol("system-cancel");
 var hash = (value) => (0, import_node_crypto6.createHash)("sha256").update(value).digest("hex");
-function ageAt(dobValue, now) {
-  const dob = new Date(dobValue);
-  let age = now.getUTCFullYear() - dob.getUTCFullYear();
-  if (now.getUTCMonth() < dob.getUTCMonth() || now.getUTCMonth() === dob.getUTCMonth() && now.getUTCDate() < dob.getUTCDate()) age -= 1;
-  return age;
+function ageAt(dobValue, now, timezone) {
+  return ageAtPremises(dobValue, now, timezone) ?? -1;
 }
 function localMinute(now, timezone) {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
@@ -3032,7 +3468,7 @@ async function createCustomerPickupCart(_root, args, context) {
 async function createPosCannabisCart(_root, args, context) {
   requireRuntimeCapability("commerce.pos-cart", "POS carts are disabled until the verified customer and register workflow is implemented.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageSales", activity: "sale", scope: "createPosCannabisCart", resourceType: "Cart", action: "cart.pos.created", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageSales", activity: "sale", scope: "createPosCannabisCart", resourceType: "Cart", action: "cart.pos.created" }, async (tx, authority) => {
     const sudo = tx.sudo();
     const pack = await requireRulePack(tx, authority.organizationId, authority.premisesId);
     assertEffectiveRulePack(pack);
@@ -3098,8 +3534,8 @@ async function addCannabisCartLine(_root, args, context) {
     idempotencyKey: assertText(raw.idempotencyKey, "Idempotency key", 8, 99)
   };
   const quantity = input.quantityMicrounits;
-  const allowed = await context.query.Cart.findOne({ where: { id: input.cartId }, query: "id" });
-  if (!allowed || allowed.id !== input.cartId) throw new Error("Cart is outside current access");
+  const allowed2 = await context.query.Cart.findOne({ where: { id: input.cartId }, query: "id" });
+  if (!allowed2 || allowed2.id !== input.cartId) throw new Error("Cart is outside current access");
   const cart = await context.sudo().query.Cart.findOne({ where: { id: input.cartId }, query: "id organization { id } premises { id }" });
   if (!cart || staffAuthority.organizationId !== cart.organization?.id || staffAuthority.premisesId !== cart.premises?.id) throw new Error("Cart is outside current staff authority");
   const operationKey = `${cart.id}:${input.idempotencyKey}`;
@@ -3109,7 +3545,6 @@ async function addCannabisCartLine(_root, args, context) {
     scope: "addCannabisCartLine",
     resourceType: "CartLine",
     action: "cart.line.reserved",
-    emitStateEvent: false,
     authorize: async (current, authority, phase, result) => {
       const readable = await current.query.Cart.findOne({ where: { id: input.cartId }, query: "id" });
       if (!readable || readable.id !== input.cartId) throw new Error("Cart is outside current access");
@@ -3211,7 +3646,10 @@ async function cancelCannabisCart(_root, args, context) {
   } else if (input.system !== SYSTEM_CANCEL && (!input.proof || cart.guestProofHash !== hash(input.proof))) {
     throw new Error("Cart ownership proof is invalid");
   }
-  if (cart.status === "cancelled") return { id: cart.id, status: "cancelled", reference: cart.reference, replayed: true };
+  if (cart.status === "cancelled") {
+    await releaseOnlinePayment(context, cart.id);
+    return { id: cart.id, status: "cancelled", reference: cart.reference, replayed: true };
+  }
   const cancelled = await serializableTransaction(context, async (tx) => {
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-cart", cart.id);
     const sudo = tx.sudo();
@@ -3324,13 +3762,14 @@ async function finalizeCannabisSale(_root, args, context) {
     const traceability = await sudo.query.IntegrationInstallation.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, providerType: { equals: "traceability" }, status: { equals: "active" } }, take: 2, query: "id providerCode validatedAt authorityReference" });
     if (traceability.length > 1 || traceability.length === 1 && !traceability[0].validatedAt) throw new Error("Exactly one externally validated active traceability installation is required before sale");
     let cardAuthorization = null;
-    const online = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id source shift { id } paymentMethod paymentStatus paymentReference eligibilityEvidence { id } customer { id } organization { id } premises { id } pickupWindowStart" });
+    const online = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id source shift { id } paymentMethod paymentStatus paymentReference eligibilityEvidence { id } customer { id status } organization { id } premises { id } pickupWindowStart" });
     if (online && online.source === "pickup" && !online.shift) {
       if (online.organization?.id !== authority.organizationId || online.premises?.id !== authority.premisesId) throw new Error("Cart is outside current staff authority");
       if (input.idVerified !== true) throw new Error("Check the customer\u2019s ID against the order and confirm it before completing a pickup order");
       const openShifts = await sudo.query.RegisterShift.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, take: 1, query: "id" });
       if (openShifts.length !== 1) throw new Error("Open your register shift before completing a pickup order");
       if (!online.eligibilityEvidence || !online.customer) throw new Error("Pickup order has no customer on file");
+      if (customerBlocksSale(online.customer.status)) throw new Error("This customer can no longer be served; see a manager");
       await sudo.query.EligibilityEvidence.updateOne({ where: { id: online.eligibilityEvidence.id }, data: { result: "eligible", verifiedAt: now, reasonCodes: ["checked_at_pickup"] }, query: "id" });
       await sudo.query.Customer.updateOne({ where: { id: online.customer.id }, data: { status: "eligible" }, query: "id" });
       await sudo.query.Cart.updateOne({ where: { id: online.id }, data: { shift: { connect: { id: openShifts[0].id } } }, query: "id" });
@@ -3342,11 +3781,11 @@ async function finalizeCannabisSale(_root, args, context) {
       }
     }
     const cart = await sudo.query.Cart.findOne({ where: { id: cartId }, query: "id reference status expiresAt totalCents subtotalCents discountCents taxCents version organization { id } premises { id } shift { id status operator { id } } customer { id capacity status } eligibilityEvidence { id result capacity dateOfBirth identityExpiresAt registryExpiresAt evidenceHash allotmentRemainingMicrounits } rulePack { id version } lines(take: 251) { id package { id version status testStatus expiresAt unitOfMeasure premises { id } quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } } product { id categoryCode } titleSnapshot skuSnapshot categoryCodeSnapshot packageUidSnapshot batchSnapshot potencySnapshot quantityMicrounits equivalencyMicrounits unitPriceCents discountCents discountSnapshot taxCents totalCents }" });
-    if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || cart.status !== "reserved" || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
+    if (!cart || cart.organization?.id !== authority.organizationId || cart.premises?.id !== authority.premisesId || !FINALIZABLE_CART_STATUSES.includes(cart.status) || new Date(cart.expiresAt) <= now || cart.rulePack?.id !== pack.id) throw new Error("Reserved cart is stale or outside current authority");
     if (!cart.shift || cart.shift.status !== "open" || cart.shift.operator?.id !== authority.actor.id) throw new Error("Actor must own the cart's open register shift");
     const evidence = cart.eligibilityEvidence;
     if (!evidence || evidence.result !== "eligible" || evidence.capacity !== cart.customer.capacity || new Date(evidence.identityExpiresAt) <= now) throw new Error("Current eligibility evidence is required at final verification");
-    assertEligibility({ capacity: cart.customer.capacity, age: ageAt(evidence.dateOfBirth, now), identityValid: true, registryValid: cart.customer.capacity === "adult_use" || Boolean(evidence.registryExpiresAt && new Date(evidence.registryExpiresAt) > now), representedPatientValid: cart.customer.capacity !== "caregiver" || Boolean(input.representedPatientVerified) }, pack);
+    assertEligibility({ capacity: cart.customer.capacity, age: ageAt(evidence.dateOfBirth, now, authority.actor.premises?.timezone), identityValid: true, registryValid: cart.customer.capacity === "adult_use" || Boolean(evidence.registryExpiresAt && new Date(evidence.registryExpiresAt) > now), representedPatientValid: cart.customer.capacity !== "caregiver" || Boolean(input.representedPatientVerified) }, pack);
     const salePackageGroups = groupSaleLinesByPackage(cart.lines);
     const categoryTotals = {};
     for (const line of cart.lines) categoryTotals[line.categoryCodeSnapshot] = (categoryTotals[line.categoryCodeSnapshot] || 0) + line.equivalencyMicrounits;
@@ -3385,7 +3824,7 @@ async function finalizeCannabisSale(_root, args, context) {
           throw new Error("Payment capture is ambiguous; incident recorded and reconciliation is required");
         }
         tender.providerReference = String(result.paymentIntentId || result.transactionId || tender.providerReference);
-        tender.providerStatus = result.status;
+        tender.providerStatus = tenderStatusFromCapture(result.status);
         tender.paymentProviderId = provider.id;
       }
       tenderConfigs.push(configurations[0]);
@@ -3455,10 +3894,47 @@ async function finalizeCannabisSale(_root, args, context) {
     const cartFence = await sudo.query.Cart.findOne({ where: { id: cart.id }, query: "id status version" });
     if (!cartFence) throw new Error("Reserved cart is missing during finalization");
     assertFinalSaleCartFence({ id: cart.id, status: cart.status, version: cart.version }, { id: cartFence.id, status: cartFence.status, version: cartFence.version });
-    const completed = await tx.prisma.cart.updateMany({ where: { id: cart.id, version: cart.version, status: "reserved" }, data: { status: "completed", version: { increment: 1 } } });
+    const completed = await tx.prisma.cart.updateMany({ where: { id: cart.id, version: cart.version, status: cart.status }, data: { status: "completed", version: { increment: 1 } } });
     if (completed.count !== 1) throw new Error("Reserved cart state changed concurrently");
     if (online?.source === "pickup") await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: cardAuthorization ? "captured" : "paid_at_pickup" }, query: "id" });
     return { id: sale.id, status: sale.status, reference: sale.receiptNumber, totalCents: cart.totalCents, stateReport: { receiptNumber: sale.receiptNumber, finalizedAt: now.toISOString(), customerCapacity: cart.customer.capacity, rulePackVersion: pack.version, packages: cart.lines.map((line) => ({ packageUid: line.packageUidSnapshot, quantityMicrounits: line.quantityMicrounits, unitOfMeasure: salePackageSnapshots.get(line.package.id).unitOfMeasure })) } };
+  });
+}
+async function voidCannabisSale(_root, args, context) {
+  requireRuntimeCapability("finance.verified-refunds", "Voids are disabled with refunds.");
+  const raw = args.input || {};
+  const reason = assertText(raw.reason, "Void reason", 4, 500);
+  const input = withApprover(raw, await verifySecondApprover(context, raw, "canManageFinance"));
+  const saleId = assertText(input.saleId, "Sale ID");
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "voidCannabisSale", resourceType: "Sale", action: "sale.voided", lockKeys: [saleId] }, async (tx, authority, correlationId) => {
+    const sudo = tx.sudo();
+    const now = /* @__PURE__ */ new Date();
+    const sale = await sudo.query.Sale.findOne({ where: { id: saleId }, query: "id receiptNumber status totalCents refundedCents organization { id } premises { id } shift { id status } lines(take: 251) { id quantityMicrounits package { id } } tenders(take: 11) { id typeSnapshot status amountCents }" });
+    if (!sale || sale.organization?.id !== authority.organizationId || sale.premises?.id !== authority.premisesId) throw new Error("Sale is outside this premises");
+    const packageIds = [...new Set(sale.lines.map((line) => line.package.id))];
+    for (const id of packageIds) await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-package", id);
+    const packages = await sudo.query.InventoryPackage.findMany({ where: { id: { in: packageIds } }, query: "id status version quantityOnHandMicrounits" });
+    const refused = saleVoidError({ status: sale.status, refundedCents: sale.refundedCents, shiftStatus: sale.shift?.status, tenderTypes: sale.tenders.map((t) => t.typeSnapshot), tenderStatuses: sale.tenders.map((t) => t.status), packageStatuses: packages.map((p2) => p2.status) });
+    if (refused) throw new Error(refused);
+    const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageFinance }" });
+    if (!approver || approver.id === authority.actor.id || approver.status !== "active" || !approver.role?.canManageFinance || approver.organization?.id !== authority.organizationId || approver.premises?.id !== authority.premisesId) throw new Error("The second approver needs finance authority at this premises");
+    const voided = await tx.prisma.sale.updateMany({ where: { id: sale.id, status: sale.status, refundedCents: 0 }, data: { status: "reversed" } });
+    if (voided.count !== 1) throw new Error("This sale changed while voiding; refresh it");
+    const onHand = new Map(packages.map((p2) => [p2.id, { ...p2 }]));
+    for (const [index, line] of sale.lines.entries()) {
+      const pkg = onHand.get(line.package.id);
+      const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: pkg.version, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits }, data: { quantityOnHandMicrounits: { increment: line.quantityMicrounits }, version: { increment: 1 } } });
+      if (changed.count !== 1) throw new Error("A package on this sale changed while voiding; refresh it");
+      const before = pkg.quantityOnHandMicrounits;
+      const after = before + line.quantityMicrounits;
+      pkg.quantityOnHandMicrounits = after;
+      pkg.version += 1;
+      await sudo.query.InventoryEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, package: { connect: { id: pkg.id } }, eventType: "adjustment", quantityDeltaMicrounits: line.quantityMicrounits, beforeQuantityMicrounits: before, afterQuantityMicrounits: after, reasonCode: "sale_voided", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, sourceType: "SaleLine", sourceId: line.id, idempotencyKey: `${correlationId}:void:${index}`, occurredAt: now, evidenceHash: stableHash({ saleId: sale.id, saleLineId: line.id, before, after, reason }), stateReportStatus: "queued" }, query: "id" });
+    }
+    for (const tender of sale.tenders) await sudo.query.Tender.updateOne({ where: { id: tender.id }, data: { status: "reversed" }, query: "id" });
+    const cashCents = sale.tenders.reduce((sum, tender) => sum + tender.amountCents, 0);
+    await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: sale.shift.id } }, type: "refund", amountCents: -cashCents, reasonCode: "sale_voided", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, occurredAt: now, idempotencyKey: `${correlationId}:void-cash`, evidenceHash: stableHash({ saleId: sale.id, reason }) }, query: "id" });
+    return { id: sale.id, status: "reversed", reference: sale.receiptNumber, returnedMicrounits: sale.lines.reduce((sum, line) => sum + line.quantityMicrounits, 0), stateReport: { receiptNumber: sale.receiptNumber, voided: true, reason } };
   });
 }
 
@@ -3659,15 +4135,15 @@ function tenderTypes(value) {
   if (!Array.isArray(value) || !value.length || value.some((type) => !TENDER_TYPES2.includes(type))) throw new Error("Choose at least one payment type: cash, debit, ach, wallet or other");
   return [...new Set(value)];
 }
-async function syncTenderConfigurations(tx, authority, allowed, now, expiresAt, reference) {
+async function syncTenderConfigurations(tx, authority, allowed2, now, expiresAt, reference) {
   const sudo = tx.sudo();
   const configs = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } } }, take: 50, query: "id type enabled authorityReference" });
   const fallbackReference = typeof reference === "string" && reference.trim() ? reference.trim().slice(0, 200) : configs.find((config2) => config2.authorityReference)?.authorityReference || "owner_attested";
   for (const config2 of configs) {
-    const wanted = allowed.includes(String(config2.type));
+    const wanted = allowed2.includes(String(config2.type));
     if (config2.enabled !== wanted) await sudo.query.TenderConfiguration.updateOne({ where: { id: config2.id }, data: { enabled: wanted, ...wanted ? { effectiveAt: now, expiresAt } : {} }, query: "id" });
   }
-  for (const type of allowed) {
+  for (const type of allowed2) {
     if (configs.some((config2) => config2.type === type)) continue;
     await sudo.query.TenderConfiguration.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, code: `${type.toUpperCase()}-${(0, import_node_crypto8.randomUUID)().slice(0, 8)}`, type, displayName: TENDER_LABEL[type] ?? type, enabled: true, authorityReference: fallbackReference, effectiveAt: now, expiresAt }, query: "id" });
   }
@@ -3829,7 +4305,7 @@ async function configureCannabisProduct(_root, args, context) {
   assertInteger(input.equivalencyMicrounits, "Equivalency", 1);
   assertInteger(input.priceCents, "Price", 0);
   if (input.adultUseEligible !== true && input.medicalEligible !== true) throw new Error("Product must be explicitly eligible for at least one configured channel");
-  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "configureCannabisProduct", resourceType: "Product", action: "catalog.product.configured", emitStateEvent: false, lockKeys: [String(input.sku)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "configureCannabisProduct", resourceType: "Product", action: "catalog.product.configured", lockKeys: [String(input.sku)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const existing = await sudo.query.Product.findOne({ where: { sku: assertText(input.sku, "SKU") }, query: "id name" });
     if (existing) throw new Error(`SKU ${input.sku.trim()} is already used by ${existing.name}`);
@@ -3839,7 +4315,7 @@ async function configureCannabisProduct(_root, args, context) {
 }
 async function linkTenderPaymentProvider(_root, args, context) {
   const input = args.input || {};
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "linkTenderPaymentProvider", resourceType: "TenderConfiguration", action: "tender.provider.linked", emitStateEvent: false, lockKeys: [String(input.tenderConfigurationId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "linkTenderPaymentProvider", resourceType: "TenderConfiguration", action: "tender.provider.linked", lockKeys: [String(input.tenderConfigurationId)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const tender = await sudo.query.TenderConfiguration.findOne({ where: { id: assertText(input.tenderConfigurationId, "Tender configuration") }, query: "id type organization { id } premises { id }" });
     const provider = await sudo.query.PaymentProvider.findOne({ where: { id: assertText(input.paymentProviderId, "Payment provider") }, query: "id code isInstalled" });
@@ -3851,7 +4327,7 @@ async function linkTenderPaymentProvider(_root, args, context) {
 }
 async function configureRegister(_root, args, context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "configureRegister", resourceType: "Register", action: "register.configured", emitStateEvent: false, lockKeys: [String(input.code)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "configureRegister", resourceType: "Register", action: "register.configured", lockKeys: [String(input.code)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const existing = await sudo.query.Register.findOne({ where: { code: assertText(input.code, "Register code") }, query: "id name" });
     if (existing) throw new Error(`Register code ${input.code.trim()} is already used by ${existing.name}`);
@@ -3862,7 +4338,7 @@ async function configureRegister(_root, args, context) {
 async function openRegisterShift(_root, args, context) {
   const input = args.input;
   const opening = assertInteger(input.openingFloatCents, "Opening float", 0);
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", emitStateEvent: false, lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo();
     const register = await sudo.query.Register.findOne({ where: { id: assertText(input.registerId, "Register ID") }, query: "id code status organization { id } premises { id }" });
     if (!register || register.status !== "active" || register.organization?.id !== authority.organizationId || register.premises?.id !== authority.premisesId) throw new Error("Active register is outside actor authority");
@@ -3879,7 +4355,7 @@ async function closeRegisterShift(_root, args, context) {
   const actual = assertInteger(args.input?.actualCashCents, "Actual cash", 0);
   const input = withApprover(args.input, await verifySecondApprover(context, args.input, "canManageFinance"));
   if (!input.approvedById || input.approvedById === context.session?.itemId) throw new Error("Shift close requires an independent approver");
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "closeRegisterShift", resourceType: "RegisterShift", action: "cash.shift.closed", emitStateEvent: false, lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "closeRegisterShift", resourceType: "RegisterShift", action: "cash.shift.closed", lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo();
     const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status openingFloatCents organization { id } premises { id } operator { id } cashEvents(take: 500) { type amountCents }" });
     if (!shift || shift.status !== "open" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId || shift.operator?.id !== authority.actor.id) throw new Error("Actor does not own this open shift");
@@ -3897,7 +4373,7 @@ async function closeRegisterShift(_root, args, context) {
 }
 async function approveCashVariance(_root, args, context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "approveCashVariance", resourceType: "RegisterShift", action: "cash.variance.approved", emitStateEvent: false, lockKeys: [String(input.shiftId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "approveCashVariance", resourceType: "RegisterShift", action: "cash.variance.approved", lockKeys: [String(input.shiftId)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status varianceCents organization { id } premises { id } operator { id }" });
     if (!shift || shift.status !== "variance_review" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId || shift.operator?.id === authority.actor.id) throw new Error("An independent finance actor must approve this variance-review shift");
@@ -3967,7 +4443,7 @@ async function refundCannabisSale(_root, args, context) {
 }
 async function recordComplianceIncident(_root, args, context) {
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "recordComplianceIncident", resourceType: "ComplianceIncident", action: "incident.recorded", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "recordComplianceIncident", resourceType: "ComplianceIncident", action: "incident.recorded" }, async (tx, authority) => {
     if (!["refusal_of_sale", "identity", "patient_registry_outage", "traceability_outage", "payment_ambiguity", "inventory_discrepancy", "theft", "loss", "diversion", "recall", "privacy", "security", "system_outage", "offline_attempt"].includes(input.type)) throw new Error("Unsupported incident type");
     if (input.type === "offline_attempt" && input.outageMode !== "fail_closed") throw new Error("Offline regulated sale attempts must fail closed");
     if (!["low", "medium", "high", "critical"].includes(input.severity)) throw new Error("Select an incident severity");
@@ -3983,7 +4459,7 @@ async function recordComplianceIncident(_root, args, context) {
 async function activateIntegrationInstallation(_root, args, context) {
   requireRuntimeCapability("provider.installation-verification", "Provider installation activation is disabled until a provider adapter verifies capabilities and authority directly.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "activateIntegrationInstallation", resourceType: "IntegrationInstallation", action: "integration.validated", emitStateEvent: false, lockKeys: [String(input.installationId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "activateIntegrationInstallation", resourceType: "IntegrationInstallation", action: "integration.validated", lockKeys: [String(input.installationId)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const installation = await sudo.query.IntegrationInstallation.findOne({ where: { id: assertText(input.installationId, "Installation ID") }, query: "id status providerType organization { id } premises { id }" });
     if (!installation || installation.organization?.id !== authority.organizationId || installation.premises?.id !== authority.premisesId || !["unconfigured", "pending_validation", "suspended"].includes(installation.status)) throw new Error("Integration installation is outside this authority scope");
@@ -3997,7 +4473,7 @@ async function activateIntegrationInstallation(_root, args, context) {
 async function recordStateInboxEvent(_root, args, context) {
   requireRuntimeCapability("provider.authenticated-inbox", "Provider inbox records are disabled until signatures are verified by a trusted adapter.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "recordStateInboxEvent", resourceType: "StateEventInbox", action: "state.inbox.recorded", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "recordStateInboxEvent", resourceType: "StateEventInbox", action: "state.inbox.recorded" }, async (tx, authority) => {
     if (!input.signatureEvidence) throw new Error("Provider signature evidence is required for later adapter verification");
     const providerEventId = assertText(input.providerEventId, "Provider event ID");
     const providerCode = assertText(input.providerCode, "Provider code");
@@ -4015,19 +4491,10 @@ async function recordStateInboxEvent(_root, args, context) {
     return { id: event.id, status: event.status, reference: input.providerEventId };
   });
 }
-async function retryStateOutboxEvent(_root, args, context) {
-  const input = args.input;
-  return runControlledOperation(context, input, { permission: "canManageIntegrations", activity: "state_reporting", scope: "retryStateOutboxEvent", resourceType: "OutboxEvent", action: "state.outbox.requeued", emitStateEvent: false, lockKeys: [String(input.outboxEventId)] }, async (tx, authority) => {
-    const event = await tx.sudo().query.OutboxEvent.findOne({ where: { id: assertText(input.outboxEventId, "Outbox event ID") }, query: "id eventKey topic status attempts lastAttemptAt lastErrorCode organization { id } premises { id }" });
-    if (!event || event.organization?.id !== authority.organizationId || event.premises?.id !== authority.premisesId || !["rejected", "retryable", "dead_letter"].includes(event.status)) throw new Error("Outbox event is not eligible for controlled retry");
-    await tx.sudo().query.OutboxEvent.updateOne({ where: { id: event.id }, data: { status: "queued", availableAt: /* @__PURE__ */ new Date(), lastErrorCode: "" }, query: "id" });
-    return { id: event.id, status: "queued", reference: event.eventKey, previous: { status: event.status, lastErrorCode: event.lastErrorCode || null, attempts: event.attempts, lastAttemptAt: event.lastAttemptAt || null } };
-  });
-}
 async function approveReconciliationRun(_root, args, context) {
   requireRuntimeCapability("provider.computed-reconciliation", "Reconciliation approval is disabled until the comparison is computed from trusted source snapshots.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "approveReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.approved", emitStateEvent: false, lockKeys: [String(input.runId)] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "approveReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.approved", lockKeys: [String(input.runId)] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const run = await sudo.query.ReconciliationRun.findOne({ where: { id: assertText(input.runId, "Reconciliation run ID") }, query: "id status discrepancyCount owner { id } organization { id } premises { id }" });
     if (!run || run.organization?.id !== authority.organizationId || run.premises?.id !== authority.premisesId || run.owner?.id === authority.actor.id || run.status !== "balanced" || run.discrepancyCount !== 0) throw new Error("Independent approval requires a balanced zero-discrepancy run");
@@ -4038,7 +4505,7 @@ async function approveReconciliationRun(_root, args, context) {
 async function recordReconciliationRun(_root, args, context) {
   requireRuntimeCapability("provider.computed-reconciliation", "Reconciliation recording is disabled until local and external snapshots are computed and linked to evidence.");
   const input = args.input;
-  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "recordReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.recorded", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canViewReports", activity: "state_reporting", scope: "recordReconciliationRun", resourceType: "ReconciliationRun", action: "reconciliation.recorded" }, async (tx, authority) => {
     const submission = validateReconciliationSubmission(input.discrepancies);
     const run = await tx.sudo().query.ReconciliationRun.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, type: input.type, status: submission.status, startedAt: new Date(input.startedAt || Date.now()), completedAt: null, localSnapshotHash: assertText(input.localSnapshotHash, "Local snapshot hash", 16), externalSnapshotHash: input.externalSnapshotHash || "", discrepancyCount: submission.discrepancyCount, discrepancies: submission.discrepancies, owner: { connect: { id: authority.actor.id } }, evidenceHash: stableHash({ local: input.localSnapshotHash, external: input.externalSnapshotHash, discrepancies: submission.discrepancies }) }, query: "id status" });
     return { id: run.id, status: run.status, reference: String(submission.discrepancyCount) };
@@ -4060,7 +4527,7 @@ async function transitionComplianceIncident(_root, args, context) {
   if (!INCIDENT_TRANSITIONS[expectedStatus]?.includes(nextStatus)) throw new Error(`An incident cannot move from ${expectedStatus} to ${nextStatus}`);
   const reasonCode = assertReasonCode(input.reasonCode);
   const authorityReference = nextStatus === "reported" ? assertText(input.authorityReference, "Report reference", 2, 200) : "";
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "transitionComplianceIncident", resourceType: "ComplianceIncident", action: "incident.transitioned", emitStateEvent: false, lockKeys: [incidentId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "incident", scope: "transitionComplianceIncident", resourceType: "ComplianceIncident", action: "incident.transitioned", lockKeys: [incidentId] }, async (tx, authority) => {
     const incident = await tx.sudo().query.ComplianceIncident.findOne({ where: { id: incidentId }, query: "id reference status organization { id } premises { id }" });
     if (!incident || incident.organization?.id !== authority.organizationId || incident.premises?.id !== authority.premisesId) throw new Error("Incident is outside this premises");
     const changed = await tx.prisma.complianceIncident.updateMany({ where: { id: incident.id, status: expectedStatus }, data: { status: nextStatus, ...nextStatus === "reported" ? { reportedAt: /* @__PURE__ */ new Date(), authorityReference } : {}, ownerId: authority.actor.id } });
@@ -4093,7 +4560,7 @@ async function amendCannabisProduct(_root, args, context) {
   if (!Object.keys(data).length && !upload && !removePhoto) throw new Error("No product changes were submitted");
   if (upload) await requireOperationalAuthority(context, "canManageInventory", "inventory");
   const stored = upload ? await storePublicImage(context, upload) : null;
-  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", emitStateEvent: false, lockKeys: [productId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "amendCannabisProduct", resourceType: "Product", action: "catalog.product.amended", lockKeys: [productId] }, async (tx, authority) => {
     const product = await tx.sudo().query.Product.findOne({ where: { id: productId }, query: "id sku name priceCents status adultUseEligible medicalEligible publicDescription categoryCode taxCategoryCode photo { id } updatedAt organization { id } premises { id }" });
     if (!product || product.organization?.id !== authority.organizationId || product.premises?.id !== authority.premisesId) throw new Error("Product is outside this premises");
     for (const [field, value] of Object.entries(data)) if (product[field] === value || field === "publicDescription" && !value && !product.publicDescription) delete data[field];
@@ -4121,7 +4588,7 @@ async function revokeStaffCredential(_root, args, context) {
   const nextStatus = assertText(input.nextStatus, "Credential status");
   if (!["suspended", "terminated"].includes(nextStatus)) throw new Error("Credentials can be suspended or terminated here");
   const reasonCode = assertReasonCode(input.reasonCode);
-  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "revokeStaffCredential", resourceType: "StaffCredential", action: "staff.credential.revoked", emitStateEvent: false, lockKeys: [credentialId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageAuthority", activity: "authority", scope: "revokeStaffCredential", resourceType: "StaffCredential", action: "staff.credential.revoked", lockKeys: [credentialId] }, async (tx, authority) => {
     const credential = await tx.sudo().query.StaffCredential.findOne({ where: { id: credentialId }, query: "id status user { id } organization { id } premises { id }" });
     if (!credential || credential.organization?.id !== authority.organizationId || credential.premises?.id !== authority.premisesId) throw new Error("Credential is outside this premises");
     if (credential.user?.id === authority.actor.id) throw new Error("You cannot revoke your own credential");
@@ -4134,7 +4601,7 @@ async function amendRegister(_root, args, context) {
   const input = args.input;
   const registerId = assertText(input.registerId, "Register ID");
   if (!["active", "inactive", "maintenance"].includes(input.status)) throw new Error("Register status must be active, inactive or maintenance");
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "amendRegister", resourceType: "Register", action: "register.amended", emitStateEvent: false, lockKeys: [registerId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "amendRegister", resourceType: "Register", action: "register.amended", lockKeys: [registerId] }, async (tx, authority) => {
     const register = await tx.sudo().query.Register.findOne({ where: { id: registerId }, query: "id code name status organization { id } premises { id }" });
     if (!register || register.organization?.id !== authority.organizationId || register.premises?.id !== authority.premisesId) throw new Error("Register is outside this premises");
     if (input.status !== "active") {
@@ -4433,14 +4900,14 @@ async function cannabisOperationsWorkspace(_root, args, context) {
     return { ...base2, search: options.search, products: { ...products, items }, inactiveTotal, categories };
   }
   if (section === "pos") {
-    const carts = await page(context, "Cart", { where: { ...scope, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference source status version expiresAt subtotalCents discountCents taxCents totalCents customer { id reference capacity } shift { id operator { id } } lines(take: 50) { id titleSnapshot quantityMicrounits totalCents package { unitOfMeasure } }" });
+    const carts = await page(context, "Cart", { where: { ...scope, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference source status version expiresAt subtotalCents discountCents taxCents totalCents pickupWindowStart pickupWindowEnd pickupName pickupPhone paymentMethod paymentStatus customer { id reference capacity } shift { id operator { id } } lines(take: 50) { id titleSnapshot quantityMicrounits totalCents package { unitOfMeasure } }" });
     const myShifts = await sudo.query.RegisterShift.findMany({ where: { ...scope, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, orderBy: [{ openedAt: "desc" }], take: 5, query: "id register { name code }" });
     const tenderTypes2 = await sudo.query.TenderConfiguration.findMany({ where: { ...scope, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, orderBy: [{ type: "asc" }], take: 10, query: "type displayName" });
     const productSearch = options.productSearch ? { OR: [{ name: { contains: options.productSearch, mode: "insensitive" } }, { sku: { contains: options.productSearch, mode: "insensitive" } }] } : {};
     const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, productSearch] }, orderBy: [{ name: "asc" }], take: 100, query: "id name sku form unitQuantityMicrounits unitOfMeasure" });
     const sales = await page(context, "Sale", { where: scope, orderBy: [{ finalizedAt: "desc" }], take: 25, query: "id receiptNumber status totalCents finalizedAt" });
-    const allowed = Array.isArray(rulePack?.allowedTenderTypes) ? rulePack.allowedTenderTypes : [];
-    return { ...base2, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes2.filter((tender) => allowed.includes(String(tender.type))) };
+    const allowed2 = Array.isArray(rulePack?.allowedTenderTypes) ? rulePack.allowedTenderTypes : [];
+    return { ...base2, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes2.filter((tender) => allowed2.includes(String(tender.type))) };
   }
   if (section === "cash") {
     const shifts = await page(context, "RegisterShift", { where: scope, orderBy: [{ createdAt: "desc" }], cursor: options.cursor, query: "id status openingFloatCents expectedCashCents actualCashCents varianceCents openedAt closedAt register { id name code } operator { id name }" });
@@ -4451,12 +4918,10 @@ async function cannabisOperationsWorkspace(_root, args, context) {
   }
   if (section === "reconciliation") {
     const runs = await page(context, "ReconciliationRun", { where: scope, orderBy: [{ startedAt: "desc" }], cursor: options.cursor, query: "id type status discrepancyCount startedAt completedAt" });
-    const pending = await page(context, "OutboxEvent", { where: { ...scope, status: { in: ["queued", "sending"] } }, orderBy: [{ availableAt: "asc" }], take: 25, query: "id topic status attempts availableAt" });
-    const exceptions = await page(context, "OutboxEvent", { where: { ...scope, status: { in: ["rejected", "retryable", "dead_letter"] } }, orderBy: [{ availableAt: "asc" }], query: "id topic status attempts availableAt lastAttemptAt lastErrorCode" });
     const installations = await sudo.query.IntegrationInstallation.count({ where: { ...scope, status: { equals: "active" } } });
     const integrations = await sudo.query.IntegrationInstallation.findMany({ where: scope, orderBy: [{ providerType: "asc" }], take: 20, query: "id providerCode providerType status facilityReference authorityReference validatedAt lastSuccessfulSyncAt" });
     const inbox = await page(context, "StateEventInbox", { where: scope, orderBy: [{ receivedAt: "desc" }], take: 25, query: "id providerCode providerEventId status receivedAt processedAt rejectionReason" });
-    return { ...base2, runs, pending, exceptions, delivery: { workerAvailable: false, activeInstallations: installations }, integrations, inbox };
+    return { ...base2, runs, integrations, inbox };
   }
   if (section === "staff") {
     const search = options.search ? { OR: [{ name: { contains: options.search, mode: "insensitive" } }, { email: { contains: options.search, mode: "insensitive" } }] } : {};
@@ -4717,16 +5182,15 @@ async function transitionCannabisCartPreparation(_root, args, context) {
   if (!visible || visible.id !== input.cartId) throw new Error("Cart is outside current access");
   const scope = await context.sudo().query.Cart.findOne({ where: { id: input.cartId }, query: "id organization { id } premises { id }" });
   assertFulfillmentScope(scope, authority);
-  return runControlledOperation(context, input, {
+  const result = await runControlledOperation(context, input, {
     permission: "canManageSales",
     activity: "sale",
     scope: "transitionCannabisCartPreparation",
     resourceType: "Cart",
     action: "cart.preparation.transitioned",
-    emitStateEvent: false,
     authorize: async (current, fresh) => {
-      const allowed = await current.query.Cart.findOne({ where: { id: input.cartId }, query: "id" });
-      if (!allowed || allowed.id !== input.cartId) throw new Error("Cart is outside current access");
+      const allowed2 = await current.query.Cart.findOne({ where: { id: input.cartId }, query: "id" });
+      if (!allowed2 || allowed2.id !== input.cartId) throw new Error("Cart is outside current access");
       const resource = await current.sudo().query.Cart.findOne({ where: { id: input.cartId }, query: "id organization { id } premises { id }" });
       assertFulfillmentScope(resource, fresh);
     }
@@ -4737,9 +5201,9 @@ async function transitionCannabisCartPreparation(_root, args, context) {
     const sudo = tx.sudo();
     const now = /* @__PURE__ */ new Date();
     const cart = await sudo.query.Cart.findOne({ where: { id: input.cartId }, query: `
-      id reference version status expiresAt organization { id } premises { id }
+      id reference version status source expiresAt organization { id } premises { id }
       customer { id status capacity organization { id } premises { id } }
-      eligibilityEvidence { id result capacity identityExpiresAt registryExpiresAt customer { id } organization { id } premises { id } }
+      eligibilityEvidence { id result identityMethod capacity identityExpiresAt registryExpiresAt customer { id } organization { id } premises { id } }
       lines(take: ${MAX_FULFILLMENT_LINES + 1}) { id quantityMicrounits cart { id } package { id } organization { id } premises { id } }
     ` });
     assertFulfillmentScope(cart, currentAuthority);
@@ -4747,7 +5211,8 @@ async function transitionCannabisCartPreparation(_root, args, context) {
     assertFulfillmentScope(cart.customer, currentAuthority);
     assertFulfillmentScope(cart.eligibilityEvidence, currentAuthority);
     const evidence = cart.eligibilityEvidence;
-    if (cart.customer.status !== "eligible" || !["adult_use", "patient", "caregiver"].includes(cart.customer.capacity) || evidence.customer?.id !== cart.customer.id || evidence.capacity !== cart.customer.capacity || evidence.result !== "eligible" || !(new Date(evidence.identityExpiresAt).getTime() > now.getTime()) || cart.customer.capacity !== "adult_use" && !(new Date(evidence.registryExpiresAt).getTime() > now.getTime())) {
+    const onlineDeclared = cart.source === "pickup" && cart.customer.status === "pending_verification" && cart.customer.capacity === "adult_use" && evidence?.identityMethod === "online_declared" && evidence?.result === "pending";
+    if (!(cart.customer.status === "eligible" || onlineDeclared) || !["adult_use", "patient", "caregiver"].includes(cart.customer.capacity) || evidence.customer?.id !== cart.customer.id || evidence.capacity !== cart.customer.capacity || !(evidence.result === "eligible" || onlineDeclared) || !(new Date(evidence.identityExpiresAt).getTime() > now.getTime()) || cart.customer.capacity !== "adult_use" && !(new Date(evidence.registryExpiresAt).getTime() > now.getTime())) {
       throw new Error("Current customer evidence is required for cart preparation; this is not final eligibility verification");
     }
     for (const group of groups) {
@@ -4802,6 +5267,11 @@ async function transitionCannabisCartPreparation(_root, args, context) {
       verification: "preparation_only_not_sale_or_handoff"
     };
   });
+  if (input.nextStatus === "staged") {
+    const { deliverPickupReadyNotice: deliverPickupReadyNotice2 } = await Promise.resolve().then(() => (init_orderConfirmation(), orderConfirmation_exports));
+    await deliverPickupReadyNotice2(context, input.cartId);
+  }
+  return result;
 }
 
 // features/keystone/mutations/storefrontSettings.ts
@@ -4860,8 +5330,7 @@ async function configureCannabisStorefrontSettings(_root, args, context) {
     scope: "configureCannabisStorefrontSettings",
     lockKeys: ["storefront-settings"],
     resourceType: "StorefrontSettings",
-    action: "storefront.settings.configured",
-    emitStateEvent: false
+    action: "storefront.settings.configured"
   }, async (tx, authority) => {
     const settings = normalizeStorefrontSettingsInput(input);
     const logo = normalizeLogoSettings(input);
@@ -4900,8 +5369,7 @@ async function setCannabisStorefrontCover(_root, args, context) {
     scope: "setCannabisStorefrontCover",
     lockKeys: ["storefront-settings"],
     resourceType: "StorefrontSettings",
-    action: "storefront.cover.set",
-    emitStateEvent: false
+    action: "storefront.cover.set"
   }, async (tx, authority) => {
     const existing = await scopedSettings(tx, authority.organizationId, authority.premisesId);
     if (existing.length !== 1) throw new Error("Save Store Settings before adding a cover photo");
@@ -4917,7 +5385,7 @@ async function setStaffTemporaryPassword(_root, args, context) {
   const input = args.input || {};
   const userId = assertText(input.userId, "Staff member");
   const password2 = assertText(input.temporaryPassword, "Temporary password", 10, 1e3);
-  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "setStaffTemporaryPassword", resourceType: "User", action: "staff.password.reset", emitStateEvent: false, lockKeys: [userId] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "setStaffTemporaryPassword", resourceType: "User", action: "staff.password.reset", lockKeys: [userId] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const target = await sudo.query.User.findOne({ where: { id: userId }, query: "id status organization { id } premises { id } role { canManageOnboarding }" });
     if (!target || target.organization?.id !== authority.organizationId || target.premises?.id !== authority.premisesId) throw new Error("Staff member is outside this premises");
@@ -4925,6 +5393,30 @@ async function setStaffTemporaryPassword(_root, args, context) {
     if (target.role?.canManageOnboarding === true && target.id !== authority.actor.id && actor?.role?.canManageOnboarding !== true) throw new Error("Only the owner can reset an owner's password");
     await sudo.query.User.updateOne({ where: { id: target.id }, data: { password: password2 }, query: "id" });
     return { id: target.id, status: target.status, reference: target.id };
+  });
+}
+async function changeStaffPermissions(_root, args, context) {
+  const input = args.input || {};
+  const userId = assertText(input.userId, "Staff member");
+  const requested = input.permissions && typeof input.permissions === "object" && !Array.isArray(input.permissions) ? input.permissions : null;
+  if (!requested) throw new Error("Choose the staff member's permissions");
+  return runControlledOperation(context, input, { permission: "canManagePeople", activity: "authority", scope: "changeStaffPermissions", resourceType: "User", action: "staff.permissions.changed", lockKeys: [userId] }, async (tx, authority) => {
+    const sudo = tx.sudo();
+    if (userId === authority.actor.id) throw new Error("You cannot change your own permissions");
+    const target = await sudo.query.User.findOne({ where: { id: userId }, query: `id name status organization { id } premises { id } role { id name ${permissionNames.join(" ")} }` });
+    if (!target || target.organization?.id !== authority.organizationId || target.premises?.id !== authority.premisesId) throw new Error("Staff member is outside this premises");
+    if (target.role?.canManageOnboarding === true) throw new Error("An owner's permissions cannot be changed here");
+    const grantor = await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: `role { ${permissionNames.join(" ")} }` });
+    const next = Object.fromEntries(permissionNames.map((permission) => [permission, requested[permission] === true]));
+    next.canAccessDashboard = true;
+    next.canManageOnboarding = false;
+    for (const permission of permissionNames) {
+      if (next[permission] && target.role?.[permission] !== true && grantor?.role?.[permission] !== true) throw new Error("You can only grant permissions you currently hold");
+    }
+    const name = assertText(target.role?.name || `${target.name} staff`, "Role name");
+    const role = await sudo.query.Role.createOne({ data: { organization: { connect: { id: authority.organizationId } }, name, ...next }, query: "id" });
+    await sudo.query.User.updateOne({ where: { id: target.id }, data: { role: { connect: { id: role.id } } }, query: "id" });
+    return { id: target.id, status: target.status, reference: role.id, beforeRoleId: target.role?.id ?? null };
   });
 }
 
@@ -4944,7 +5436,7 @@ function exposeRuleErrors(resolvers) {
 }
 
 // features/keystone/mutations/custody.ts
-var import_node_crypto9 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 var HOLD_TYPES = /* @__PURE__ */ new Set(["quarantine", "test_hold", "discrepancy", "authority", "expiry"]);
 var MAX_RECALL_PACKAGES = 200;
 async function placePackageHold(_root, args, context) {
@@ -4954,7 +5446,7 @@ async function placePackageHold(_root, args, context) {
   if (!HOLD_TYPES.has(type)) throw new Error("Hold type must be quarantine, test hold, discrepancy, authority or expiry");
   const reasonCode = assertReasonCode(input.reasonCode);
   const reason = assertText(input.reason, "Hold reason", 4, 1e3);
-  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "inventory", scope: "placePackageHold", resourceType: "PackageHold", action: "inventory.hold.placed", emitStateEvent: false, lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageCompliance", activity: "inventory", scope: "placePackageHold", resourceType: "PackageHold", action: "inventory.hold.placed", lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status organization { id } premises { id }" });
     if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");
@@ -5001,7 +5493,7 @@ async function openRecallCase(_root, args, context) {
     }
     const timeZone = isValidTimeZone(authority.actor.premises?.timezone) ? authority.actor.premises.timezone : "UTC";
     const localDate2 = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(/* @__PURE__ */ new Date()).replaceAll("-", "");
-    const reference = `RC-${localDate2}-${(0, import_node_crypto9.randomUUID)().slice(0, 6).toUpperCase()}`;
+    const reference = `RC-${localDate2}-${(0, import_node_crypto10.randomUUID)().slice(0, 6).toUpperCase()}`;
     const evidenceHash = stableHash({ authorityReference, reason, packageUids, batchNumbers, matched: matches.map((pkg) => pkg.packageUid) });
     const recall = await sudo.query.RecallCase.createOne({ data: {
       organization: { connect: { id: authority.organizationId } },
@@ -5042,7 +5534,7 @@ async function recordPackageLabResult(_root, args, context) {
   const labName = assertText(input.labName, "Lab name", 2, 200);
   const labResultReference = assertText(input.labResultReference, "Lab result reference", 2, 200);
   const coaReference = assertText(input.coaReference, "COA reference", 2, 200);
-  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordPackageLabResult", resourceType: "InventoryPackage", action: "inventory.lab_result.recorded", emitStateEvent: false, lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordPackageLabResult", resourceType: "InventoryPackage", action: "inventory.lab_result.recorded", lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
     const sudo = tx.sudo();
     const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status version organization { id } premises { id }" });
     if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");
@@ -5159,20 +5651,20 @@ async function advanceRecallCase(_root, args, context) {
 }
 
 // features/keystone/mutations/customers.ts
-var import_node_crypto10 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 var CAPACITIES = /* @__PURE__ */ new Set(["adult_use", "patient", "caregiver"]);
 var IDENTITY_METHODS = /* @__PURE__ */ new Set(["drivers_license", "state_id", "passport", "military_id", "tribal_id"]);
-var DATE_ONLY2 = /^\d{4}-\d{2}-\d{2}$/;
+var DATE_ONLY3 = /^\d{4}-\d{2}-\d{2}$/;
 function dateOnly(value, label) {
   const text8 = assertText(value, label, 10, 10);
   const date2 = /* @__PURE__ */ new Date(`${text8}T00:00:00Z`);
-  if (!DATE_ONLY2.test(text8) || !Number.isFinite(date2.getTime()) || date2.toISOString().slice(0, 10) !== text8) throw new Error(`${label} must be a real date`);
+  if (!DATE_ONLY3.test(text8) || !Number.isFinite(date2.getTime()) || date2.toISOString().slice(0, 10) !== text8) throw new Error(`${label} must be a real date`);
   return date2;
 }
 function documentHash(premisesId2, kind, number) {
   const key = process.env.SESSION_SECRET;
   if (!key) throw new Error("Check-in is unavailable on this server");
-  return (0, import_node_crypto10.createHmac)("sha256", key).update(`${premisesId2}:${kind}:${number.replace(/[\s-]/g, "").toUpperCase()}`).digest("hex");
+  return (0, import_node_crypto11.createHmac)("sha256", key).update(`${premisesId2}:${kind}:${number.replace(/[\s-]/g, "").toUpperCase()}`).digest("hex");
 }
 async function checkInCannabisCustomer(_root, args, context) {
   const raw = args.input || {};
@@ -5192,20 +5684,22 @@ async function checkInCannabisCustomer(_root, args, context) {
   const patientNumber = capacity === "caregiver" ? assertText(raw.representedPatientNumber, "Patient's registry number", 3, 60) : null;
   if (capacity === "caregiver" && raw.representedPatientVerified !== true) throw new Error("Confirm the caregiver is authorised for this patient");
   const { identityNumber: _id, registryNumber: _registry, representedPatientNumber: _patient, ...input } = raw;
-  return runControlledOperation(context, input, { permission: "canManageSales", activity: "eligibility", scope: "checkInCannabisCustomer", resourceType: "Customer", action: "eligibility.checked_in", emitStateEvent: false }, async (tx, authority) => {
+  return runControlledOperation(context, input, { permission: "canManageSales", activity: "eligibility", scope: "checkInCannabisCustomer", resourceType: "Customer", action: "eligibility.checked_in" }, async (tx, authority) => {
     const sudo = tx.sudo();
     const now = /* @__PURE__ */ new Date();
     const pack = await requireRulePack(tx, authority.organizationId, authority.premisesId);
     assertEffectiveRulePack(pack);
-    let age = now.getUTCFullYear() - dateOfBirth.getUTCFullYear();
-    if (now.getUTCMonth() < dateOfBirth.getUTCMonth() || now.getUTCMonth() === dateOfBirth.getUTCMonth() && now.getUTCDate() < dateOfBirth.getUTCDate()) age -= 1;
-    const validThrough = (date2) => date2.getTime() + 864e5 > now.getTime();
-    assertEligibility({ capacity, age, identityValid: validThrough(identityExpiresAt), registryValid: !medical || validThrough(registryExpiresAt), representedPatientValid: capacity !== "caregiver" || Boolean(patientNumber) }, pack);
+    const timezone = authority.actor.premises?.timezone;
+    const age = ageAtPremises(dateOfBirth, now, timezone);
+    if (age === null) throw new Error("Date of birth must be a real date that is not in the future");
+    const identityValidUntil = endOfLocalDate(identityExpiresAt.toISOString().slice(0, 10), timezone);
+    const registryValidUntil = registryExpiresAt ? endOfLocalDate(registryExpiresAt.toISOString().slice(0, 10), timezone) : null;
+    assertEligibility({ capacity, age, identityValid: identityValidUntil > now, registryValid: !medical || Boolean(registryValidUntil && registryValidUntil > now), representedPatientValid: capacity !== "caregiver" || Boolean(patientNumber) }, pack);
     const identityReferenceHash = documentHash(authority.premisesId, identityMethod, identityNumber);
     const prior = await sudo.query.EligibilityEvidence.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, identityReferenceHash: { equals: identityReferenceHash }, capacity: { equals: capacity } }, orderBy: [{ createdAt: "desc" }], take: 1, query: "customer { id reference status }" });
     const known = prior[0]?.customer;
     if (known && known.status === "suspended") throw new Error("This customer is suspended; see a manager");
-    const customer = known ?? await sudo.query.Customer.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference: `CUS-${(0, import_node_crypto10.randomUUID)().slice(0, 8).toUpperCase()}`, capacity, status: "eligible" }, query: "id reference status" });
+    const customer = known ?? await sudo.query.Customer.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference: `CUS-${(0, import_node_crypto11.randomUUID)().slice(0, 8).toUpperCase()}`, capacity, status: "eligible" }, query: "id reference status" });
     if (known && known.status !== "eligible") await sudo.query.Customer.updateOne({ where: { id: known.id }, data: { status: "eligible" }, query: "id" });
     const evidence = await sudo.query.EligibilityEvidence.createOne({ data: {
       organization: { connect: { id: authority.organizationId } },
@@ -5215,11 +5709,11 @@ async function checkInCannabisCustomer(_root, args, context) {
       identityMethod,
       identityReferenceHash,
       dateOfBirth,
-      identityExpiresAt: new Date(identityExpiresAt.getTime() + 864e5),
+      identityExpiresAt: identityValidUntil,
       registryName,
       registryReferenceHash: registryNumber ? documentHash(authority.premisesId, `registry:${registryName}`, registryNumber) : "",
       registryVerifiedAt: medical ? now : null,
-      registryExpiresAt: registryExpiresAt ? new Date(registryExpiresAt.getTime() + 864e5) : null,
+      registryExpiresAt: registryValidUntil,
       representedPatientReferenceHash: patientNumber ? documentHash(authority.premisesId, "patient", patientNumber) : "",
       result: "eligible",
       reasonCodes: ["checked_in_person"],
@@ -5231,7 +5725,7 @@ async function checkInCannabisCustomer(_root, args, context) {
 }
 
 // features/keystone/mutations/onlineOrders.ts
-var import_node_crypto11 = require("node:crypto");
+var import_node_crypto12 = require("node:crypto");
 
 // features/keystone/domain/pickupWindows.ts
 var SLOT_MINUTES = 30;
@@ -5270,19 +5764,10 @@ function pickupSlots(opensMinute, closesMinute, timeZone, now = /* @__PURE__ */ 
   }
   return slots;
 }
-function ageOnDate(dateOfBirth, now = /* @__PURE__ */ new Date()) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
-  if (!match) return null;
-  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const check = new Date(Date.UTC(year, month - 1, day));
-  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day || check.getTime() > now.getTime()) return null;
-  let age = now.getUTCFullYear() - year;
-  if (now.getUTCMonth() + 1 < month || now.getUTCMonth() + 1 === month && now.getUTCDate() < day) age -= 1;
-  return age;
-}
 
 // features/keystone/mutations/onlineOrders.ts
-var sha = (value) => (0, import_node_crypto11.createHash)("sha256").update(value).digest("hex");
+init_orderConfirmation();
+var sha = (value) => (0, import_node_crypto12.createHash)("sha256").update(value).digest("hex");
 var MAX_ITEMS = 10;
 var MAX_UNITS = 20;
 var RESERVED_STATUSES = ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"];
@@ -5290,14 +5775,22 @@ var HOLD_AFTER_WINDOW_MS = 60 * 6e4;
 function guestProof(idempotencyKey) {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error("Online ordering is unavailable on this server");
-  return (0, import_node_crypto11.createHmac)("sha256", secret).update(`pickup-proof:${idempotencyKey}`).digest("hex");
+  return (0, import_node_crypto12.createHmac)("sha256", secret).update(`pickup-proof:${idempotencyKey}`).digest("hex");
 }
 var orderReference = (idempotencyKey) => `PU-${sha(`pickup-ref:${idempotencyKey}`).slice(0, 12).toUpperCase()}`;
 async function releaseExpiredOrders(context) {
-  const expired = await context.sudo().query.Cart.findMany({ where: { source: { equals: "pickup" }, status: { in: ["reserved", "preliminarily_eligible"] }, expiresAt: { lt: /* @__PURE__ */ new Date() } }, take: 20, query: "id" });
+  const sudo = context.sudo();
+  const expired = await sudo.query.Cart.findMany({ where: { status: { in: [...EXPIRABLE_CART_STATUSES] }, expiresAt: { lt: /* @__PURE__ */ new Date() } }, take: 20, query: "id" });
   for (const cart of expired) {
     try {
       await cancelCannabisCart(null, { input: { cartId: cart.id, system: SYSTEM_CANCEL, idempotencyKey: `expire:${cart.id}`, reasonCode: "order_expired" } }, context);
+    } catch {
+    }
+  }
+  const stuck = await sudo.query.Cart.findMany({ where: { status: { equals: "cancelled" }, paymentMethod: { equals: "card" }, paymentStatus: { in: [...RELEASABLE_PAYMENT_STATUSES] } }, take: 10, query: "id" });
+  for (const cart of stuck) {
+    try {
+      await releaseOnlinePayment(context, cart.id);
     } catch {
     }
   }
@@ -5351,22 +5844,22 @@ async function placeCannabisPickupOrder(_root, args, context) {
   const { organization, premises, pack } = await publicAuthority(context);
   assertEffectiveRulePack(pack);
   if (pack.pickupEnabled !== true) throw new Error("This store is not taking pickup orders right now");
-  const age = ageOnDate(dateOfBirth);
+  const age = ageAtPremises(dateOfBirth, /* @__PURE__ */ new Date(), premises.timezone || "UTC");
   if (age === null) throw new Error("Enter your date of birth as a real past date");
   if (age < pack.adultMinimumAge) throw new Error(`You must be ${pack.adultMinimumAge} or older to order`);
   const timezone = premises.timezone || "UTC";
   const window = pickupSlots(pack.operatingStartMinute, pack.operatingEndMinute, timezone).find((slot) => slot.start === raw.pickupStart);
   if (!window) throw new Error("That pickup time is no longer available. Choose another.");
   const scope = { organizationId: organization.id, premisesId: premises.id };
-  const allowed = pack.allowedTenderTypes;
+  const allowed2 = pack.allowedTenderTypes;
   let provider = null;
   if (method === "card") {
-    if (!allowed.includes("debit")) throw new Error("Card payment is not available. Choose pay at pickup.");
+    if (!allowed2.includes("debit")) throw new Error("Card payment is not available. Choose pay at pickup.");
     provider = await onlineCardProvider(context, scope, true);
     if (!provider) throw new Error("Card payment is not available. Choose pay at pickup.");
     const opaque = raw.opaqueData;
     if (!opaque || typeof opaque.dataDescriptor !== "string" || typeof opaque.dataValue !== "string") throw new Error("Enter your card to continue");
-  } else if (!["cash", "debit"].some((type) => allowed.includes(type))) {
+  } else if (!["cash", "debit"].some((type) => allowed2.includes(type))) {
     throw new Error("Pay at pickup is not available. Pay by card instead.");
   }
   const holdUntil = new Date(new Date(window.end).getTime() + HOLD_AFTER_WINDOW_MS);
@@ -5377,7 +5870,7 @@ async function placeCannabisPickupOrder(_root, args, context) {
     const prior = await sudo.query.EligibilityEvidence.findMany({ where: { organization: { id: { equals: scope.organizationId } }, premises: { id: { equals: scope.premisesId } }, identityReferenceHash: { equals: identityHash } }, orderBy: [{ createdAt: "desc" }], take: 1, query: "customer { id status }" });
     let customer = prior[0]?.customer ?? null;
     if (customer?.status === "suspended" || customer?.status === "ineligible") throw new Error("We can\u2019t take an online order for this customer. Please visit the store.");
-    if (!customer) customer = await sudo.query.Customer.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, reference: `CUS-${(0, import_node_crypto11.randomUUID)().slice(0, 8).toUpperCase()}`, capacity: "adult_use", status: "pending_verification", intakeProofHash: sha(proof), contact: { name, email, phone } }, query: "id status" });
+    if (!customer) customer = await sudo.query.Customer.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, reference: `CUS-${(0, import_node_crypto12.randomUUID)().slice(0, 8).toUpperCase()}`, capacity: "adult_use", status: "pending_verification", intakeProofHash: sha(proof), contact: { name, email, phone } }, query: "id status" });
     else await sudo.query.Customer.updateOne({ where: { id: customer.id }, data: { contact: { name, email, phone } }, query: "id" });
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-customer-purchase-window", `${scope.organizationId}:${scope.premisesId}:${customer.id}`);
     const now = /* @__PURE__ */ new Date();
@@ -5514,6 +6007,7 @@ async function placeCannabisPickupOrder(_root, args, context) {
     evidenceHash: stableHash({ reference, totals: placed, method }),
     occurredAt: /* @__PURE__ */ new Date()
   }, query: "id" });
+  await deliverPickupConfirmation(context, { cartId: placed.cartId, reference, proof, scope, email, name });
   return { reference, proof, status: status5, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false };
 }
 async function cannabisPickupOrder(_root, args, context) {
@@ -5585,8 +6079,10 @@ function extendGraphqlSchema(baseSchema) {
         advanceRecallCase(input: JSON!): JSON!
         recordPackageLabResult(input: JSON!): JSON!
         releaseCannabisPackage(input: JSON!): JSON!
+        recordCannabisCountCorrection(input: JSON!): JSON!
         checkInCannabisCustomer(input: JSON!): JSON!
         setStaffTemporaryPassword(input: JSON!): JSON!
+        changeStaffPermissions(input: JSON!): JSON!
         configureCannabisStorefrontSettings(input: JSON!): JSON!
         provisionStaffAuthority(input: JSON!): JSON!
         submitCannabisCustomerIntake(input: JSON!): JSON!
@@ -5607,10 +6103,10 @@ function extendGraphqlSchema(baseSchema) {
         closeRegisterShift(input: JSON!): JSON!
         approveCashVariance(input: JSON!): JSON!
         refundCannabisSale(input: JSON!): JSON!
+        voidCannabisSale(input: JSON!): JSON!
         recordComplianceIncident(input: JSON!): JSON!
         activateIntegrationInstallation(input: JSON!): JSON!
         recordStateInboxEvent(input: JSON!): JSON!
-        retryStateOutboxEvent(input: JSON!): JSON!
         recordReconciliationRun(input: JSON!): JSON!
         approveReconciliationRun(input: JSON!): JSON!
       }
@@ -5634,8 +6130,10 @@ function extendGraphqlSchema(baseSchema) {
         advanceRecallCase,
         recordPackageLabResult,
         releaseCannabisPackage,
+        recordCannabisCountCorrection,
         checkInCannabisCustomer,
         setStaffTemporaryPassword,
+        changeStaffPermissions,
         configureCannabisStorefrontSettings,
         setCannabisStorefrontCover,
         provisionStaffAuthority,
@@ -5657,10 +6155,10 @@ function extendGraphqlSchema(baseSchema) {
         closeRegisterShift,
         approveCashVariance,
         refundCannabisSale,
+        voidCannabisSale,
         recordComplianceIncident,
         activateIntegrationInstallation,
         recordStateInboxEvent,
-        retryStateOutboxEvent,
         recordReconciliationRun,
         approveReconciliationRun
       })
@@ -5669,7 +6167,8 @@ function extendGraphqlSchema(baseSchema) {
 }
 
 // features/keystone/lib/mail.ts
-var import_nodemailer = require("nodemailer");
+var import_nodemailer2 = require("nodemailer");
+init_email_layout();
 function getBaseUrlForEmails() {
   if (process.env.SMTP_STORE_LINK) {
     return process.env.SMTP_STORE_LINK;
@@ -5683,44 +6182,20 @@ function mailTransport() {
   }
   const port = Number(process.env.SMTP_PORT);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Password reset delivery is not configured");
-  return (0, import_nodemailer.createTransport)({
+  return (0, import_nodemailer2.createTransport)({
     host: process.env.SMTP_HOST,
     port,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
   });
 }
 function passwordResetEmail({ url }) {
-  const backgroundColor = "#f9f9f9";
-  const textColor = "#444444";
-  const mainBackgroundColor = "#ffffff";
-  const buttonBackgroundColor = "#346df1";
-  const buttonBorderColor = "#346df1";
-  const buttonTextColor = "#ffffff";
-  return `
-    <body style="background: ${backgroundColor};">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
-        <tr>
-          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            Please click below to reset your password
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            If you did not request this email you can safely ignore it.
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
+  return emailLayout({
+    preheader: "Use this link to choose a new password.",
+    title: "Reset your password",
+    body: `${emailParagraph("We received a request to reset the password for your account. Use the button below to choose a new one.")}
+${emailButton("Reset password", url)}
+${emailMuted("If you did not request this, you can safely ignore this email. Your password will not change.")}`
+  });
 }
 async function sendPasswordResetEmail(resetToken, to, baseUrl) {
   const frontendUrl = baseUrl || getBaseUrlForEmails();
@@ -5771,6 +6246,86 @@ function readRuntimeEnvironment(env = process.env) {
       )
     }
   };
+}
+
+// features/keystone/database-url.ts
+var POOL_SIZES = { web: 15, worker: 5 };
+var OVERRIDE_ENV = {
+  web: "DATABASE_CONNECTION_LIMIT",
+  worker: "DATABASE_CONNECTION_LIMIT_WORKER"
+};
+function pooledDatabaseUrl(url, role = "web") {
+  if (!url || !/^postgres(ql)?:\/\//.test(url)) return url;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.searchParams.has("connection_limit")) return url;
+  const override = Number(process.env[OVERRIDE_ENV[role]]);
+  parsed.searchParams.set("connection_limit", String(Number.isInteger(override) && override > 0 ? override : POOL_SIZES[role]));
+  return parsed.toString();
+}
+
+// features/keystone/lib/keystonePrismaErrors.ts
+var RAW_METHOD = /^\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe|queryRawTyped|runCommandRaw)$/;
+var clients = /* @__PURE__ */ new WeakMap();
+var delegates = /* @__PURE__ */ new WeakMap();
+function isKeystonePrismaError(value) {
+  return value instanceof Error && value.extensions?.code === "KS_PRISMA_ERROR";
+}
+function rethrowKeystonePrismaError(value) {
+  if (!isKeystonePrismaError(value)) return value;
+  const prisma = value.extensions.prisma ?? {};
+  throw Object.assign(value, { code: prisma.code, meta: prisma.meta, clientVersion: prisma.clientVersion });
+}
+function throwing(result) {
+  if (!result || typeof result.then !== "function") return rethrowKeystonePrismaError(result);
+  const settled = () => result.then(rethrowKeystonePrismaError);
+  return new Proxy(result, {
+    get(target, key) {
+      if (key === "then") return (ok, fail) => settled().then(ok, fail);
+      if (key === "catch") return (fail) => settled().catch(fail);
+      if (key === "finally") return (done) => settled().finally(done);
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  });
+}
+function throwingDelegate(delegate) {
+  const cached = delegates.get(delegate);
+  if (cached) return cached;
+  const wrapped = new Proxy(delegate, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? (...args) => throwing(value.apply(target, args)) : value;
+    }
+  });
+  delegates.set(delegate, wrapped);
+  return wrapped;
+}
+function throwKeystonePrismaErrors(client) {
+  const cached = clients.get(client);
+  if (cached) return cached;
+  const wrapped = new Proxy(client, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === "$transaction" && typeof value === "function") {
+        return (work, ...options) => {
+          if (typeof work === "function") return value.call(target, (tx) => work(throwKeystonePrismaErrors(tx)), ...options);
+          return Promise.resolve(value.call(target, work, ...options)).then((results) => Array.isArray(results) ? results.map(rethrowKeystonePrismaError) : results);
+        };
+      }
+      if (key === "$extends" && typeof value === "function") return (...args) => throwKeystonePrismaErrors(value.apply(target, args));
+      if (typeof key === "string" && RAW_METHOD.test(key) && typeof value === "function") return (...args) => throwing(value.apply(target, args));
+      if (typeof value === "function") return value.bind(target);
+      if (typeof key === "string" && !key.startsWith("$") && value && typeof value === "object" && typeof value.findFirst === "function") return throwingDelegate(value);
+      return value;
+    }
+  });
+  clients.set(client, wrapped);
+  return wrapped;
 }
 
 // features/keystone/index.ts
@@ -5838,9 +6393,11 @@ var keystone_default = withAuth(
   (0, import_core8.config)({
     db: {
       provider: "postgresql",
-      url: runtimeEnvironment.databaseUrl
+      url: pooledDatabaseUrl(runtimeEnvironment.databaseUrl),
+      // Keystone returns failed queries as values; this makes them throw so transactions roll back.
+      extendPrismaClient: throwKeystonePrismaErrors
     },
-    lists: models,
+    lists: withDeleteAwareUi(withCreateAwareUi(models)),
     storage: {
       my_images: {
         kind: "s3",

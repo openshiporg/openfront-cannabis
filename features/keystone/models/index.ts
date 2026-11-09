@@ -14,7 +14,7 @@ import {
   Sale, SaleLine, Tender, Refund,
 } from "./Commerce";
 import {
-  AuditEvent, IdempotencyKey, OutboxEvent, StateEventInbox,
+  AuditEvent, IdempotencyKey, StateEventInbox,
   IntegrationInstallation, ReconciliationRun, ComplianceIncident,
 } from "./Operations";
 
@@ -25,7 +25,7 @@ export const models = {
   Product, InventoryPackage, PackageHold, RegulatedManifest, InventoryEvent, RecallCase,
   Register, RegisterShift, CashEvent, TenderConfiguration, Cart, CartLine,
   Sale, SaleLine, Tender, Refund, PaymentProvider,
-  AuditEvent, IdempotencyKey, OutboxEvent, StateEventInbox,
+  AuditEvent, IdempotencyKey, StateEventInbox,
   IntegrationInstallation, ReconciliationRun, ComplianceIncident,
 };
 
@@ -63,7 +63,6 @@ const LIST_VIEWS: Record<string, [labelField: string, columns: string[]]> = {
   Refund: ["reasonCode", ["sale", "reasonCode", "status"]],
   AuditEvent: ["action", ["action", "resourceType", "actor"]],
   IdempotencyKey: ["scope", ["scope", "status"]],
-  OutboxEvent: ["topic", ["topic", "status", "attempts"]],
   StateEventInbox: ["providerEventId", ["providerCode", "providerEventId", "status"]],
   IntegrationInstallation: ["providerCode", ["providerCode", "providerType", "status"]],
   ReconciliationRun: ["type", ["type", "status", "discrepancyCount"]],
@@ -78,7 +77,7 @@ const LIST_PERMISSION: Record<string, CannabisPermission> = {
   JurisdictionRulePack: "canManageCompliance", Register: "canManageFinance", RegisterShift: "canManageFinance", CashEvent: "canManageFinance", TenderConfiguration: "canManageFinance", PaymentProvider: "canManageFinance",
   Cart: "canManageSales", CartLine: "canManageSales", Sale: "canManageSales", SaleLine: "canManageSales", Tender: "canManageFinance", Refund: "canManageFinance",
   Product: "canManageInventory", InventoryPackage: "canManageInventory", PackageHold: "canManageCompliance", RegulatedManifest: "canManageInventory", InventoryEvent: "canManageInventory",
-  RecallCase: "canManageCompliance", AuditEvent: "canViewReports", IdempotencyKey: "canViewReports", OutboxEvent: "canManageIntegrations", StateEventInbox: "canManageIntegrations",
+  RecallCase: "canManageCompliance", AuditEvent: "canViewReports", IdempotencyKey: "canViewReports", StateEventInbox: "canManageIntegrations",
   IntegrationInstallation: "canManageIntegrations", ReconciliationRun: "canViewReports", ComplianceIncident: "canManageCompliance",
 };
 
