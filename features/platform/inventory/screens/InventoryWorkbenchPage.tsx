@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { getCannabisWorkspace } from '@/features/platform/workspaces/actions/workspaces';
 import { AsOf, WorkspaceStateNotice } from '@/features/platform/operations/components/WorkspaceKit';
@@ -10,6 +11,7 @@ export async function InventoryWorkbenchPage({ searchParams }: { searchParams?: 
   const raw = (await searchParams) || {};
   const params = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value])) as Record<string, string | undefined>;
   const result = await getCannabisWorkspace('inventory', { cursor: params.cursor, search: params.search, filter: params.filter });
+  if (result.state === 'forbidden') notFound();
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'page' as const, label: 'Inventory' }];
   const title = result.state === 'ok'
     ? <PageTitle title="Inventory" {...operatingState(result.data.operating)} meta={<AsOf generatedAt={result.data.generatedAt} timezone={result.data.timezone} />} />

@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { getCannabisWorkspace } from '@/features/platform/workspaces/actions/workspaces';
 import { AsOf, WorkspaceStateNotice } from '@/features/platform/operations/components/WorkspaceKit';
@@ -10,6 +11,7 @@ export async function ReceivingWorkbenchPage({ searchParams }: { searchParams?: 
   const raw = (await searchParams) || {};
   const params = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value])) as Record<string, string | undefined>;
   const result = await getCannabisWorkspace('receiving', { cursor: params.cursor, search: params.search, productSearch: params.productSearch });
+  if (result.state === 'forbidden') notFound();
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'page' as const, label: 'Receiving' }];
   const title = result.state === 'ok'
     ? <PageTitle title="Receiving" {...operatingState(result.data.operating)} meta={<AsOf generatedAt={result.data.generatedAt} timezone={result.data.timezone} />} />
