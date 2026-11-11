@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import { notFound } from 'next/navigation';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { Actions, ButtonLink, buttonClass, Notice, PageTitle, Panel } from '@/features/platform/components/cannabis-ui';
 import { WorkspaceStateNotice } from '@/features/platform/operations/components/WorkspaceKit';
@@ -26,6 +27,7 @@ export async function StorefrontSettingsPage() {
   const header = <PageTitle title="Store Settings" meta="Business name, logo and storefront accent" />;
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'page' as const, label: 'Store Settings' }];
   const setup = result.state === 'forbidden' ? await getCannabisWorkspace('overview') : null;
+  if (result.state === 'forbidden' && setup?.state !== 'setup_required') notFound();
   const visible = result.state === 'ok' ? await publicState() : null;
   return <PageContainer header={header} breadcrumbs={breadcrumbs}>
     <div className="space-y-6 px-4 pb-24 md:px-6 md:pb-8">

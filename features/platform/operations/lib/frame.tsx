@@ -28,6 +28,8 @@ export async function frame<S extends WorkspaceSection>(section: S, path: string
   const result: CannabisWorkspaceResult<WorkspaceData<S>> = await getCannabisWorkspace(section, options);
   const crumbs = extra.crumbs ?? [{ label: title }];
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, ...crumbs.map(crumb => crumb.href ? { type: 'link' as const, label: crumb.label, href: crumb.href } : { type: 'page' as const, label: crumb.label })];
+  // A workspace the role does not hold is not there for it: 404, as for a hidden sidebar link.
+  if (result.state === 'forbidden') notFound();
   if (result.state !== 'ok') {
     return <PageContainer header={<PageTitle title={title} />} breadcrumbs={breadcrumbs}><WorkspaceStateNotice result={result} retryHref={path} /></PageContainer>;
   }

@@ -61,7 +61,7 @@ export async function SaleDetailPage({ params: routeParams }: { params: Promise<
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'link' as const, label: 'Sales', href: '/dashboard/platform/sales' }, { type: 'page' as const, label: 'Receipt' }];
   // The receipt query is access-checked on its own; the workspace call supplies the premises zone.
   const [workspace, receipt] = await Promise.all([getCannabisWorkspace('sales', {}), getSaleReceipt(saleId)]);
-  if (receipt.state === 'not_found') notFound();
+  if (receipt.state === 'not_found' || receipt.state === 'forbidden') notFound();
   const timezone = workspace.state === 'ok' ? workspace.data.timezone : null;
   const meta = workspace.state === 'ok' ? <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={workspace.data.generatedAt} timezone={workspace.data.timezone} />{workspace.data.jurisdictionCode && <span>{workspace.data.jurisdictionCode}</span>}</span> : undefined;
   return <PageContainer header={<PageTitle title={receipt.state === 'ok' ? receipt.sale.receiptNumber : 'Receipt'} meta={meta} />} breadcrumbs={breadcrumbs}>

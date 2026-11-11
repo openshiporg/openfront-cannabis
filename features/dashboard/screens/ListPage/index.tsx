@@ -31,7 +31,8 @@ export async function ListPage({ params, searchParams }: PageProps) {
   // Get the list by path using our cached function
   const list = await getListByPath(listKeyParam);
 
-  if (!list) {
+  // A list hidden from this session's sidebar has no page for it.
+  if (!list || list.isHidden) {
     notFound()
   }
 
