@@ -1,3 +1,5 @@
+import { notFound } from 'next/navigation';
+import { getAuthenticatedUser } from '@/features/dashboard/actions/auth';
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { PageTitle } from '@/features/platform/components/cannabis-ui';
@@ -5,6 +7,10 @@ import { Workboard, Empty } from '@/features/platform/operations/components/Work
 import { ProviderToggle, TenderProviderLink } from './ProviderControls';
 
 export async function PaymentProvidersPage() {
+  // The page lists finance records: a role without the finance grant has no such page.
+  const auth = await getAuthenticatedUser();
+  const role = auth.success ? (auth.data as any)?.authenticatedItem?.role : null;
+  if (role?.canManageFinance !== true) notFound();
   const result = await keystoneClient(`query PaymentProviders { items: paymentProviders(orderBy: [{ name: asc }], take: 50) { id name code isInstalled tenderConfigurations(take: 20) { id displayName type enabled } } tenderConfigurations(take:50){id displayName type} }`);
   const items = result.success ? result.data.items : []; const tenders = result.success ? result.data.tenderConfigurations : [];
   const breadcrumbs = [{ type: 'link' as const, label: 'Platform', href: '/dashboard/platform' }, { type: 'page' as const, label: 'Payment providers' }];
