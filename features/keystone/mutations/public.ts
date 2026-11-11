@@ -7,6 +7,7 @@ import { isRuntimeCapabilityEnabled, requireRuntimeCapability } from "../domain/
 import { assertText, requireRulePack, runControlledOperation, stableHash } from "./workflow";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { CARD_PROVIDER_CODE } from "./onlinePayments";
+import { releaseExpiredOrders } from "./onlineOrders";
 
 const proofHash = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -74,6 +75,7 @@ export async function publicCannabisMenu(_root: unknown, _args: unknown, context
   try { authority = await publicAuthority(context); }
   catch (error) { return { unavailable: true, reason: error instanceof PublicScopeMissing ? "not_set_up" : "sales_rules", products: [] }; }
   if (!isRuntimeCapabilityEnabled("storefront.public-live-menu")) return { unavailable: true, reason: "sales_rules", products: [] };
+  try { await releaseExpiredOrders(context); } catch { /* the next visit retries */ }
   const scope = { organization: { id: { equals: authority.organization.id } }, premises: { id: { equals: authority.premises.id } } };
   const [packages] = await Promise.all([
     context.sudo().query.InventoryPackage.findMany({

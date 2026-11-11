@@ -34,8 +34,9 @@ const orderReference = (idempotencyKey: string) => `PU-${sha(`pickup-ref:${idemp
 
 /**
  * Abandoned online orders give their stock back (and release any card hold) once their hold has run out.
- * Runs on every checkout visit and once a minute from instrumentation.ts, so stock comes back even when
- * nobody opens the checkout.
+ * No timer: it runs on every checkout visit, every public menu read and every staff workspace read
+ * (inventory, receiving, POS, sales, overview), and the staff Refresh button re-runs it. Each cancel is an
+ * idempotent, locked command (`expire:<cartId>`), so concurrent requests never double-apply.
  */
 export async function releaseExpiredOrders(context: Context) {
   const sudo = context.sudo();

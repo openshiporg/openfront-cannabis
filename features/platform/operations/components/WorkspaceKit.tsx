@@ -1,5 +1,6 @@
 import type React from 'react';
 import { formatInstant } from '@/features/platform/lib/time';
+import { RefreshButton } from './RefreshButton';
 import { SetupLauncher } from '@/features/platform/onboarding/components/SetupLauncher';
 export { formatUsableThrough } from '@/features/platform/lib/time';
 import { WORKSPACE_STATE_COPY, type WorkspaceClosedState } from '@/features/platform/workspaces/lib/boundary';
@@ -46,7 +47,7 @@ export function Status({ value, tone }: { value: string; tone?: DotTone }) {
 export function Empty({ children }: { children: React.ReactNode }) { return <BandEmpty>{children}</BandEmpty>; }
 
 export function AsOf({ generatedAt, timezone }: { generatedAt: string; timezone: string | null }) {
-  return <span>As of {formatWhen(generatedAt, timezone)}</span>;
+  return <span>As of {formatWhen(generatedAt, timezone)}<RefreshButton /></span>;
 }
 
 /** Continuation for one cursor-paged collection; other query parameters are kept. */

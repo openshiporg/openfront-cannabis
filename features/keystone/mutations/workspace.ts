@@ -3,6 +3,10 @@ import type { CannabisPermission } from "../access";
 import { packageReadiness } from "../domain/packageReadiness";
 import { requireOperationalAuthority, requireReadAuthority, stableHash } from "./workflow";
 import { latestRulePack, rulePackProblem } from "./rulePack";
+import { releaseExpiredOrders } from "./onlineOrders";
+
+// Sections that show stock, carts or sales: expired holds are released before they read, so they never show stale stock.
+const EXPIRY_SECTIONS = new Set(["overview", "inventory", "receiving", "menu", "pos", "sales", "product", "reconciliation"]);
 
 export const WORKSPACE_PAGE_SIZE = 50;
 const DAY_MS = 86_400_000;
@@ -105,6 +109,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   catch (error) { operatingClosedReason = error instanceof Error ? error.message : "Operating authority is not current"; }
   if (required.mode === "operational" && operatingClosedReason) return { section, state: "operating_closed", reason: operatingClosedReason };
 
+  if (EXPIRY_SECTIONS.has(section)) { try { await releaseExpiredOrders(context); } catch { /* the next read or the Refresh button retries */ } }
   const authority = readAuthority; const sudo = context.sudo();
   const now = new Date(); const nowMs = now.getTime();
   // A current credential that simply doesn't cover this section's activity is limited access, not a lapse.

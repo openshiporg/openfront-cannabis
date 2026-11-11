@@ -22,3 +22,6 @@ Work in this repo is normal software and design work: storefront UI, admin, onbo
 
 ## Notifications
 NEVER build outbox/texting/email notification machinery or cron/worker services. External events = Openfront Commerce webhooks (features/webhooks) only.
+
+## No timers
+NEVER add `setInterval`/`setTimeout` loops, `instrumentation.ts` jobs, cron or worker services. Time-based state (cart stock-hold expiry) is released on the request that reads it (`releaseExpiredOrders`: checkout, public menu, staff workspace reads) and by the staff Refresh button beside "As of". Reports are Export buttons; invites are copyable links.

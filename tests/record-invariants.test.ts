@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { ageAtPremises, calendarDate, endOfLocalDate } from "../features/keystone/domain/premisesTime.ts";
 
@@ -41,11 +41,12 @@ test("age checks use the premises calendar in every path", () => {
   assert.doesNotMatch(read("public.ts"), /new Date\(assertText\(input\.dateOfBirth/, "no loose date-of-birth parse");
 });
 
-test("expired carts are swept without waiting for a checkout visit", () => {
-  const instrumentation = readFileSync(new URL("../instrumentation.ts", import.meta.url), "utf8");
-  assert.match(instrumentation, /releaseExpiredOrders\(keystoneContext\)/);
-  assert.match(instrumentation, /setInterval\(pass, INTERVAL_MS\)/);
-  assert.match(readFileSync(new URL("../features/keystone/mutations/onlineOrders.ts", import.meta.url), "utf8"), /export async function releaseExpiredOrders/);
+test("expired carts are released on the request that reads them, with no timer", () => {
+  assert.equal(existsSync(new URL("../instrumentation.ts", import.meta.url)), false);
+  const mutations = (file: string) => readFileSync(new URL(`../features/keystone/mutations/${file}`, import.meta.url), "utf8");
+  assert.match(mutations("onlineOrders.ts"), /export async function releaseExpiredOrders/);
+  for (const file of ["onlineOrders.ts", "public.ts", "workspace.ts"]) assert.match(mutations(file), /releaseExpiredOrders\(context\)/, `${file} releases lapsed carts on read`);
+  assert.doesNotMatch(mutations("onlineOrders.ts"), /setInterval|setTimeout/);
 });
 
 test("the database refuses records the commands would refuse", () => {
