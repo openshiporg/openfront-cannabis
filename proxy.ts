@@ -8,6 +8,11 @@ const dashboardPath = "/dashboard";
 
 // Main middleware function that handles all routes
 export async function proxy(request: NextRequest) {
+  // A malformed percent-escape (for example /%E0%A4%A) is a bad request, not a server error.
+  try { decodeURIComponent(request.nextUrl.pathname); } catch {
+    return new NextResponse("Bad request", { status: 400 });
+  }
+
   // Get authenticated user once
   const { user, redirectToInit } = await getAuthenticatedUser(request);
 

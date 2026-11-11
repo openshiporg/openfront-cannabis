@@ -99,7 +99,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
         {tenders.length > 0 && <section aria-labelledby="pay-title" className="min-w-0 text-[15px]">
           <h2 id="pay-title" className="cn-name text-[18px] text-cn-ink">Payment</h2>
           <p className="mt-2 text-cn-ink-2">{tenders.join(' · ')}</p>
-          <p className="mt-1 text-cn-ink-3">Card online or at pickup</p>
+          <p className="mt-1 text-cn-ink-3">{visit?.cardOnline ? 'Card online or at pickup' : 'Paid at pickup'}</p>
         </section>}
       </div>
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-1 border-t border-cn-line px-4 py-4 text-[14px] text-cn-ink-3 sm:px-6">
