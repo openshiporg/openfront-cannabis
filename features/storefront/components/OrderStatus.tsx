@@ -20,11 +20,12 @@ export function OrderStatus({ reference }: { reference: string }) {
   const [proof, setProof] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    // Arriving from checkout keeps the bag page's scroll; start at the top so the heading and reference are seen.
     const fromUrl = decodeURIComponent(window.location.hash.slice(1));
     const key = fromUrl || window.sessionStorage.getItem(`cn-order-${reference}`) || '';
     if (!key) { setError('Open this page from your confirmation link to see your order.'); return; }
     window.sessionStorage.setItem(`cn-order-${reference}`, key); setProof(key);
-    publicGraphql<{ cannabisPickupOrder: Order }>('query($r:String!,$p:String!){ cannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: key }).then(data => setOrder(data.cannabisPickupOrder)).catch(failure => setError(failure.message));
+    publicGraphql<{ cannabisPickupOrder: Order }>('query($r:String!,$p:String!){ cannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: key }).then(data => { setOrder(data.cannabisPickupOrder); window.scrollTo(0, 0); }).catch(failure => setError(failure.message));
   }, [reference]);
 
   const cancel = async () => {

@@ -26,7 +26,7 @@ export async function cannabisSaleReceipt(_root: unknown, args: { saleId: string
   const saleId = assertText(args.saleId, "Sale ID", 1, 100);
   const sale = await context.sudo().query.Sale.findOne({ where: { id: saleId }, query: `id receiptNumber status finalizedAt customerCapacitySnapshot rulePackVersion subtotalCents discountCents taxCents totalCents refundedCents receiptSnapshot organization { id } premises { id }
     lines(orderBy: [{ createdAt: asc }], take: 100) { id titleSnapshot skuSnapshot packageUidSnapshot batchSnapshot quantityMicrounits unitPriceCents discountCents taxCents totalCents package { unitOfMeasure } } linesCount
-    tenders(take: 20) { id typeSnapshot amountCents changeCents status } refunds(orderBy: [{ occurredAt: desc }], take: 20) { id amountCents status reasonCode occurredAt }` });
+    tenders(take: 20) { id typeSnapshot amountCents changeCents status } refunds(orderBy: [{ occurredAt: desc }], take: 20) { id amountCents status reasonCode occurredAt originalTenderReference }` });
   if (!sale || sale.organization?.id !== authority.organizationId || sale.premises?.id !== authority.premisesId) return { state: "not_found" };
   const snapshot = sale.receiptSnapshot && typeof sale.receiptSnapshot === "object" && !Array.isArray(sale.receiptSnapshot) ? sale.receiptSnapshot as Record<string, unknown> : {};
   const { organization: _organization, premises: _premises, receiptSnapshot: _receiptSnapshot, ...detail } = sale;

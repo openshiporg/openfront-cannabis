@@ -7,6 +7,14 @@ import { formatInstant } from '@/features/platform/lib/time';
 
 const readable = (value: string | null | undefined) => (value || '').replaceAll('_', ' ');
 
+/** A tender's money that went back through completed refunds reads as refunded, not as still received. */
+export function tenderLabel(tender: { id: string; amountCents: number; status: string }, refunds: Array<{ amountCents: number; status: string; originalTenderReference?: string | null }>) {
+  if (tender.status === 'reversed' || tender.status === 'failed') return tender.status;
+  const back = refunds.filter(refund => refund.originalTenderReference === tender.id && ['completed', 'reconciled'].includes(refund.status)).reduce((sum, refund) => sum + refund.amountCents, 0);
+  if (back <= 0) return tender.status;
+  return back >= tender.amountCents ? 'refunded' : 'partially_refunded';
+}
+
 /**
  * Read-only receipt. Amounts use the currency recorded on the sale itself;
  * `currencyCode` (the premises' current currency) is never applied to history.
@@ -42,7 +50,7 @@ export async function SaleReceiptDetail({ saleId, timezone, closeHref = '/dashbo
       <div className="space-y-5">
         <dl className="space-y-1 rounded-[5px] border border-border bg-muted/20 p-3 text-sm">{totals.map(([term, cents, strong]) => <div key={term} className={`flex items-baseline justify-between gap-4 ${strong ? 'border-y border-border py-1.5 font-semibold' : ''}`}><dt className={strong ? '' : 'text-muted-foreground'}>{term}</dt><dd className="tabular-nums">{money(cents)}</dd></div>)}</dl>
         <section aria-label="Tenders"><h3 className="text-xs font-semibold text-foreground">Tenders</h3>
-          {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(tender.status)} >{sentenceCase(tender.typeSnapshot)} · {sentenceCase(tender.status)}</DotLabel><span className="tabular-nums">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
+          {sale.tenders.length ? <ul className="mt-2 space-y-1 text-sm">{sale.tenders.map(tender => { const label = tenderLabel(tender, sale.refunds); return <li key={tender.id} className="flex items-baseline justify-between gap-3"><DotLabel tone={statusTone(label)} >{sentenceCase(tender.typeSnapshot)} · {sentenceCase(label)}</DotLabel><span className="tabular-nums">{money(tender.amountCents)}{tender.changeCents ? ` (change ${money(tender.changeCents)})` : ''}</span></li>; })}</ul> : <p className="mt-1 text-sm text-muted-foreground">No tenders recorded.</p>}
         </section>
         <section aria-label="Refunds"><h3 className="text-xs font-semibold text-foreground">Refunds</h3>
           {sale.refunds.length ? <ul className="mt-2 space-y-1 text-sm">{sale.refunds.map(refund => <li key={refund.id} className="flex items-baseline justify-between gap-3"><span className="min-w-0 text-xs">{formatInstant(refund.occurredAt, timezone)} · {codeLabel(refund.reasonCode)} · {readable(refund.status)}</span><span className="tabular-nums">{money(refund.amountCents)}</span></li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">No refunds.</p>}

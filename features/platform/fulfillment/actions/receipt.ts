@@ -6,7 +6,7 @@ export type SaleReceipt = {
   subtotalCents: number; discountCents: number; taxCents: number; totalCents: number; refundedCents: number; currencyCode: string | null; linesHasMore: boolean;
   lines: Array<{ id: string; titleSnapshot: string; skuSnapshot: string; packageUidSnapshot: string; batchSnapshot: string; quantityMicrounits: number; unitPriceCents: number; discountCents: number; taxCents: number; totalCents: number; package?: { unitOfMeasure?: string | null } | null }>;
   tenders: Array<{ id: string; typeSnapshot: string; amountCents: number; changeCents: number | null; status: string }>;
-  refunds: Array<{ id: string; amountCents: number; status: string; reasonCode: string; occurredAt: string }>;
+  refunds: Array<{ id: string; amountCents: number; status: string; reasonCode: string; occurredAt: string; originalTenderReference?: string | null }>;
 };
 
 export async function getSaleReceipt(saleId: string): Promise<{ state: 'ok'; sale: SaleReceipt } | { state: 'forbidden' | 'not_found' | 'unavailable' }> {

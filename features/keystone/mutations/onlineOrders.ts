@@ -111,11 +111,13 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   const { organization, premises, pack } = await publicAuthority(context);
   assertEffectiveRulePack(pack as unknown as EffectiveRulePack);
   if (pack.pickupEnabled !== true) throw new Error("This store is not taking pickup orders right now");
-  const age = ageAtPremises(dateOfBirth, new Date(), premises.timezone || "UTC");
+  // Age is counted on the store's own calendar, as at the counter; a store without a time zone takes no orders.
+  const timezone = typeof premises.timezone === "string" ? premises.timezone.trim() : "";
+  if (!timezone) throw new Error("This store is not taking pickup orders right now");
+  const age = ageAtPremises(dateOfBirth, new Date(), timezone);
   if (age === null) throw new Error("Enter your date of birth as a real past date");
   if (age < pack.adultMinimumAge) throw new Error(`You must be ${pack.adultMinimumAge} or older to order`);
 
-  const timezone = premises.timezone || "UTC";
   const window = pickupSlots(pack.operatingStartMinute, pack.operatingEndMinute, timezone).find(slot => slot.start === raw.pickupStart);
   if (!window) throw new Error("That pickup time is no longer available. Choose another.");
 

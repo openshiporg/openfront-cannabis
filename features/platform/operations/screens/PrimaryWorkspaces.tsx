@@ -352,11 +352,11 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
       </Split>
       <section>
         <SectionTitle meta={data.sales.total} action={<ButtonLink href="/dashboard/platform/sales" tone="quiet">All sales</ButtonLink>}>Recent receipts</SectionTitle>
-        <Table label="Recent receipts" minWidth={480}>
-          <THead><Th>Receipt</Th><Th>Finalized</Th><Th>Status</Th><Th align="right">Total</Th></THead>
+        <Table label="Recent receipts" minWidth={320}>
+          <THead><Th>Receipt</Th><Th className="hidden sm:table-cell">Finalized</Th><Th>Status</Th><Th align="right">Total</Th></THead>
           <tbody>{data.sales.items.length ? data.sales.items.map(sale => <Tr key={sale.id} className={params.sale === sale.id ? 'bg-muted/50' : undefined}>
             <Td><Link href={`/dashboard/platform/pos?sale=${encodeURIComponent(sale.id)}`} aria-current={params.sale === sale.id ? 'page' : undefined} className="underline-offset-4 hover:underline"><Ref>{sale.receiptNumber}</Ref></Link></Td>
-            <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(sale.finalizedAt, data.timezone)}</Td>
+            <Td className="hidden whitespace-nowrap text-muted-foreground sm:table-cell">{formatWhen(sale.finalizedAt, data.timezone)}</Td>
             <Td><StatusText tone={statusTone(sale.status)}>{sentenceCase(sale.status)}</StatusText></Td>
             <Td align="right" className="font-medium">{formatMinorUnits(sale.totalCents, data.currencyCode)}</Td>
           </Tr>) : <TEmpty colSpan={4}>No receipts yet.</TEmpty>}</tbody>
@@ -394,7 +394,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
           <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
         </RecordList>
       </section>
-      <Panel title="Open a shift"><OpenShiftForm registers={data.registers.items} /></Panel>
+      <Panel title="Open a shift"><OpenShiftForm registers={data.registers.items.filter(register => !data.busyRegisterIds.includes(register.id))} /></Panel>
     </Split>
     <Split side="minmax(0,1fr)">
       <section>

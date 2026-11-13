@@ -61,6 +61,12 @@ async function page(context: Context, list: keyof Context["query"] & string, arg
   return { items: rows.slice(0, take) as Array<Record<string, any>>, nextCursor: rows.length > take ? String(rows[take - 1].id) : null, total: Number(total) };
 }
 
+/** Registers with a shift still open or awaiting its count: openRegisterShift refuses these. */
+async function busyRegisterIds(sudo: Context, scope: Record<string, unknown>) {
+  const shifts = await sudo.query.RegisterShift.findMany({ where: { ...scope, status: { in: ["open", "count_pending", "counted", "variance_review"] } }, take: 100, query: "register { id }" });
+  return shifts.map(shift => shift.register?.id).filter((id): id is string => typeof id === "string");
+}
+
 function intervalState(record: { status: string; effectiveAt: string; expiresAt: string }, now: number, activeStatus = "active") {
   if (record.status !== activeStatus) return "inactive";
   if (!(new Date(record.effectiveAt).getTime() <= now)) return "not_yet_effective";
@@ -241,7 +247,9 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, productSearch] }, orderBy: [{ name: "asc" }], take: 100, query: "id name sku form unitQuantityMicrounits unitOfMeasure" });
     const sales = await page(context, "Sale", { where: scope, orderBy: [{ finalizedAt: "desc" }], take: 25, query: "id receiptNumber status totalCents finalizedAt" });
     // With no open shift the page offers to open one here (openRegisterShift accepts the sales grant for your own shift).
-    const registers = myShifts.length ? [] : await sudo.query.Register.findMany({ where: { ...scope, status: { equals: "active" } }, orderBy: [{ code: "asc" }], take: 50, query: "id code name status" });
+    // A register someone else still has an unresolved shift on cannot be opened, so it is not offered.
+    const busy = myShifts.length ? [] : await busyRegisterIds(sudo, scope);
+    const registers = myShifts.length ? [] : await sudo.query.Register.findMany({ where: { ...scope, status: { equals: "active" } }, orderBy: [{ code: "asc" }], take: 50, query: "id code name status" }).then(rows => rows.filter(register => !busy.includes(register.id)));
     const allowed = Array.isArray(rulePack?.allowedTenderTypes) ? rulePack!.allowedTenderTypes as string[] : [];
     return { ...base, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, registers, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
   }
@@ -251,7 +259,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const registers = await page(context, "Register", { where: scope, orderBy: [{ code: "asc" }], take: 100, query: "id code name status" });
     const tenders = await sudo.query.TenderConfiguration.findMany({ where: scope, orderBy: [{ type: "asc" }], take: 20, query: "id code type displayName enabled authorityReference effectiveAt expiresAt" });
     const shiftEvents = await Promise.all(shifts.items.map(shift => sudo.query.CashEvent.findMany({ where: { shift: { id: { equals: shift.id } } }, orderBy: [{ occurredAt: "desc" }], take: 10, query: "id type amountCents reasonCode occurredAt actor { name }" })));
-    return { ...base, actorId: authority.actor.id, shifts: { ...shifts, items: shifts.items.map((shift, index) => ({ ...shift, cashEvents: shiftEvents[index] })) }, registers, tenders };
+    return { ...base, actorId: authority.actor.id, shifts: { ...shifts, items: shifts.items.map((shift, index) => ({ ...shift, cashEvents: shiftEvents[index] })) }, registers, busyRegisterIds: await busyRegisterIds(sudo, scope), tenders };
   }
 
   if (section === "reconciliation") {

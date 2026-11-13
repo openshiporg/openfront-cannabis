@@ -135,7 +135,9 @@ export async function runControlledOperation(
   context: Context,
   input: { idempotencyKey: string },
   options: { permission: CannabisPermission; activity: string; scope: string; resourceType: keyof Context['query'] & string; action: string; lockKeys?: string[];
-    authorize?: (context: Context, authority: OperationalAuthority, phase: "execute" | "replay", result?: OperationResult) => Promise<void> },
+    authorize?: (context: Context, authority: OperationalAuthority, phase: "execute" | "replay", result?: OperationResult) => Promise<void>;
+    /** Replay visibility when the command's grant does not read its own list (a budtender's own shift). Defaults to normal List access. */
+    replayVisible?: (context: Context, authority: OperationalAuthority, resourceId: string) => Promise<boolean> },
   work: (tx: Context, authority: Awaited<ReturnType<typeof requireOperationalAuthority>>, correlationId: string) => Promise<OperationResult>,
 ): Promise<OperationResult & { replayed: boolean }> {
   const authority = await requireOperationalAuthority(context, options.permission, options.activity);
@@ -159,7 +161,9 @@ export async function runControlledOperation(
     const result = receipt.responseSnapshot;
     if (!result || typeof result !== "object" || Array.isArray(result) || !("id" in result) || typeof result.id !== "string" || !("status" in result) || typeof result.status !== "string") throw new Error("Original command receipt requires review");
     // Always check the persisted result through current normal List access.
-    const visible = await current.query[options.resourceType].findOne({ where: { id: result.id }, query: "id" });
+    const visible = options.replayVisible
+      ? (await options.replayVisible(current, fresh, result.id) ? { id: result.id } : null)
+      : await current.query[options.resourceType].findOne({ where: { id: result.id }, query: "id" });
     if (!visible || visible.id !== result.id) throw new Error("Original command resource is outside current access");
     // Scope metadata needs Authority-list relationships; do not require sales
     // staff to acquire broad Authority-list read permission merely to acknowledge.

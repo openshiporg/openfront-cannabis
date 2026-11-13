@@ -53,7 +53,11 @@ export async function openRegisterShift(_root: unknown, args: { input: any }, co
     () => ({ permission: "canManageFinance" as const, activity: "cash" }),
     () => ({ permission: "canManageSales" as const, activity: "sale" }),
   );
-  return runControlledOperation(context, input, { ...grant, scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
+  // RegisterShift is read under the finance grant; a budtender's replay checks the shift is their own instead.
+  const replayVisible = grant.permission === "canManageSales"
+    ? async (current: Context, authority: { actor: { id: string } }, shiftId: string) => (await current.sudo().query.RegisterShift.findOne({ where: { id: shiftId }, query: "id operator { id }" }))?.operator?.id === authority.actor.id
+    : undefined;
+  return runControlledOperation(context, input, { ...grant, scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)], replayVisible }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const register = await sudo.query.Register.findOne({ where: { id: assertText(input.registerId, "Register ID") }, query: "id code status organization { id } premises { id }" });
     if (!register || register.status !== "active" || register.organization?.id !== authority.organizationId || register.premises?.id !== authority.premisesId) throw new Error("Active register is outside actor authority");
     const existing = await sudo.query.RegisterShift.findMany({ where: { register: { id: { equals: register.id } }, status: { in: ["open", "count_pending", "counted", "variance_review"] } }, take: 2, query: "id" });

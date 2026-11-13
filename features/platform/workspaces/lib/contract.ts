@@ -106,7 +106,7 @@ const sections = {
     shifts: page(obj({ id: str, status: str, openingFloatCents: int, expectedCashCents: optInt, actualCashCents: optInt, varianceCents: optInt, openedAt: optDate, closedAt: optDate, register: nullable(obj({ id: str, name: str, code: str })), operator: nullable(obj({ id: str, name: str })),
       cashEvents: arr(obj({ id: str, type: str, amountCents: int, reasonCode: str, occurredAt: date, actor: nullable(named) }), 10) })),
     tenders: arr(obj({ id: str, code: str, type: str, displayName: str, enabled: bool, authorityReference: str, effectiveAt: date, expiresAt: date }), 20),
-    registers: page(obj({ id: str, code: str, name: str, status: str })),
+    registers: page(obj({ id: str, code: str, name: str, status: str })), busyRegisterIds: arr(str, 100),
   }),
   reconciliation: obj({ ...base,
     runs: page(obj({ id: str, type: str, status: str, discrepancyCount: count, startedAt: date, completedAt: optDate })),
