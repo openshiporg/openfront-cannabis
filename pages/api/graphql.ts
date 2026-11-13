@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   return createYoga({
-    renderGraphiQL: undefined,
+    graphiql: false,
     graphqlEndpoint: "/api/graphql",
     schema: keystoneContext.graphql.schema,
     context: ({ req, res }: { req: any; res: any }) => {
