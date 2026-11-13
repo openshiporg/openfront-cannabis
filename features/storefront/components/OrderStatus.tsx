@@ -10,6 +10,9 @@ type Order = { reference: string; status: string; name: string; paymentMethod: s
 
 const STATE: Record<string, string> = { reserved: 'Reserved. We’re getting it ready.', picking: 'We’re picking your order.', staged: 'Ready for pickup.', final_verification: 'Ready for pickup.', completed: 'Picked up. Thank you!', cancelled: 'Cancelled.', expired: 'This order expired.' };
 
+const HEADING: Record<string, string> = { cancelled: 'Order cancelled', expired: 'Order expired', completed: 'Order picked up' };
+const heading = (text: string) => <h1 className="cn-display mb-6 text-[56px] text-cn-ink sm:text-[88px]">{text}</h1>;
+
 /** The confirmation page. The order is private to whoever placed it: the key travels in the URL fragment. */
 export function OrderStatus({ reference }: { reference: string }) {
   const [order, setOrder] = useState<Order | null>(null);
@@ -32,16 +35,18 @@ export function OrderStatus({ reference }: { reference: string }) {
     setBusy(false);
   };
 
-  if (error && !order) return <p role="alert" className="text-[17px] text-cn-ink">{error}</p>;
-  if (!order) return <p className="text-cn-ink-2">Loading your order…</p>;
+  if (error && !order) return <>{heading('Your order')}<p role="alert" className="text-[17px] text-cn-ink">{error}</p></>;
+  if (!order) return <>{heading('Your order')}<p className="text-cn-ink-2">Loading your order…</p></>;
   const money = (cents: number) => formatPrice(cents, order.currencyCode);
   const when = (iso: string, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: order.timezone, ...opts }).format(new Date(iso));
   const active = ['reserved', 'preliminarily_eligible'].includes(order.status);
-  return <div className="max-w-2xl space-y-6">
+  // A cancelled, expired or collected order has no pickup ahead: no window, no ID reminder.
+  const closed = ['cancelled', 'expired', 'completed'].includes(order.status);
+  return <>{heading(HEADING[order.status] ?? 'Order placed')}<div className="max-w-2xl space-y-6">
     <p className="text-[17px] text-cn-ink-2">{STATE[order.status] ?? 'Your order is being handled.'}</p>
     <p className="cn-display cn-num text-[44px] text-cn-ink" data-testid="order-reference">{order.reference}</p>
-    {order.pickupStart && <p className="text-[18px] text-cn-ink">Pickup {when(order.pickupStart, { weekday: 'long', month: 'short', day: 'numeric' })}, {when(order.pickupStart, { hour: 'numeric', minute: '2-digit' })} – {when(order.pickupEnd, { hour: 'numeric', minute: '2-digit' })}</p>}
-    <p className="border-l-2 border-cn-ink pl-4 text-[17px] text-cn-ink">Bring a valid government-issued photo ID. We check it before handing over your order.</p>
+    {!closed && order.pickupStart && <p className="text-[18px] text-cn-ink">Pickup {when(order.pickupStart, { weekday: 'long', month: 'short', day: 'numeric' })}, {when(order.pickupStart, { hour: 'numeric', minute: '2-digit' })} – {when(order.pickupEnd, { hour: 'numeric', minute: '2-digit' })}</p>}
+    {!closed && <p className="border-l-2 border-cn-ink pl-4 text-[17px] text-cn-ink">Bring a valid government-issued photo ID. We check it before handing over your order.</p>}
     <ul className="border-t border-cn-line">{order.lines.map(line => <li key={line.title} className="flex justify-between gap-4 border-b border-cn-line py-3"><span>{line.units} × {line.title}</span><span className="cn-num">{money(line.totalCents)}</span></li>)}</ul>
     <dl className="space-y-1 text-[16px]">
       <div className="flex justify-between"><dt className="text-cn-ink-2">Subtotal</dt><dd className="cn-num">{money(order.subtotalCents)}</dd></div>
@@ -52,5 +57,5 @@ export function OrderStatus({ reference }: { reference: string }) {
     <p className="text-cn-ink-2">{['cancelled', 'expired'].includes(order.status) ? (order.paymentMethod === 'card' ? 'Your card hold was released. You were not charged.' : 'No payment was taken.') : order.paymentMethod === 'card' ? (order.paymentStatus === 'authorized' ? 'Your card is authorized and is charged when you pick up.' : order.paymentStatus === 'voided' ? 'The card hold was released.' : order.paymentStatus === 'captured' ? 'Paid by card.' : '') : order.paymentStatus === 'paid_at_pickup' ? 'Paid at pickup.' : 'You’ll pay at pickup.'}</p>
     {error && <p role="alert" className="font-semibold text-cn-warn">{error}</p>}
     <div className="flex flex-wrap gap-2"><Link href="/#menu" className="cn-btn">Back to the menu</Link>{active && <button type="button" className="cn-btn" disabled={busy} onClick={cancel}>{busy ? 'Cancelling…' : 'Cancel order'}</button>}</div>
-  </div>;
+  </div></>;
 }

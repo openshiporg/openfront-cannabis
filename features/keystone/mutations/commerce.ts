@@ -302,6 +302,9 @@ export async function cancelCannabisCart(_root: unknown, args: { input: any }, c
       data: { status: "cancelled", version: { increment: 1 } },
     });
     if (transitioned.count !== 1) throw new Error("Cart state changed concurrently");
+    // A pay-at-pickup order that is cancelled was never paid: say so instead of leaving it "pending".
+    // (A card hold is voided by releaseOnlinePayment below, which records voided or void_failed.)
+    await tx.prisma.cart.updateMany({ where: { id: plan.cartId, paymentMethod: "pickup", paymentStatus: "pending" }, data: { paymentStatus: "not_collected" } });
 
     const occurredAt = new Date();
     for (const release of plan.releases) {

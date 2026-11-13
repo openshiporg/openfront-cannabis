@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { ageAtPremises, calendarDate, endOfLocalDate } from "../features/keystone/domain/premisesTime.ts";
+import { assertEligibility } from "../features/keystone/domain/cannabisPolicy.ts";
 
 const DENVER = "America/Denver";
 
@@ -23,6 +24,34 @@ test("only real, past calendar dates count as a date of birth", () => {
   assert.equal(ageAtPremises("2030-01-01", now, DENVER), null);
   assert.equal(calendarDate("2005-11-08")?.text, "2005-11-08");
   assert.equal(calendarDate("2005-11-08T12:00"), null);
+});
+
+test("sale finalization reads the stored date of birth (GraphQL ISO timestamp) on the premises calendar", () => {
+  // finalizeCannabisSale gets eligibilityEvidence.dateOfBirth from GraphQL as "YYYY-MM-DDT00:00:00.000Z".
+  assert.equal(calendarDate("1991-04-17T00:00:00.000Z")?.text, "1991-04-17");
+  assert.equal(ageAtPremises("1991-04-17T00:00:00.000Z", new Date("2026-11-12T18:00:00.000Z"), DENVER), 35, "over the age");
+  // 2026-11-12 18:30 Denver = 2026-11-13 01:30 UTC; minimum age 21.
+  const evening = new Date("2026-11-13T01:30:00.000Z");
+  const morning = new Date("2026-11-13T15:00:00.000Z");
+  assert.equal(ageAtPremises("2005-11-13T00:00:00.000Z", evening, DENVER), 20, "under: turns 21 tomorrow in Denver though UTC already says the 13th");
+  assert.equal(ageAtPremises("2005-11-13T00:00:00.000Z", morning, DENVER), 21, "exactly at: 21 on the birthday at the store");
+  assert.equal(ageAtPremises("2005-11-12T00:00:00.000Z", evening, DENVER), 21, "exactly at: birthday today in Denver");
+  assert.equal(ageAtPremises("2005-11-14T00:00:00.000Z", morning, DENVER), 20, "under by one day");
+  assert.equal(ageAtPremises("2004-11-13T00:00:00.000Z", morning, DENVER), 22, "over");
+  // Only a UTC-midnight stored date is read as a date; any other time of day stays invalid.
+  assert.equal(calendarDate("1991-04-17T06:00:00.000Z"), null);
+  assert.equal(calendarDate("1991-02-30T00:00:00.000Z"), null);
+});
+
+test("the sale age gate refuses under-age and admits exactly-at and over", () => {
+  const pack = { adultMinimumAge: 21, medicalMinimumAge: 18, medicalEnabled: true } as unknown as Parameters<typeof assertEligibility>[1];
+  const morning = new Date("2026-11-13T15:00:00.000Z");
+  const gate = (dob: string, now: Date) => assertEligibility({ capacity: "adult_use", age: ageAtPremises(dob, now, DENVER) ?? -1, identityValid: true }, pack);
+  assert.throws(() => gate("2005-11-14T00:00:00.000Z", morning), /age requirement/);
+  assert.throws(() => gate("2005-11-13T00:00:00.000Z", new Date("2026-11-13T01:30:00.000Z")), /age requirement/);
+  assert.doesNotThrow(() => gate("2005-11-13T00:00:00.000Z", morning));
+  assert.doesNotThrow(() => gate("1991-04-17T00:00:00.000Z", morning));
+  assert.throws(() => gate("not a date", morning), /age requirement/);
 });
 
 test("an ID that expires today is good until local midnight at the store", () => {

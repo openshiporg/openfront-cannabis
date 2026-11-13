@@ -51,3 +51,15 @@ export const platformNavGroups: PlatformNavGroup[] = [
 export function getPlatformNavItemsWithBasePath(basePath: string) {
   return platformNavItems.map((item) => ({ ...item, href: `${basePath}${item.href}` }));
 }
+
+/**
+ * Whether a role with these grants can open a dashboard platform href: the same grant the sidebar
+ * hides the page by and the page's workspace query requires (a missing grant is a 404 there).
+ * Detail pages follow their list page (customers/<id>, sales/<id>).
+ */
+export function canOpenPlatformHref(href: string, grants: Partial<Record<string, boolean>> | null | undefined) {
+  const slug = href.split('/platform/')[1]?.split(/[/?#]/)[0];
+  if (!slug) return true;
+  const item = platformNavItems.find((entry) => entry.href === `/platform/${slug}`);
+  return !item?.permission || grants?.[item.permission] === true;
+}

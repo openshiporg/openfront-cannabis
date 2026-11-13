@@ -7,6 +7,7 @@ import { formatUsableThrough, formatWhen, Pager } from '@/features/platform/oper
 import { AmendProductForm } from '@/features/platform/operations/components/OperatorForms';
 import { frame, readParams, type Params, type SearchParams } from '@/features/platform/operations/lib/frame';
 import { readinessReasons } from '@/features/platform/inventory/lib/custody';
+import { canOpenPlatformHref } from '@/features/platform/lib/navigation';
 
 export async function ProductDetailPage({ params: routeParams, searchParams }: { params: Promise<{ id: string }>; searchParams?: SearchParams }) {
   const { id } = await routeParams;
@@ -55,7 +56,7 @@ export async function ProductDetailPage({ params: routeParams, searchParams }: {
         <Table label="Recent sales" minWidth={600}>
           <THead><Th>Receipt</Th><Th>When</Th><Th>Package</Th><Th>Status</Th><Th align="right">Quantity</Th><Th align="right">Total</Th></THead>
           <tbody>{data.saleLines.length ? data.saleLines.map(line => <Tr key={line.id}>
-            <Td><Link href={line.sale ? `/dashboard/platform/sales/${encodeURIComponent(line.sale.id)}` : '/dashboard/platform/sales'} className="underline-offset-4 hover:underline"><Ref>{line.sale?.receiptNumber ?? 'Not recorded'}</Ref></Link></Td>
+            <Td>{canOpenPlatformHref('/dashboard/platform/sales', data.grants) ? <Link href={line.sale ? `/dashboard/platform/sales/${encodeURIComponent(line.sale.id)}` : '/dashboard/platform/sales'} className="underline-offset-4 hover:underline"><Ref>{line.sale?.receiptNumber ?? 'Not recorded'}</Ref></Link> : <Ref>{line.sale?.receiptNumber ?? 'Not recorded'}</Ref>}</Td>
             <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(line.sale?.finalizedAt ?? line.createdAt, data.timezone)}</Td>
             <Td><Ref className="text-muted-foreground">{line.packageUidSnapshot}</Ref></Td>
             <Td>{line.sale ? <StatusText tone={statusTone(line.sale.status)}>{sentenceCase(line.sale.status)}</StatusText> : null}</Td>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { codeLabel, Table, TabBar, TabLink, Tabs, TEmpty, Td, Th, THead, Tr, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
+import { canOpenPlatformHref } from '@/features/platform/lib/navigation';
 
 const RESOURCES: Array<[string, string]> = [
   ['InventoryPackage', 'Packages'], ['PackageHold', 'Holds'], ['RecallCase', 'Recalls'], ['Product', 'Products'], ['StaffCredential', 'Credentials'], ['CannabisLicense', 'Licenses'],
@@ -27,10 +28,11 @@ const RESOURCE_WORDS: Record<string, [noun: string, page: string]> = {
 };
 const DETAIL_PAGES = new Set(['menu', 'customers', 'sales']);
 
-function ResourceLink({ type, id, label }: { type: string; id: string; label: string | null }) {
+function ResourceLink({ type, id, label, grants }: { type: string; id: string; label: string | null; grants: Record<string, boolean> }) {
   const [noun, page] = RESOURCE_WORDS[type] ?? [sentenceCase(type.replace(/([a-z])([A-Z])/g, '$1 $2')), null];
   const text = <>{noun}{label ? <> <span className="font-mono text-[12px]">{label}</span></> : null}</>;
-  if (!page) return text;
+  // A page this role would get a 404 on is plain text, not a link.
+  if (!page || !canOpenPlatformHref(`/dashboard/platform/${page}`, grants)) return text;
   return <Link href={`/dashboard/platform/${page}${DETAIL_PAGES.has(page) ? `/${encodeURIComponent(id)}` : ''}`} className="underline decoration-border underline-offset-2 hover:decoration-foreground">{text}</Link>;
 }
 
@@ -49,7 +51,7 @@ export async function AuditLogPage({ searchParams }: { searchParams?: SearchPara
       <tbody>{data.events.items.length ? data.events.items.map(event => <Tr key={event.id}>
         <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(event.occurredAt, data.timezone)}</Td>
         <Td className="font-medium">{actionLabel(event.action)}</Td>
-        <Td><ResourceLink type={event.resourceType} id={event.resourceId} label={event.resourceLabel} /></Td>
+        <Td><ResourceLink type={event.resourceType} id={event.resourceId} label={event.resourceLabel} grants={data.grants} /></Td>
         <Td className="text-muted-foreground">{event.actor?.name || 'System'}</Td>
         <Td className="text-muted-foreground">{codeLabel(event.reasonCode)}</Td>
       </Tr>) : <TEmpty colSpan={5}>{params.search || data.filter ? 'No events match.' : 'No events yet.'}</TEmpty>}</tbody>

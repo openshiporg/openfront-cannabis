@@ -34,10 +34,13 @@ export function localDateParts(now: Date, timeZone: string) {
 }
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+// How a date-only field comes back from the database and GraphQL: UTC midnight of the calendar date.
+const STORED_DATE = /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.000)?Z$/;
 
-/** A real YYYY-MM-DD calendar date, or null. */
+/** A real YYYY-MM-DD calendar date (or a stored UTC-midnight timestamp of one), or null. */
 export function calendarDate(value: unknown) {
-  const text = value instanceof Date ? (Number.isFinite(value.getTime()) ? value.toISOString().slice(0, 10) : '') : typeof value === 'string' ? value.trim() : '';
+  const raw = value instanceof Date ? (Number.isFinite(value.getTime()) ? value.toISOString().slice(0, 10) : '') : typeof value === 'string' ? value.trim() : '';
+  const text = STORED_DATE.exec(raw)?.[1] ?? raw;
   const match = DATE_ONLY.exec(text);
   if (!match) return null;
   const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];

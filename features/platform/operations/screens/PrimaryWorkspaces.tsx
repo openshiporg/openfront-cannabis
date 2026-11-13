@@ -13,10 +13,11 @@ import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
 import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RevokeCredentialForm } from '../components/OperatorForms';
 
 import { frame, readParams, type SearchParams } from '../lib/frame';
+import { canOpenPlatformHref } from '@/features/platform/lib/navigation';
 
-function OperatingNotice({ operating }: { operating: { open: boolean; reason: string | null; limited: boolean } }) {
+function OperatingNotice({ operating, grants }: { operating: { open: boolean; reason: string | null; limited: boolean }; grants: Record<string, boolean> }) {
   if (operating.open || operating.limited) return null;
-  return <Notice tone="danger" action={<ButtonLink href="/dashboard/platform/authority" tone="primary">Open Authority</ButtonLink>}>Operating authority is not current: {operating.reason}. Read only until renewed.</Notice>;
+  return <Notice tone="danger" action={canOpenPlatformHref('/dashboard/platform/authority', grants) ? <ButtonLink href="/dashboard/platform/authority" tone="primary">Open Authority</ButtonLink> : undefined}>Operating authority is not current: {operating.reason}. Read only until renewed.</Notice>;
 }
 
 const minuteLabel = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
@@ -26,11 +27,11 @@ function describeLimit(rule: Record<string, unknown>) {
   const max = typeof rule.maxEquivalencyMicrounits === 'number' ? formatMicrounits(rule.maxEquivalencyMicrounits) : '?';
   const window = rule.window === 'rolling' ? `${rule.windowDays} days` : String(rule.window ?? '?');
   // Limits are counted in the jurisdiction's limit equivalency; the rule stores no other unit.
-  return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${max} limit equivalency per ${window}`;
+  return `${codeLabel(String(rule.categoryCode ?? '?'))} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${max} limit equivalency per ${window}`;
 }
 function describeTax(rule: Record<string, unknown>) {
   const rate = typeof rule.basisPoints === 'number' ? `${rule.basisPoints / 100}%` : '?';
-  return `${String(rule.categoryCode ?? '?')} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${rate}`;
+  return `${codeLabel(String(rule.categoryCode ?? '?'))} · ${CAPACITY_LABEL[String(rule.capacity)] ?? String(rule.capacity ?? '?')} · ${rate}`;
 }
 
 type Access = 'inventory' | 'compliance' | 'authority' | 'sales' | 'finance' | 'reports';
@@ -82,10 +83,10 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
         { label: 'Packages on hold or recalled', count: data.inventory.heldTotal, tone: 'danger' as const, href: '/dashboard/platform/inventory?filter=held', action: 'Review' },
         { label: 'Packages in receiving hold', count: data.inventory.receivingTotal, tone: 'warn' as const, href: '/dashboard/platform/inventory?filter=receiving', action: 'Release' },
       ] : []),
-    ].filter(item => item.count > 0);
-    const groups = WORKSPACE_GROUPS.map(group => ({ ...group, items: group.items.filter(item => data.access[item.access]) })).filter(group => group.items.length);
+    ].filter(item => item.count > 0 && canOpenPlatformHref(item.href, data.grants));
+    const groups = WORKSPACE_GROUPS.map(group => ({ ...group, items: group.items.filter(item => data.access[item.access] && canOpenPlatformHref(item.href, data.grants)) })).filter(group => group.items.length);
     return <Workboard>
-      <OperatingNotice operating={data.operating} />
+      <OperatingNotice operating={data.operating} grants={data.grants} />
       <section aria-labelledby="queue-title">
         <SectionTitle id="queue-title" meta={queue.length || undefined}>Needs attention</SectionTitle>
         {queue.length ? <Table label="Needs attention" minWidth={420}>
@@ -152,7 +153,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
     const rules = data.rules;
     const intervalTone = (item: { intervalState: string; status: string }) => statusTone(item.intervalState === 'current' ? item.status : item.intervalState);
     return <Workboard>
-      <OperatingNotice operating={data.operating} />
+      <OperatingNotice operating={data.operating} grants={data.grants} />
       {lapsing > 0 && <Notice tone="warn">{lapsing} license{lapsing === 1 ? '' : 's'} expired or expiring within 30 days. Renew below.</Notice>}
       <section data-testid="authority-workbench">
         <SectionTitle meta={data.licenses.total}>Licenses</SectionTitle>
@@ -169,7 +170,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
         </RecordList>
       </section>
       <section>
-        <SectionTitle meta={data.credentials.total} action={<ButtonLink href="/dashboard/platform/staff" tone="quiet">Staff, roles and access</ButtonLink>}>Staff credentials</SectionTitle>
+        <SectionTitle meta={data.credentials.total} action={canOpenPlatformHref('/dashboard/platform/staff', data.grants) ? <ButtonLink href="/dashboard/platform/staff" tone="quiet">Staff, roles and access</ButtonLink> : undefined}>Staff credentials</SectionTitle>
         <RecordList label="Staff credentials" columns={CREDENTIAL_COLUMNS} headers={CREDENTIAL_HEADERS}>
           {data.credentials.items.length ? data.credentials.items.map(credential => {
             const actions = [
@@ -240,11 +241,11 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
   const params = await readParams(searchParams);
   return frame('compliance', '/dashboard/platform/compliance', 'Compliance', params, data => <Workboard>
     <section data-testid="compliance-workbench">
-      <SectionTitle meta={data.holds.total} action={<ButtonLink href="/dashboard/platform/inventory?filter=held" tone="quiet">Held packages in inventory</ButtonLink>}>Active package holds</SectionTitle>
+      <SectionTitle meta={data.holds.total} action={canOpenPlatformHref('/dashboard/platform/inventory', data.grants) ? <ButtonLink href="/dashboard/platform/inventory?filter=held" tone="quiet">Held packages in inventory</ButtonLink> : undefined}>Active package holds</SectionTitle>
       <Table label="Active package holds" minWidth={560}>
         <THead><Th>Package</Th><Th>Hold</Th><Th>Reason</Th><Th align="right">Placed</Th></THead>
         <tbody>{data.holds.items.length ? data.holds.items.map(hold => <Tr key={hold.id}>
-          <Td><Link href={`/dashboard/platform/inventory?search=${encodeURIComponent(hold.package?.packageUid || '')}`} className="underline-offset-4 hover:underline"><Ref>{hold.package?.packageUid || 'Not recorded'}</Ref></Link></Td>
+          <Td>{canOpenPlatformHref('/dashboard/platform/inventory', data.grants) ? <Link href={`/dashboard/platform/inventory?search=${encodeURIComponent(hold.package?.packageUid || '')}`} className="underline-offset-4 hover:underline"><Ref>{hold.package?.packageUid || 'Not recorded'}</Ref></Link> : <Ref>{hold.package?.packageUid || 'Not recorded'}</Ref>}</Td>
           <Td><StatusText tone="danger">{sentenceCase(hold.type)} hold</StatusText></Td>
           <Td className="text-muted-foreground">{codeLabel(hold.reasonCode)}</Td>
           <Td align="right" className="whitespace-nowrap text-muted-foreground">{formatWhen(hold.placedAt, data.timezone)}</Td>
@@ -329,7 +330,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
       {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} timezone={data.timezone} />}
       <Split side="minmax(0,1.05fr)">
         <div className="min-w-0 space-y-6">
-          {data.operating.open && <Panel title="New sale">{data.myShifts.length ? <CheckInForm shifts={data.myShifts} medicalEnabled={data.medicalEnabled} /> : <Notice tone="warn" action={<ButtonLink href="/dashboard/platform/cash" tone="primary">Open a shift</ButtonLink>}>Open a shift on a register to sell</Notice>}</Panel>}
+          {data.operating.open && <Panel title="New sale">{data.myShifts.length ? <CheckInForm shifts={data.myShifts} medicalEnabled={data.medicalEnabled} /> : <div className="space-y-3"><p className="text-sm text-muted-foreground">Open a shift on a register to sell.</p><OpenShiftForm registers={data.registers} /></div>}</Panel>}
           <section data-testid="pos-fulfillment-workbench">
             <SectionTitle meta={<>{data.carts.total}{finalVerification ? ` · ${finalVerification} in final verification` : ''}</>}>Open carts</SectionTitle>
             <ListBand>
@@ -407,7 +408,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
         </ListBand>
       </section>
       <section>
-        <SectionTitle meta={data.tenders.filter(tender => tender.enabled).length} action={<ButtonLink href="/dashboard/platform/authority#sales-rules" tone="quiet">Change payment types</ButtonLink>}>Payment types</SectionTitle>
+        <SectionTitle meta={data.tenders.filter(tender => tender.enabled).length} action={canOpenPlatformHref('/dashboard/platform/authority', data.grants) ? <ButtonLink href="/dashboard/platform/authority#sales-rules" tone="quiet">Change payment types</ButtonLink> : undefined}>Payment types</SectionTitle>
         <Table label="Payment types" minWidth={420}>
           <THead><Th>Type</Th><Th>Authority</Th><Th>Until</Th><Th>Status</Th></THead>
           <tbody>{data.tenders.length ? data.tenders.map(tender => <Tr key={tender.id}>
@@ -478,7 +479,7 @@ const INCIDENT_HEADERS = [{ label: 'Notification' }, { label: 'Incident' }, { la
 export async function IncidentsWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('incidents', '/dashboard/platform/incidents', 'Incidents', params, data => <Workboard>
-    <OperatingNotice operating={data.operating} />
+    <OperatingNotice operating={data.operating} grants={data.grants} />
     {data.overdueTotal > 0 && <Notice tone="danger">{data.overdueTotal} regulator notification{data.overdueTotal === 1 ? ' is' : 's are'} overdue.</Notice>}
     <section data-testid="incident-workbench">
       <div className="mb-3 flex flex-col gap-3 border-b border-border sm:flex-row sm:items-end sm:justify-between">

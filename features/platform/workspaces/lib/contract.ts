@@ -33,7 +33,8 @@ function page<T>(item: Check<T>) {
   return obj({ items: arr(item, 100), nextCursor: optStr, total: count });
 }
 
-const base = { section: str, generatedAt: date, authorityFingerprint: str, jurisdictionCode: optStr, premisesId: str, timezone: optStr, currencyCode: optStr, operating: obj({ open: bool, reason: optStr, limited: bool }), salesRules: obj({ version: optStr, problem: optStr }) };
+const grantMap: Check<Record<string, boolean>> = (v, p) => Object.fromEntries(Object.entries(record(v, p)).map(([key, value]) => [key, bool(value, `${p}.${key}`)]));
+const base = { section: str, generatedAt: date, authorityFingerprint: str, jurisdictionCode: optStr, premisesId: str, timezone: optStr, currencyCode: optStr, operating: obj({ open: bool, reason: optStr, limited: bool }), grants: grantMap, salesRules: obj({ version: optStr, problem: optStr }) };
 const named = obj({ name: optStr });
 
 const hold = obj({ id: str, type: str, reasonCode: str, reason: optStr, status: str, placedAt: date });
@@ -93,6 +94,7 @@ const sections = {
   }),
   pos: obj({ ...base, productSearch: optStr, actorId: str, medicalEnabled: bool,
     myShifts: arr(obj({ id: str, register: nullable(obj({ name: str, code: str })) }), 5),
+    registers: arr(obj({ id: str, code: str, name: str, status: str }), 50),
     tenderTypes: arr(obj({ type: str, displayName: str }), 10),
     carts: page(obj({ id: str, reference: str, source: str, status: str, version: optInt, expiresAt: date, subtotalCents: optInt, discountCents: optInt, taxCents: optInt, totalCents: int, customer: nullable(obj({ id: str, reference: str, capacity: str })),
       shift: nullable(obj({ id: str, operator: nullable(obj({ id: str })) })),

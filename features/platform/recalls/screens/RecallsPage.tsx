@@ -4,6 +4,7 @@ import { Empty, formatWhen, Pager } from '@/features/platform/operations/compone
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
 import { AdvanceRecallForm } from '@/features/platform/operations/components/SaleForms';
 import { OpenRecallForm } from '../components/OpenRecallForm';
+import { canOpenPlatformHref } from '@/features/platform/lib/navigation';
 
 export async function RecallsPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
@@ -26,7 +27,7 @@ export async function RecallsPage({ searchParams }: { searchParams?: SearchParam
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Notice <Ref>{recall.authorityReference}</Ref> · opened {formatWhen(recall.openedAt, data.timezone)}{recall.closedAt ? ` · closed ${formatWhen(recall.closedAt, data.timezone)}` : ''}</p>
           {(recall.packageUids.length > 0 || recall.batchNumbers.length > 0) && <div className="mt-2 flex flex-wrap gap-1.5">
-            {recall.packageUids.map(uid => <Link key={uid} href={`/dashboard/platform/inventory?search=${encodeURIComponent(uid)}`} className="rounded-[3px] border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] hover:underline">{uid}</Link>)}
+            {recall.packageUids.map(uid => canOpenPlatformHref('/dashboard/platform/inventory', data.grants) ? <Link key={uid} href={`/dashboard/platform/inventory?search=${encodeURIComponent(uid)}`} className="rounded-[3px] border border-border bg-muted px-1.5 py-0.5 font-mono text-[12px] hover:underline">{uid}</Link> : <span key={uid} className="rounded-[3px] border border-border bg-muted px-1.5 py-0.5 font-mono text-[12px]">{uid}</span>)}
             {recall.batchNumbers.map(batch => <span key={batch} className="rounded-[3px] border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">batch {batch}</span>)}
           </div>}
           {data.operating.open && recall.status !== 'regulator_closed' && <div className="mt-3"><AdvanceRecallForm recallId={recall.id} reference={recall.reference} status={recall.status} /></div>}

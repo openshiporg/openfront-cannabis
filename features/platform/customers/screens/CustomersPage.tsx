@@ -4,6 +4,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { Dot, Ref, SectionTitle, StatusText, Table, TabBar, TabLink, Tabs, TEmpty, Td, Th, THead, Tr, codeLabel, sentenceCase, statusTone } from '@/features/platform/components/cannabis-ui';
 import { formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type Params, type SearchParams } from '@/features/platform/operations/lib/frame';
+import { canOpenPlatformHref } from '@/features/platform/lib/navigation';
 
 const FILTERS = [
   { id: 'all', label: 'All' }, { id: 'pending_verification', label: 'Awaiting verification' }, { id: 'eligible', label: 'Eligible' }, { id: 'ineligible', label: 'Ineligible' }, { id: 'suspended', label: 'Suspended' },
@@ -76,7 +77,7 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
           <Table label="Purchases" minWidth={420}>
             <THead><Th>Receipt</Th><Th>Finalized</Th><Th>Status</Th><Th align="right">Total</Th></THead>
             <tbody>{data.sales.length ? data.sales.map(sale => <Tr key={sale.id}>
-              <Td><Link href={`/dashboard/platform/sales/${encodeURIComponent(sale.id)}`} className="underline-offset-4 hover:underline"><Ref>{sale.receiptNumber}</Ref></Link></Td>
+              <Td>{canOpenPlatformHref('/dashboard/platform/sales', data.grants) ? <Link href={`/dashboard/platform/sales/${encodeURIComponent(sale.id)}`} className="underline-offset-4 hover:underline"><Ref>{sale.receiptNumber}</Ref></Link> : <Ref>{sale.receiptNumber}</Ref>}</Td>
               <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(sale.finalizedAt, data.timezone)}</Td>
               <Td><StatusText tone={statusTone(sale.status)}>{sentenceCase(sale.status)}</StatusText></Td>
               <Td align="right">{formatMinorUnits(sale.totalCents, data.currencyCode)}</Td>

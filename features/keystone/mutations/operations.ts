@@ -47,7 +47,13 @@ export async function configureRegister(_root: unknown, args: { input: any }, co
 
 export async function openRegisterShift(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input; const opening = assertInteger(input.openingFloatCents, "Opening float", 0);
-  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
+  // Opening your own shift is how you start selling: finance staff open it under the cash grant,
+  // a budtender under the sales grant. The shift is always the caller's own; closing it stays with finance.
+  const grant = await requireOperationalAuthority(context, "canManageFinance", "cash").then(
+    () => ({ permission: "canManageFinance" as const, activity: "cash" }),
+    () => ({ permission: "canManageSales" as const, activity: "sale" }),
+  );
+  return runControlledOperation(context, input, { ...grant, scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const register = await sudo.query.Register.findOne({ where: { id: assertText(input.registerId, "Register ID") }, query: "id code status organization { id } premises { id }" });
     if (!register || register.status !== "active" || register.organization?.id !== authority.organizationId || register.premises?.id !== authority.premisesId) throw new Error("Active register is outside actor authority");
     const existing = await sudo.query.RegisterShift.findMany({ where: { register: { id: { equals: register.id } }, status: { in: ["open", "count_pending", "counted", "variance_review"] } }, take: 2, query: "id" });

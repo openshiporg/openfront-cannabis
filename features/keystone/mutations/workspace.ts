@@ -34,6 +34,8 @@ const sectionAuthority: Record<string, { permission: CannabisPermission; activit
   audit: { permission: "canViewReports", activity: "state_reporting", mode: "read" },
 };
 
+const GRANT_NAMES: CannabisPermission[] = ["canManagePeople", "canManageAuthority", "canManageCompliance", "canManageInventory", "canManageSales", "canManageFinance", "canManageIntegrations", "canViewReports"];
+
 type Options = { cursor: string | null; search: string | null; filter: string | null; productSearch: string | null; id: string | null };
 
 function readOptions(raw: unknown): Options {
@@ -117,8 +119,11 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   const credentialCurrent = Boolean(credential && credential.status === "active" && new Date(credential.effectiveAt).getTime() <= nowMs && new Date(credential.expiresAt).getTime() > nowMs);
   const limited = Boolean(operatingClosedReason) && credentialCurrent && Array.isArray(credential?.allowedActivities) && !credential!.allowedActivities.includes(required.activity);
   const scope = { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } } };
+  // The role's grants, so a page only links to pages this role can open (the same grants the sidebar and each page check).
+  const grantRole = (await sudo.query.User.findOne({ where: { id: authority.actor.id }, query: `role { ${GRANT_NAMES.join(" ")} }` }))?.role as Record<string, unknown> | null | undefined;
+  const grants = Object.fromEntries(GRANT_NAMES.map(name => [name, grantRole?.[name] === true])) as Record<CannabisPermission, boolean>;
   const base = {
-    section, state: "ok", generatedAt: now.toISOString(),
+    section, state: "ok", generatedAt: now.toISOString(), grants,
     authorityFingerprint: stableHash([authority.actor.id, authority.organizationId, authority.premisesId]),
     jurisdictionCode: authority.actor.organization?.jurisdictionCode ?? null, premisesId: authority.premisesId,
     timezone: authority.actor.premises?.timezone ?? null, currencyCode: authority.actor.premises?.currencyCode ?? null,
@@ -235,8 +240,10 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const productSearch = options.productSearch ? { OR: [{ name: { contains: options.productSearch, mode: "insensitive" } }, { sku: { contains: options.productSearch, mode: "insensitive" } }] } : {};
     const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, productSearch] }, orderBy: [{ name: "asc" }], take: 100, query: "id name sku form unitQuantityMicrounits unitOfMeasure" });
     const sales = await page(context, "Sale", { where: scope, orderBy: [{ finalizedAt: "desc" }], take: 25, query: "id receiptNumber status totalCents finalizedAt" });
+    // With no open shift the page offers to open one here (openRegisterShift accepts the sales grant for your own shift).
+    const registers = myShifts.length ? [] : await sudo.query.Register.findMany({ where: { ...scope, status: { equals: "active" } }, orderBy: [{ code: "asc" }], take: 50, query: "id code name status" });
     const allowed = Array.isArray(rulePack?.allowedTenderTypes) ? rulePack!.allowedTenderTypes as string[] : [];
-    return { ...base, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
+    return { ...base, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, registers, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
   }
 
   if (section === "cash") {
