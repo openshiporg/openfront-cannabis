@@ -386,7 +386,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             <StatusText key="s" tone={statusTone(shift.status)}>{sentenceCase(shift.status)}</StatusText>,
           ]}>
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
-            {shift.status === 'open' && shift.operator?.id === data.actorId && data.operating.open && <div className="mt-2"><CloseShiftForm shiftId={shift.id} /></div>}
+            {shift.status === 'open' && data.operating.open && <div className="mt-2"><CloseShiftForm shiftId={shift.id} /></div>}
             {shift.cashEvents.length > 0 && <details className="mt-1.5"><summary className="inline-flex cursor-pointer list-none text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Drawer ledger ({shift.cashEvents.length})</summary>
               <ul className="mt-2 divide-y divide-border/70 rounded-[6px] border border-border text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 px-2.5 py-1.5"><span>{sentenceCase(event.type)} · {codeLabel(event.reasonCode)} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="tabular-nums">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
             </details>}

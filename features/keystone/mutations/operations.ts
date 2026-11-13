@@ -72,7 +72,9 @@ export async function closeRegisterShift(_root: unknown, args: { input: any }, c
   if (!input.approvedById || input.approvedById === (context.session as any)?.itemId) throw new Error("Shift close requires an independent approver");
   return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "closeRegisterShift", resourceType: "RegisterShift", action: "cash.shift.closed", lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status openingFloatCents organization { id } premises { id } operator { id } cashEvents(take: 500) { type amountCents }" });
-    if (!shift || shift.status !== "open" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId || shift.operator?.id !== authority.actor.id) throw new Error("Actor does not own this open shift");
+    // Any finance user at the premises counts and closes any open shift there (a budtender opens
+    // their own but cannot close it); the independent second approver is still required above.
+    if (!shift || shift.status !== "open" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId) throw new Error("No open shift at your premises with this ID");
     if (!isCompleteShiftCashEventRead(shift.cashEvents)) throw new Error("Shift cash event read is incomplete; reconcile before close");
     const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageFinance }" });
     if (!approver || approver.status !== "active" || !approver.role?.canManageFinance || approver.organization?.id !== authority.organizationId || approver.premises?.id !== authority.premisesId) throw new Error("Approver lacks current finance authority");
