@@ -188,7 +188,6 @@ model StorefrontSettings {
   heroImage_extension String?
   publicationStatus   StorefrontSettingsPublicationStatusType @default(draft)
   storefrontMode      StorefrontSettingsStorefrontModeType    @default(configured)
-  demoCatalog         Json?                                   @default("[]")
   createdAt           DateTime                                @default(now())
   updatedAt           DateTime                                @default(now()) @updatedAt
 
@@ -1063,7 +1062,6 @@ enum StorefrontSettingsPublicationStatusType {
 }
 
 enum StorefrontSettingsStorefrontModeType {
-  demo
   configured
 }
 

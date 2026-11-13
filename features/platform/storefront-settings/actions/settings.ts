@@ -20,7 +20,7 @@ export type StoreSettingsSetup = {
   canSave: boolean;
   revision: string | null;
   publicationStatus: 'draft' | 'published' | null;
-  storefrontMode: 'demo' | 'configured' | null;
+  storefrontMode: 'configured' | null;
   values: StoreSettingsValues | null;
   coverUrl: string | null;
 };
@@ -44,7 +44,7 @@ type WorkspaceResponse = {
   canSave?: boolean;
   revision?: string | null;
   coverUrl?: string | null;
-  settings?: (StoreSettingsValues & { publicationStatus: 'draft' | 'published'; storefrontMode: 'demo' | 'configured'; tagline: string | null; description: string | null }) | null;
+  settings?: (StoreSettingsValues & { publicationStatus: 'draft' | 'published'; storefrontMode: 'configured'; tagline: string | null; description: string | null }) | null;
 };
 
 async function readWorkspace(): Promise<StoreSettingsSetupResult> {

@@ -653,7 +653,6 @@ type StorefrontSettings {
   heroImage: ImageFieldOutput
   publicationStatus: StorefrontSettingsPublicationStatusType
   storefrontMode: StorefrontSettingsStorefrontModeType
-  demoCatalog: JSON
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -680,7 +679,6 @@ enum StorefrontSettingsPublicationStatusType {
 }
 
 enum StorefrontSettingsStorefrontModeType {
-  demo
   configured
 }
 
@@ -758,7 +756,6 @@ input StorefrontSettingsUpdateInput {
   heroImage: ImageFieldInput
   publicationStatus: StorefrontSettingsPublicationStatusType
   storefrontMode: StorefrontSettingsStorefrontModeType
-  demoCatalog: JSON
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -787,7 +784,6 @@ input StorefrontSettingsCreateInput {
   heroImage: ImageFieldInput
   publicationStatus: StorefrontSettingsPublicationStatusType
   storefrontMode: StorefrontSettingsStorefrontModeType
-  demoCatalog: JSON
   createdAt: DateTime
   updatedAt: DateTime
 }

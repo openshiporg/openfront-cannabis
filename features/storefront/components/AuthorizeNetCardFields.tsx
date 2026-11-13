@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 type Accept = { dispatchData: (data: unknown, cb: (response: { messages?: { resultCode?: string; message?: Array<{ text?: string }> }; opaqueData?: { dataDescriptor: string; dataValue: string } }) => void) => void };
 declare global { interface Window { Accept?: Accept } }
 
-export type CardConfig = { apiLoginId: string; clientKey: string; env: 'sandbox' | 'production' };
+export type CardConfig = { apiLoginId: string; clientKey: string; env: 'test' | 'production' };
 
 /** Loads Accept.js so card numbers go from this page straight to Authorize.net; only a one-time token reaches the store. */
 export function useAcceptJs(env: CardConfig['env'] | null) {

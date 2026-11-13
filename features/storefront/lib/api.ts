@@ -16,7 +16,7 @@ export async function publicGraphql<T>(query: string, variables: Record<string, 
 export type PickupOptions = {
   pickupEnabled: boolean; minimumAge: number; currencyCode: string; timezone: string; payAtPickup: boolean;
   slots: Array<{ start: string; end: string }>;
-  card: { provider: 'authorizenet'; apiLoginId: string; clientKey: string; env: 'sandbox' | 'production' } | null;
+  card: { provider: 'authorizenet'; apiLoginId: string; clientKey: string; env: 'test' | 'production' } | null;
 };
 
 export const getPickupOptions = async () => (await publicGraphql<{ cannabisPickupOptions: PickupOptions }>('query { cannabisPickupOptions }')).cannabisPickupOptions;

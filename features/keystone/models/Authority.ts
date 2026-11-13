@@ -93,8 +93,7 @@ export const StorefrontSettings = list({
     // Storefront cover photo, set through setCannabisStorefrontCover. Empty shows the built-in cover.
     heroImage: image({ storage: "my_images", label: "Cover photo" }),
     publicationStatus: status(["draft", "published"], "draft"),
-    storefrontMode: status(["demo", "configured"], "configured"),
-    demoCatalog: json({ defaultValue: [] }),
+    storefrontMode: status(["configured"], "configured"),
     ...trackingFields,
   },
 });

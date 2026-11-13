@@ -26,11 +26,11 @@ test("session initiation returns Accept.js config and makes no remote call", asy
   globalThis.fetch = (async () => { calls++; throw new Error("unexpected"); }) as typeof fetch;
   const result = await createPaymentFunction({ amount: 1250, currency: "USD" });
   assert.equal(result.status, "requires_payment_method");
-  assert.deepEqual((result as any).acceptJs, { apiLoginId: "login", clientKey: "public", env: "sandbox" });
+  assert.deepEqual((result as any).acceptJs, { apiLoginId: "login", clientKey: "public", env: "test" });
   assert.equal(calls, 0);
 });
 
-test("authorization request: merchantAuthentication first, opaque data, sandbox endpoint, BOM tolerated", async () => {
+test("authorization request: merchantAuthentication first, opaque data, test endpoint, BOM tolerated", async () => {
   creds();
   globalThis.fetch = (async (url: any, init: any) => {
     assert.equal(String(url), "https://apitest.authorize.net/xml/v1/request.api");

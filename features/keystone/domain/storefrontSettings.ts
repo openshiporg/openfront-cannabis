@@ -65,7 +65,6 @@ export function normalizeLogoSettings(input: { logoIcon?: unknown; logoColor?: u
   return { logoIcon, logoColor: normalizeStoreLogoColor(input.logoColor) };
 }
 
-/** Allowlist and re-derive all control flags before mock catalog data reaches the public UI. */
 /** Re-project only published persisted values so malformed, draft, or legacy rows stay neutral. */
 export function projectPublicStorefrontSettings(value: unknown): PublicStorefrontSettings {
   try {

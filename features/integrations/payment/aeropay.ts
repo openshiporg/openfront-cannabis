@@ -5,7 +5,7 @@ let tokenCache: { scope: string; token: string; expiresAt: number } | undefined;
 const configured = () => Boolean(process.env.AEROPAY_API_KEY && process.env.AEROPAY_API_SECRET && process.env.AEROPAY_MERCHANT_ID);
 async function token() {
   if (!configured()) throw new Error("Aeropay is not configured");
-  const scope = `${process.env.AEROPAY_ENV || "sandbox"}:merchant:${process.env.AEROPAY_MERCHANT_ID}`;
+  const scope = `${process.env.AEROPAY_ENV || "test"}:merchant:${process.env.AEROPAY_MERCHANT_ID}`;
   if (tokenCache?.scope === scope && tokenCache.expiresAt > Date.now() + 30_000) return tokenCache.token;
   const response = await fetch(`${base()}/v2/token`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: process.env.AEROPAY_API_KEY, apiSecret: process.env.AEROPAY_API_SECRET, scope: "merchant", id: process.env.AEROPAY_MERCHANT_ID }) });
   if (!response.ok) throw new Error("Aeropay authentication failed");

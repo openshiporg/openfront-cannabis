@@ -95,7 +95,7 @@ export async function createPaymentFunction({ amount, currency, opaqueData, cart
       acceptJs: {
         apiLoginId: process.env.AUTHORIZENET_API_LOGIN_ID || "",
         clientKey: process.env.NEXT_PUBLIC_AUTHORIZENET_CLIENT_KEY || "",
-        env: isProduction() ? "production" : "sandbox",
+        env: isProduction() ? "production" : "test",
       },
     };
   }
