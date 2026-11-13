@@ -212,12 +212,12 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
 export async function cannabisPickupOrder(_root: unknown, args: { reference: string; proof: string }, context: Context) {
   const reference = assertText(args.reference, "Order reference", 3, 40);
   const proof = assertText(args.proof, "Order key", 16, 200);
-  const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id reference status source guestProofHash subtotalCents taxCents discountCents totalCents pickupWindowStart pickupWindowEnd pickupName paymentMethod paymentStatus premises { timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits totalCents product { unitQuantityMicrounits } }" });
+  const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id reference status source guestProofHash subtotalCents taxCents discountCents totalCents pickupWindowStart pickupWindowEnd pickupName paymentMethod paymentStatus premises { timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits subtotalCents totalCents product { unitQuantityMicrounits } }" });
   if (!cart || cart.source !== "pickup" || cart.guestProofHash !== sha(proof)) throw new Error("We couldn’t find that order");
   return {
     reference: cart.reference, status: cart.status, name: cart.pickupName, paymentMethod: cart.paymentMethod, paymentStatus: cart.paymentStatus, currencyCode: cart.premises?.currencyCode ?? "USD", timezone: cart.premises?.timezone ?? "UTC",
     pickupStart: cart.pickupWindowStart, pickupEnd: cart.pickupWindowEnd, subtotalCents: cart.subtotalCents, taxCents: cart.taxCents, discountCents: cart.discountCents, totalCents: cart.totalCents,
-    lines: (cart.lines || []).map((line: any) => ({ title: line.titleSnapshot, units: Math.round(line.quantityMicrounits / (line.product?.unitQuantityMicrounits || line.quantityMicrounits)), totalCents: line.totalCents })),
+    lines: (cart.lines || []).map((line: any) => ({ title: line.titleSnapshot, units: Math.round(line.quantityMicrounits / (line.product?.unitQuantityMicrounits || line.quantityMicrounits)), totalCents: line.subtotalCents })), // pre-tax, so the lines add up to the Subtotal shown under them
   };
 }
 

@@ -12,8 +12,8 @@ test("Role CRUD is gated on a current canManageRoles grant, not a session snapsh
 
 test("generic role edits are organization-scoped, never touch held roles, and cannot assign people or escalate", () => {
   assert.match(source, /\{ assignedTo: \{ none: \{\} \} \}/);
-  assert.match(source, /organization: relationship\(\{ ref: "Organization", access: \{ create: \(\) => false, update: \(\) => false \} \}\)/);
-  assert.match(source, /assignedTo: relationship\(\{ ref: "User\.role", many: true, access: \{ create: \(\) => false, update: \(\) => false \} \}\)/);
+  assert.match(source, /organization: relationship\(\{ ref: "Organization", isFilterable: canFilterThrough\("Organization"\), access: \{ create: \(\) => false, update: \(\) => false \} \}\)/);
+  assert.match(source, /assignedTo: relationship\(\{ ref: "User\.role", isFilterable: canFilterThrough\("User\.role"\), many: true, access: \{ create: \(\) => false, update: \(\) => false \} \}\)/);
   assert.match(source, /A role cannot grant \$\{permission\}, which you do not currently hold/);
 });
 

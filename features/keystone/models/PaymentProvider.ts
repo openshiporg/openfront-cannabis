@@ -1,6 +1,6 @@
 import { list } from "@keystone-6/core";
 import { checkbox, json, relationship, text } from "@keystone-6/core/fields";
-import { permissions } from "../access";
+import { canFilterThrough, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const PaymentProvider = list({
@@ -12,6 +12,6 @@ export const PaymentProvider = list({
     createPaymentFunction: text({ validation: { isRequired: true } }), capturePaymentFunction: text({ validation: { isRequired: true } }),
     refundPaymentFunction: text({ validation: { isRequired: true } }), getPaymentStatusFunction: text({ validation: { isRequired: true } }),
     generatePaymentLinkFunction: text({ validation: { isRequired: true } }), handleWebhookFunction: text({ validation: { isRequired: true } }),
-    tenderConfigurations: relationship({ ref: "TenderConfiguration.paymentProvider", many: true }), ...trackingFields,
+    tenderConfigurations: relationship({ ref: "TenderConfiguration.paymentProvider", isFilterable: canFilterThrough("TenderConfiguration.paymentProvider"), many: true }), ...trackingFields,
   },
 });

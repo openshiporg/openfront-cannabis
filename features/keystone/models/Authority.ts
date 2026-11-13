@@ -1,7 +1,7 @@
 import { list } from "@keystone-6/core";
 import { checkbox, image, integer, json, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 import { denyAll } from "@keystone-6/core/access";
-import { operationalPermissions, immutableOrganizationAccess, immutablePremisesAccess, immutableTenantAccess } from "../access";
+import { canFilterThrough, operationalPermissions, immutableOrganizationAccess, immutablePremisesAccess, immutableTenantAccess } from "../access";
 import { trackingFields } from "./trackingFields";
 import { sanitizeStoreLogoSvg } from "../../lib/sanitize-store-logo";
 import { DEFAULT_STORE_LOGO_ICON, DEFAULT_STORE_LOGO_COLOR, normalizeStoreLogoColor } from "../../lib/store-logo";
@@ -10,8 +10,8 @@ const status = (values: string[], defaultValue?: string) => select({
   type: "enum", options: values.map(value => ({ label: value.replaceAll("_", " "), value })),
   ...(defaultValue ? { defaultValue } : {}), validation: { isRequired: true },
 });
-const org = () => relationship({ ref: "Organization" });
-const site = () => relationship({ ref: "Premises" });
+const org = () => relationship({ ref: "Organization", isFilterable: canFilterThrough("Organization") });
+const site = () => relationship({ ref: "Premises", isFilterable: canFilterThrough("Premises") });
 
 export const Organization = list({
   access: immutableOrganizationAccess("canManageAuthority"),
@@ -20,9 +20,9 @@ export const Organization = list({
     legalName: text({ validation: { isRequired: true } }),
     status: status(["pending_authority", "active", "suspended", "closed"], "pending_authority"),
     jurisdictionCode: text({ validation: { isRequired: true }, isIndexed: true }),
-    premises: relationship({ ref: "Premises.organization", many: true }),
-    storefrontSettings: relationship({ ref: "StorefrontSettings.organization", many: true }),
-    users: relationship({ ref: "User.organization", many: true }),
+    premises: relationship({ ref: "Premises.organization", isFilterable: canFilterThrough("Premises.organization"), many: true }),
+    storefrontSettings: relationship({ ref: "StorefrontSettings.organization", isFilterable: canFilterThrough("StorefrontSettings.organization"), many: true }),
+    users: relationship({ ref: "User.organization", isFilterable: canFilterThrough("User.organization"), many: true }),
     ...trackingFields,
   },
 });
@@ -33,7 +33,7 @@ export const Premises = list({
   ui: { plural: "Cannabis Premises" },
   access: immutableTenantAccess("canManageAuthority"),
   fields: {
-    organization: relationship({ ref: "Organization.premises" }),
+    organization: relationship({ ref: "Organization.premises", isFilterable: canFilterThrough("Organization.premises") }),
     name: text({ validation: { isRequired: true } }),
     premisesCode: text({ validation: { isRequired: true }, isIndexed: "unique" }),
     addressSnapshot: json({ defaultValue: {} }),
@@ -41,8 +41,8 @@ export const Premises = list({
     // ISO 4217 code for every amount recorded at this premises; null on premises installed before it was captured.
     currencyCode: text({ db: { isNullable: true }, validation: { match: { regex: /^[A-Z]{3}$/, explanation: "Currency must be a three-letter ISO 4217 code" } } }),
     status: status(["pending_authority", "active", "suspended", "closed"], "pending_authority"),
-    users: relationship({ ref: "User.premises", many: true }),
-    storefrontSettings: relationship({ ref: "StorefrontSettings.premises", many: true }),
+    users: relationship({ ref: "User.premises", isFilterable: canFilterThrough("User.premises"), many: true }),
+    storefrontSettings: relationship({ ref: "StorefrontSettings.premises", isFilterable: canFilterThrough("StorefrontSettings.premises"), many: true }),
     ...trackingFields,
   },
 });
@@ -60,12 +60,14 @@ export const StorefrontSettings = list({
   fields: {
     organization: relationship({
       ref: "Organization.storefrontSettings",
+      isFilterable: canFilterThrough("Organization"),
       access: { create: denyAll, update: denyAll },
       graphql: { isNonNull: { read: true } },
       db: { extendPrismaSchema: field => field.replace(/organization Organization\?/g, "organization Organization").replace(/organizationId String\?/g, "organizationId String") },
     }),
     premises: relationship({
       ref: "Premises.storefrontSettings",
+      isFilterable: canFilterThrough("Premises"),
       access: { create: denyAll, update: denyAll },
       graphql: { isNonNull: { read: true } },
       db: { extendPrismaSchema: field => field.replace(/premises Premises\?/g, "premises Premises").replace(/premisesId String\?/g, "premisesId String") },
@@ -115,7 +117,7 @@ export const CannabisLicense = list({
 export const StaffCredential = list({
   access: immutablePremisesAccess("canManageAuthority", "authority"),
   fields: {
-    organization: org(), premises: site(), user: relationship({ ref: "User.staffCredential" }),
+    organization: org(), premises: site(), user: relationship({ ref: "User.staffCredential", isFilterable: canFilterThrough("User.staffCredential") }),
     credentialType: text({ validation: { isRequired: true } }), credentialReference: text({ validation: { isRequired: true } }),
     allowedActivities: json({ defaultValue: [] }), approvalLimitCents: integer({ defaultValue: 0, validation: { min: 0 } }),
     status: status(["pending", "active", "suspended", "expired", "terminated"], "pending"),
@@ -128,7 +130,7 @@ export const StaffCredential = list({
 export const Customer = list({
   access: immutablePremisesAccess("canManageCompliance"),
   fields: {
-    organization: org(), premises: site(), user: relationship({ ref: "User.customerProfile" }),
+    organization: org(), premises: site(), user: relationship({ ref: "User.customerProfile", isFilterable: canFilterThrough("User.customerProfile") }),
     reference: text({ validation: { isRequired: true }, isIndexed: "unique" }),
     capacity: status(["adult_use", "patient", "caregiver"]),
     status: status(["pending_verification", "eligible", "ineligible", "suspended"], "pending_verification"),
@@ -142,7 +144,7 @@ export const Customer = list({
 export const EligibilityEvidence = list({
   access: immutablePremisesAccess("canManageCompliance"),
   fields: {
-    organization: org(), premises: site(), customer: relationship({ ref: "Customer" }),
+    organization: org(), premises: site(), customer: relationship({ ref: "Customer", isFilterable: canFilterThrough("Customer") }),
     capacity: status(["adult_use", "patient", "caregiver"]),
     identityMethod: text({ validation: { isRequired: true } }), identityReferenceHash: text({ validation: { isRequired: true } }),
     dateOfBirth: timestamp({ validation: { isRequired: true } }), identityExpiresAt: timestamp({ validation: { isRequired: true } }),
@@ -160,7 +162,7 @@ export const JurisdictionRulePack = list({
     organization: org(), premises: site(), version: text({ validation: { isRequired: true } }),
     jurisdictionCode: text({ validation: { isRequired: true } }), authorityCitations: json({ defaultValue: [] }), policyHash: text({ validation: { isRequired: true }, isIndexed: "unique" }),
     status: status(["draft", "approved", "effective", "superseded", "revoked"], "draft"),
-    effectiveAt: timestamp({ validation: { isRequired: true } }), expiresAt: timestamp({ validation: { isRequired: true } }), approvedAt: timestamp(), approvedBy: relationship({ ref: "User" }),
+    effectiveAt: timestamp({ validation: { isRequired: true } }), expiresAt: timestamp({ validation: { isRequired: true } }), approvedAt: timestamp(), approvedBy: relationship({ ref: "User", isFilterable: canFilterThrough("User") }),
     adultMinimumAge: integer({ validation: { min: 0, max: 120, isRequired: true } }), medicalMinimumAge: integer({ validation: { min: 0, max: 120, isRequired: true } }),
     operatingStartMinute: integer({ validation: { min: 0, max: 1439, isRequired: true } }), operatingEndMinute: integer({ validation: { min: 0, max: 1439, isRequired: true } }),
     purchaseLimits: json({ defaultValue: [] }), taxRules: json({ defaultValue: [] }), discountRules: json({ defaultValue: [] }), allowedTenderTypes: json({ defaultValue: [] }),

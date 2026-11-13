@@ -1,6 +1,6 @@
 import { list } from "@keystone-6/core";
 import { checkbox, relationship, text } from "@keystone-6/core/fields";
-import { activePermissions, permissionNames, roleQueryFilter } from "../access";
+import { activePermissions, canFilterThrough, permissionNames, roleQueryFilter } from "../access";
 import { trackingFields } from "./trackingFields";
 
 const capability = (label: string) => checkbox({ defaultValue: false, label });
@@ -45,7 +45,7 @@ export const Role = list({
     },
   },
   fields: {
-    organization: relationship({ ref: "Organization", access: { create: () => false, update: () => false } }), name: text({ validation: { isRequired: true } }),
+    organization: relationship({ ref: "Organization", isFilterable: canFilterThrough("Organization"), access: { create: () => false, update: () => false } }), name: text({ validation: { isRequired: true } }),
     canManagePeople: capability("Manage staff and customer identities"),
     canManageRoles: capability("Manage roles"),
     canAccessDashboard: capability("Access operator dashboard"),
@@ -57,7 +57,7 @@ export const Role = list({
     canManageFinance: capability("Manage tenders, refunds, shifts, and cash"),
     canManageIntegrations: capability("Manage external provider queues"),
     canViewReports: capability("View audits and reconciliation"),
-    assignedTo: relationship({ ref: "User.role", many: true, access: { create: () => false, update: () => false } }), ...trackingFields,
+    assignedTo: relationship({ ref: "User.role", isFilterable: canFilterThrough("User.role"), many: true, access: { create: () => false, update: () => false } }), ...trackingFields,
   },
 });
 

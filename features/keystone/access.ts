@@ -218,3 +218,31 @@ export const rules = {
   canReadPeople: peopleFilter,
   canUpdatePeople: peopleFilter,
 };
+
+/**
+ * A where-filter through a relationship reads the related list, so it needs the same grant as
+ * reading that list (a count filter on a hidden list would otherwise leak its values). Pass the
+ * relationship `ref` ("Customer" or "Customer.user"). Signed out and unlisted roles are denied.
+ * Synchronous on the session snapshot on purpose: Keystone evaluates isFilterable for every
+ * relationship while building admin metadata, so a database lookup here would fan out per login.
+ * The list's own read access still re-checks the live grant, so a stale snapshot only matters for
+ * filters, and a session lasts at most OPERATOR_SESSION_MAX_AGE_SECONDS.
+ */
+const readGrants: Record<string, CannabisPermission> = {
+  User: "canManagePeople", Role: "canAccessDashboard",
+  Organization: "canManageAuthority", Premises: "canManageAuthority", StorefrontSettings: "canManageAuthority",
+  CannabisLicense: "canManageAuthority", StaffCredential: "canManageAuthority",
+  JurisdictionRulePack: "canManageCompliance", Customer: "canManageCompliance", EligibilityEvidence: "canManageCompliance",
+  PackageHold: "canManageCompliance", RecallCase: "canManageCompliance", ComplianceIncident: "canManageCompliance",
+  Product: "canManageInventory", InventoryPackage: "canManageInventory", RegulatedManifest: "canManageInventory", InventoryEvent: "canManageInventory",
+  Register: "canManageFinance", RegisterShift: "canManageFinance", CashEvent: "canManageFinance",
+  TenderConfiguration: "canManageFinance", Tender: "canManageFinance", Refund: "canManageFinance", PaymentProvider: "canManageFinance",
+  Cart: "canManageSales", CartLine: "canManageSales", Sale: "canManageSales", SaleLine: "canManageSales",
+  AuditEvent: "canViewReports", IdempotencyKey: "canViewReports", ReconciliationRun: "canViewReports",
+  StateEventInbox: "canManageIntegrations", IntegrationInstallation: "canManageIntegrations",
+};
+
+export function canFilterThrough(ref: string) {
+  const grant = readGrants[ref.split(".")[0]];
+  return ({ session }: AccessArgs) => Boolean(grant) && sessionPermission(session, grant) && session?.data.role?.canAccessDashboard === true;
+}
