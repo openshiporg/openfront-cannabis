@@ -55,15 +55,15 @@ export async function cannabisPickupOptions(_root: unknown, _args: unknown, cont
   await releaseExpiredOrders(context);
   const authority = await publicAuthority(context);
   const { pack, premises } = authority;
-  const timezone = premises.timezone || "UTC";
+  const timezone = premises.timezone || ""; // no zone on the store: offer no times rather than guess one
   const card = pack.pickupEnabled && Array.isArray(pack.allowedTenderTypes) && (pack.allowedTenderTypes as string[]).includes("debit")
     ? getPublicPaymentProviderConfig(CARD_PROVIDER_CODE) : null;
   return {
-    pickupEnabled: pack.pickupEnabled === true,
+    pickupEnabled: pack.pickupEnabled === true && Boolean(timezone),
     minimumAge: pack.adultMinimumAge,
     currencyCode: premises.currencyCode ?? "USD",
     timezone,
-    slots: pack.pickupEnabled ? pickupSlots(pack.operatingStartMinute, pack.operatingEndMinute, timezone) : [],
+    slots: pack.pickupEnabled && timezone ? pickupSlots(pack.operatingStartMinute, pack.operatingEndMinute, timezone) : [],
     card,
     payAtPickup: ["cash", "debit"].some(type => (pack.allowedTenderTypes as string[]).includes(type)),
   };
@@ -217,7 +217,7 @@ export async function cannabisPickupOrder(_root: unknown, args: { reference: str
   const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id reference status source guestProofHash subtotalCents taxCents discountCents totalCents pickupWindowStart pickupWindowEnd pickupName paymentMethod paymentStatus premises { timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits subtotalCents totalCents product { unitQuantityMicrounits } }" });
   if (!cart || cart.source !== "pickup" || cart.guestProofHash !== sha(proof)) throw new Error("We couldn’t find that order");
   return {
-    reference: cart.reference, status: cart.status, name: cart.pickupName, paymentMethod: cart.paymentMethod, paymentStatus: cart.paymentStatus, currencyCode: cart.premises?.currencyCode ?? "USD", timezone: cart.premises?.timezone ?? "UTC",
+    reference: cart.reference, status: cart.status, name: cart.pickupName, paymentMethod: cart.paymentMethod, paymentStatus: cart.paymentStatus, currencyCode: cart.premises?.currencyCode ?? "USD", timezone: cart.premises?.timezone ?? "",
     pickupStart: cart.pickupWindowStart, pickupEnd: cart.pickupWindowEnd, subtotalCents: cart.subtotalCents, taxCents: cart.taxCents, discountCents: cart.discountCents, totalCents: cart.totalCents,
     lines: (cart.lines || []).map((line: any) => ({ title: line.titleSnapshot, units: Math.round(line.quantityMicrounits / (line.product?.unitQuantityMicrounits || line.quantityMicrounits)), totalCents: line.subtotalCents })), // pre-tax, so the lines add up to the Subtotal shown under them
   };

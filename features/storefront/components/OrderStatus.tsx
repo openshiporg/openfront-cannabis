@@ -39,7 +39,7 @@ export function OrderStatus({ reference }: { reference: string }) {
   if (error && !order) return <>{heading('Your order')}<p role="alert" className="text-[17px] text-cn-ink">{error}</p></>;
   if (!order) return <>{heading('Your order')}<p className="text-cn-ink-2">Loading your order…</p></>;
   const money = (cents: number) => formatPrice(cents, order.currencyCode);
-  const when = (iso: string, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: order.timezone, ...opts }).format(new Date(iso));
+  const when = (iso: string, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: order.timezone || undefined, ...opts }).format(new Date(iso));
   const active = ['reserved', 'preliminarily_eligible'].includes(order.status);
   // A cancelled, expired or collected order has no pickup ahead: no window, no ID reminder.
   const closed = ['cancelled', 'expired', 'completed'].includes(order.status);
