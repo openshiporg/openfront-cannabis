@@ -25,7 +25,7 @@ export function OrderStatus({ reference }: { reference: string }) {
     const key = fromUrl || window.sessionStorage.getItem(`cn-order-${reference}`) || '';
     if (!key) { setError('Open this page from your confirmation link to see your order.'); return; }
     window.sessionStorage.setItem(`cn-order-${reference}`, key); setProof(key);
-    publicGraphql<{ cannabisPickupOrder: Order }>('query($r:String!,$p:String!){ cannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: key }).then(data => { setOrder(data.cannabisPickupOrder); window.scrollTo(0, 0); }).catch(failure => setError(failure.message));
+    publicGraphql<{ cannabisPickupOrder: Order }>('query($r:String!,$p:String!){ cannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: key }).then(data => { setOrder(data.cannabisPickupOrder); window.scrollTo(0, 0); }).catch(failure => { setError(failure.message); window.scrollTo(0, 0); });
   }, [reference]);
 
   const cancel = async () => {

@@ -394,7 +394,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
           <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />
         </RecordList>
       </section>
-      <Panel title="Open a shift"><OpenShiftForm registers={data.registers.items.filter(register => !data.busyRegisterIds.includes(register.id))} /></Panel>
+      <Panel title="Open a shift"><OpenShiftForm anyActive={data.registers.items.some(register => register.status === 'active')} registers={data.registers.items.filter(register => !data.busyRegisterIds.includes(register.id))} /></Panel>
     </Split>
     <Split side="minmax(0,1fr)">
       <section>

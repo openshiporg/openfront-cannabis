@@ -14,11 +14,12 @@ export async function deliverPickupConfirmation(context: any, args: { cartId: st
     if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD && base) {
       try {
         const cart = await sudo.query.Cart.findOne({ where: { id: args.cartId }, query: "pickupWindowStart pickupWindowEnd totalCents premises { name timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits totalCents product { unitQuantityMicrounits } }" });
-        const zone = cart.premises?.timezone || "UTC";
+        const storeZone: string | undefined = cart.premises?.timezone || undefined;
+        const zone = storeZone || "UTC"; // no zone set: the clock as stored, never labelled
         const currency = cart.premises?.currencyCode || "USD";
         const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format((cents || 0) / 100);
         const when = (value: string | Date) => new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
-        const end = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(cart.pickupWindowEnd));
+        const end = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", ...(storeZone ? { timeZoneName: "short" as const } : {}) }).format(new Date(cart.pickupWindowEnd));
         // Loaded lazily so the mail module never joins the keystone import graph at build time.
         const deliver = send || (await import("../lib/orderMail")).sendPickupOrderConfirmationEmail;
         const result = await deliver({
@@ -59,9 +60,10 @@ export async function deliverPickupReadyNotice(context: any, cartId: string, sen
     const to = typeof contact.email === "string" ? contact.email : "";
     if (!to) { await record("skipped_no_recipient"); return; }
     if (!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD)) { await record("skipped_not_configured"); return; }
-    const zone = cart.premises.timezone || "UTC";
+    const storeZone: string | undefined = cart.premises.timezone || undefined;
+    const zone = storeZone || "UTC"; // no zone set: the clock as stored, never labelled
     const when = (value: string | Date) => new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
-    const end = cart.pickupWindowEnd ? new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(cart.pickupWindowEnd)) : "";
+    const end = cart.pickupWindowEnd ? new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", ...(storeZone ? { timeZoneName: "short" as const } : {}) }).format(new Date(cart.pickupWindowEnd)) : "";
     const address = cart.premises.addressSnapshot && typeof cart.premises.addressSnapshot === "object" ? [cart.premises.addressSnapshot.line1, cart.premises.addressSnapshot.city].filter(Boolean).join(", ") : "";
     let result: { sent: boolean; error?: string; messageId?: string; response?: string };
     try {

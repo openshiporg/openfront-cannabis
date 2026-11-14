@@ -55,7 +55,7 @@ export async function openRegisterShift(_root: unknown, args: { input: any }, co
   );
   // RegisterShift is read under the finance grant; a budtender's replay checks the shift is their own instead.
   const replayVisible = grant.permission === "canManageSales"
-    ? async (current: Context, authority: { actor: { id: string } }, shiftId: string) => (await current.sudo().query.RegisterShift.findOne({ where: { id: shiftId }, query: "id operator { id }" }))?.operator?.id === authority.actor.id
+    ? async (current: Context, authority: { actor: Record<string, any> }, shiftId: string) => (await current.sudo().query.RegisterShift.findOne({ where: { id: shiftId }, query: "id operator { id }" }))?.operator?.id === authority.actor.id
     : undefined;
   return runControlledOperation(context, input, { ...grant, scope: "openRegisterShift", resourceType: "RegisterShift", action: "cash.shift.opened", lockKeys: [String(input.registerId)], replayVisible }, async (tx, authority, correlationId) => {
     const sudo = tx.sudo(); const register = await sudo.query.Register.findOne({ where: { id: assertText(input.registerId, "Register ID") }, query: "id code status organization { id } premises { id }" });

@@ -170,10 +170,10 @@ export function RegisterForm() {
   </form>;
 }
 
-export function OpenShiftForm({ registers }: { registers: Array<{ id: string; code: string; name: string; status: string }> }) {
+export function OpenShiftForm({ registers, anyActive = true }: { anyActive?: boolean; registers: Array<{ id: string; code: string; name: string; status: string }> }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(openShiftFromDesk);
   const active = registers.filter(register => register.status === 'active');
-  if (!active.length) return <p className="text-sm text-muted-foreground">No register is free to open. A register with a shift that is not closed yet is not listed.</p>;
+  if (!active.length) return <p className="text-sm text-muted-foreground">{anyActive ? 'No register is free to open. A register with a shift that is not closed yet is not listed.' : 'No active registers.'}</p>;
   return <form onSubmit={onSubmit()} onChange={markDirty} className="space-y-3" aria-label="Open shift">
     <input type="hidden" name="idempotencyKey" value={key} />
     <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
