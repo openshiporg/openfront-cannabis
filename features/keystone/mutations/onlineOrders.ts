@@ -193,11 +193,17 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   let paymentStatus = "pending";
   if (method === "card") {
     let result: any = null;
+    let lost = false;
     try {
       result = await createPayment({ provider, amount: placed.totalCents, currency: "USD", opaqueData: raw.opaqueData, cart: { id: reference }, idempotencyKey: reference });
-    } catch { result = null; }
+    } catch { lost = true; } // the answer never came back (timeout, network, bad reply): the processor may still have authorized the card
+    if (lost || (result?.status === "authorized" && !result.paymentIntentId)) {
+      // Unknown is not a decline: keep the order and its stock hold, leave the payment pending, and do not ask for a second charge.
+      // No transaction id came back, so there is nothing to look up yet; the order stays pending (reference = Authorize.net refId/invoice).
+      return { reference, proof, status, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false, message: "We are confirming your payment. Please do not pay again; we will keep your order." };
+    }
     if (!result || result.status !== "authorized" || !result.paymentIntentId) {
-      // Nothing was authorized, so put the stock back and tell the shopper.
+      // The processor answered and nothing was authorized, so put the stock back and tell the shopper.
       await cancelCannabisCart(null as any, { input: { cartId: placed.cartId, proof, idempotencyKey: `${reference}:declined`, reasonCode: "payment_declined" } }, context);
       throw new Error(result?.error ? `Your card was declined: ${String(result.error).slice(0, 120)}` : "We couldn’t authorize your card. Check the details or choose pay at pickup.");
     }
