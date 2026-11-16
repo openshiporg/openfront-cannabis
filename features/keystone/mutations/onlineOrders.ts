@@ -191,6 +191,7 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
 
   let status = "reserved";
   let paymentStatus = "pending";
+  let unconfirmedMessage = "";
   if (method === "card") {
     let result: any = null;
     let lost = false;
@@ -198,10 +199,15 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
       result = await createPayment({ provider, amount: placed.totalCents, currency: "USD", opaqueData: raw.opaqueData, cart: { id: reference }, idempotencyKey: reference });
     } catch { lost = true; } // the answer never came back (timeout, network, bad reply): the processor may still have authorized the card
     if (lost || (result?.status === "authorized" && !result.paymentIntentId)) {
-      // Unknown is not a decline: keep the order and its stock hold, leave the payment pending, and do not ask for a second charge.
-      // No transaction id came back, so there is nothing to look up yet; the order stays pending (reference = Authorize.net refId/invoice).
-      return { reference, proof, status, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false, message: "We are confirming your payment. Please do not pay again; we will keep your order." };
-    }
+      // Unknown is not a decline: keep the order and its stock hold, mark the payment unconfirmed, tell staff to check it, and do not ask for a second charge.
+      // No transaction id came back, so there is nothing to look up; staff check the processor by the order reference (Authorize.net refId/invoice). A lost authOnly is never captured and expires at the processor.
+      paymentStatus = "unconfirmed";
+      unconfirmedMessage = "We are confirming your payment. Please do not pay again; we will keep your order.";
+      await context.sudo().query.Cart.updateOne({ where: { id: placed.cartId }, data: { paymentStatus }, query: "id" });
+      await context.sudo().query.ComplianceIncident.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, reference: `INC-PAY-${randomUUID()}`, type: "payment_ambiguity", severity: "high", status: "open",
+        occurredAt: new Date(), detectedAt: new Date(), description: `Card authorization for online order ${reference} got no answer; check the card processor for this order reference, void anything authorized and reconcile.`, affectedPackageUids: [],
+        customerReferenceHash: sha(placed.cartId), evidenceHash: sha(`${placed.cartId}:${reference}:auth_answer_lost`) }, query: "id" });
+    } else {
     if (!result || result.status !== "authorized" || !result.paymentIntentId) {
       // The processor answered and nothing was authorized, so put the stock back and tell the shopper.
       await cancelCannabisCart(null as any, { input: { cartId: placed.cartId, proof, idempotencyKey: `${reference}:declined`, reasonCode: "payment_declined" } }, context);
@@ -209,11 +215,12 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
     }
     paymentStatus = "authorized";
     await context.sudo().query.Cart.updateOne({ where: { id: placed.cartId }, data: { paymentStatus, paymentReference: String(result.paymentIntentId) }, query: "id" });
+    }
   }
   await context.sudo().query.AuditEvent.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, action: "cart.pickup_order_placed", resourceType: "Cart", resourceId: placed.cartId, correlationId: reference, reasonCode: "online_pickup_order",
     evidence: { items: items.length, totalCents: placed.totalCents, paymentMethod: method }, evidenceHash: stableHash({ reference, totals: placed, method }), occurredAt: new Date() }, query: "id" });
   await deliverPickupConfirmation(context, { cartId: placed.cartId, reference, proof, scope, email, name });
-  return { reference, proof, status, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false };
+  return { reference, proof, status, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false, ...(unconfirmedMessage ? { message: unconfirmedMessage } : {}) };
 }
 
 /** The shopper's own order, found by its reference plus the proof returned at checkout. */

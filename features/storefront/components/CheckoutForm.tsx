@@ -20,6 +20,7 @@ export function CheckoutForm() {
   const [method, setMethod] = useState<'card' | 'pickup'>('pickup');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; href: string } | null>(null);
   const key = useRef('');
   if (!key.current && typeof crypto !== 'undefined') key.current = crypto.randomUUID();
   const card = options?.card ?? null;
@@ -38,6 +39,7 @@ export function CheckoutForm() {
     return [...groups.entries()];
   }, [options]);
 
+  if (notice) return <div className="space-y-4" role="status"><p className="cn-name text-[26px] text-cn-ink">{notice.text}</p><Link href={notice.href} className="cn-btn">View your order</Link></div>;
   if (bag.ready && bag.items.length === 0) return <div className="space-y-4"><p className="cn-name text-[26px] text-cn-ink">Your bag is empty</p><Link href="/#menu" data-tone="ink" className="cn-btn">See the menu</Link></div>;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -47,14 +49,17 @@ export function CheckoutForm() {
     const form = new FormData(event.currentTarget);
     try {
       const opaqueData = method === 'card' && card ? await anet.tokenize(card, form) : undefined;
-      const result = await publicGraphql<{ placeCannabisPickupOrder: { reference: string; proof: string } }>(PLACE, { input: {
+      const result = await publicGraphql<{ placeCannabisPickupOrder: { reference: string; proof: string; message?: string } }>(PLACE, { input: {
         idempotencyKey: key.current, name: form.get('name'), email: form.get('email'), phone: form.get('phone'), dateOfBirth: isoBirthDate(form.get('dateOfBirth')),
         pickupStart: form.get('pickupStart'), idNotice: form.get('idNotice') === 'on', paymentMethod: method, opaqueData,
         items: bag.items.map(item => ({ productId: item.id, units: item.units })) } });
       const order = result.placeCannabisPickupOrder;
       window.sessionStorage.setItem(`cn-order-${order.reference}`, order.proof);
       bag.clear();
-      router.push(`/order/${encodeURIComponent(order.reference)}#${encodeURIComponent(order.proof)}`);
+      const orderPath = `/order/${encodeURIComponent(order.reference)}#${encodeURIComponent(order.proof)}`;
+      // Payment not confirmed: stay on this page so the shopper reads the message (and cannot submit again), then follow the link.
+      if (order.message) { setNotice({ text: order.message, href: orderPath }); return; }
+      router.push(orderPath);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Something went wrong. Please try again.');
       // A declined or rejected attempt may be retried with new details under a new key.
