@@ -42,7 +42,7 @@ test("a packed (staged) order can be sold; one still being picked cannot", () =>
 
 test("a failed card release is retried; a captured or voided one is not", () => {
   assert.ok(RELEASABLE_PAYMENT_STATUSES.includes("authorized"));
-  assert.ok(RELEASABLE_PAYMENT_STATUSES.includes("void_failed"));
+  assert.ok(RELEASABLE_PAYMENT_STATUSES.includes("void_failed")); // retried when staff cancel again
   assert.ok(!RELEASABLE_PAYMENT_STATUSES.includes("voided"));
   assert.ok(!RELEASABLE_PAYMENT_STATUSES.includes("captured"));
 });
@@ -75,5 +75,7 @@ test("void: only a whole, unrefunded cash sale on an open shift with its package
   assert.match(String(saleVoidError({ ...sale, refundedCents: 100, status: "partially_refunded" })), /refund/);
   assert.match(String(saleVoidError({ ...sale, shiftStatus: "closed" })), /still-open shift/);
   assert.match(String(saleVoidError({ ...sale, tenderTypes: ["debit"] })), /card sale/);
-  assert.match(String(saleVoidError({ ...sale, packageStatuses: ["depleted"] })), /no longer on the shelf/);
+  // The sale that emptied a package can still be voided: its units go back.
+  assert.equal(saleVoidError({ ...sale, packageStatuses: ["depleted"] }), null);
+  assert.match(String(saleVoidError({ ...sale, packageStatuses: ["recalled"] })), /no longer on the shelf/);
 });

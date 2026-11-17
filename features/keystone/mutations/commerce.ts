@@ -533,8 +533,9 @@ export async function voidCannabisSale(_root: unknown, args: { input: any }, con
     const onHand = new Map<string, any>(packages.map((p: any) => [p.id, { ...p }]));
     for (const [index, line] of sale.lines.entries()) {
       const pkg = onHand.get(line.package.id);
-      const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: pkg.version, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits }, data: { quantityOnHandMicrounits: { increment: line.quantityMicrounits }, version: { increment: 1 } } });
+      const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: pkg.version, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits }, data: { quantityOnHandMicrounits: { increment: line.quantityMicrounits }, version: { increment: 1 }, ...(pkg.status === "depleted" ? { status: "saleable" } : {}) } });
       if (changed.count !== 1) throw new Error("A package on this sale changed while voiding; refresh it");
+      if (pkg.status === "depleted") pkg.status = "saleable";
       const before = pkg.quantityOnHandMicrounits; const after = before + line.quantityMicrounits;
       pkg.quantityOnHandMicrounits = after; pkg.version += 1;
       await sudo.query.InventoryEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, package: { connect: { id: pkg.id } }, eventType: "adjustment", quantityDeltaMicrounits: line.quantityMicrounits, beforeQuantityMicrounits: before, afterQuantityMicrounits: after, reasonCode: "sale_voided", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, sourceType: "SaleLine", sourceId: line.id, idempotencyKey: `${correlationId}:void:${index}`, occurredAt: now, evidenceHash: stableHash({ saleId: sale.id, saleLineId: line.id, before, after, reason }), stateReportStatus: "queued" }, query: "id" });
