@@ -3,6 +3,7 @@ import { requireRuntimeCapability } from "../domain/runtimeCapabilities";
 import { refundPayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { verifySecondApprover, withApprover } from "./approval";
+import { onlineCardProvider } from "./onlinePayments";
 import { validateReconciliationSubmission } from "../domain/reconciliationEvidence";
 import { assertProviderEventScopeMatch } from "../domain/providerEventScope";
 import { isCompleteShiftCashEventRead } from "../domain/operatorReadBounds";
@@ -112,7 +113,7 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
   const input = withApprover(args.input, await verifySecondApprover(context, args.input, "canManageFinance"));
   if (!input.approvedById || input.approvedById === (context.session as any)?.itemId) throw new Error("Refund requires independent approval");
   return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "refundCannabisSale", resourceType: "Refund", action: "sale.refunded", lockKeys: [String(input.saleId)] }, async (tx, authority, correlationId) => {
-    const sudo = tx.sudo(); const sale = await sudo.query.Sale.findOne({ where: { id: assertText(input.saleId, "Sale ID") }, query: "id receiptNumber status totalCents refundedCents organization { id } premises { id } shift { id status }" });
+    const sudo = tx.sudo(); const sale = await sudo.query.Sale.findOne({ where: { id: assertText(input.saleId, "Sale ID") }, query: "id receiptNumber status totalCents refundedCents organization { id } premises { id } shift { id status } cart { paymentMethod paymentReference }" });
     if (!sale || sale.organization?.id !== authority.organizationId || sale.premises?.id !== authority.premisesId || ["reversed", "refunded"].includes(sale.status)) throw new Error("Sale cannot be refunded in this authority scope");
     if (sale.refundedCents + amount > sale.totalCents) throw new Error("Refund exceeds the immutable sale total");
     const approver = await sudo.query.User.findOne({ where: { id: input.approvedById }, query: "id status organization { id } premises { id } role { canManageFinance }" });
@@ -145,10 +146,22 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
     if (!allocation.ok) throw new Error(allocation.reason === "limit" ? "Refund exceeds the remaining original tender allocation" : "Refund allocation evidence is incomplete or ambiguous");
     const originalTender = tenderRows.find((tender: any) => tender.id === originalTenderId);
     if (!originalTender) throw new Error("Original tender details are unavailable");
+    // Cash leaves today's drawer: the sale's shift while it is open, otherwise the refunding staff member's own open shift.
+    let cashShiftId: string | null = null;
+    if (originalTender.typeSnapshot === "cash") {
+      if (sale.shift?.status === "open") cashShiftId = sale.shift.id;
+      else {
+        const own = await sudo.query.RegisterShift.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, take: 1, query: "id" });
+        if (own.length !== 1) throw new Error("This sale's shift is closed. Open your register shift to give the cash back from your drawer.");
+        cashShiftId = own[0].id;
+      }
+    }
     // Cash leaves the drawer now; non-cash refunds are confirmed by the configured adapter.
     let providerReference = "";
     if (originalTender.typeSnapshot !== "cash") {
-      const provider = originalTender.configuration?.paymentProvider;
+      // The online order's card is refunded by the card processor that captured it, not the store terminal provider.
+      const onlineCard = sale.cart?.paymentMethod === "card" && Boolean(sale.cart.paymentReference) && sale.cart.paymentReference === originalTender.providerReference;
+      const provider = onlineCard ? await onlineCardProvider(tx, { organizationId: authority.organizationId!, premisesId: authority.premisesId! }, false) : originalTender.configuration?.paymentProvider;
       if (!provider || !provider.isInstalled) throw new Error("Tender payment provider is unavailable");
       const result = await refundPayment({ provider, paymentId: originalTender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:refund`, refundId: `${sale.id}:${originalTender.id}:${amount}` });
       if (Number(result?.amount) !== amount || String(result?.currency || "USD").toUpperCase() !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase() || !["refunded", "succeeded"].includes(result?.status)) throw new Error("Payment refund outcome is ambiguous; reconcile before retrying");
@@ -158,7 +171,7 @@ export async function refundCannabisSale(_root: unknown, args: { input: any }, c
     const refund = await sudo.query.Refund.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, sale: { connect: { id: sale.id } }, amountCents: amount, reasonCode: assertText(input.reasonCode, "Refund reason"), inventoryDisposition: input.inventoryDisposition, status: "completed", actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, originalTenderReference: originalTender.id, providerReference, occurredAt: new Date(), evidenceHash }, query: "id status" });
     const refundedCents = sale.refundedCents + amount; const saleStatus = refundedCents === sale.totalCents ? "refunded" : "partially_refunded";
     await sudo.query.Sale.updateOne({ where: { id: sale.id }, data: { refundedCents, status: saleStatus }, query: "id" });
-    if (originalTender.typeSnapshot === "cash") await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: sale.shift.id } }, type: "refund", amountCents: -amount, reasonCode: input.reasonCode, actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, occurredAt: new Date(), idempotencyKey: `${correlationId}:refund`, evidenceHash }, query: "id" });
+    if (originalTender.typeSnapshot === "cash") await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: cashShiftId! } }, type: "refund", amountCents: -amount, reasonCode: input.reasonCode, actor: { connect: { id: authority.actor.id } }, approvedBy: { connect: { id: approver.id } }, occurredAt: new Date(), idempotencyKey: `${correlationId}:refund`, evidenceHash }, query: "id" });
     return { id: refund.id, status: refund.status, reference: sale.receiptNumber, saleStatus };
   });
 }
