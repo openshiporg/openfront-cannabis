@@ -93,8 +93,9 @@ export async function transitionCannabisCartPreparation(_root: unknown, args: { 
     assertFulfillmentScope(cart.eligibilityEvidence, currentAuthority);
     const evidence = cart.eligibilityEvidence;
     // An online pickup order is packed before the customer arrives (Dutchie / Jane); its ID is checked at the
-    // counter when the sale is finalized. Its unexpired online declaration is enough to pack, never to sell.
-    const onlineDeclared = cart.source === 'pickup' && cart.customer.status === 'pending_verification' && cart.customer.capacity === 'adult_use'
+    // counter when the sale is finalized. Its unexpired online declaration is enough to pack, never to sell; a returning
+    // customer whose earlier pickup made them eligible packs on the new order's declaration the same way.
+    const onlineDeclared = cart.source === 'pickup' && ['pending_verification', 'eligible'].includes(cart.customer.status) && cart.customer.capacity === 'adult_use'
       && evidence?.identityMethod === 'online_declared' && evidence?.result === 'pending';
     if (!(cart.customer.status === 'eligible' || onlineDeclared) || !['adult_use', 'patient', 'caregiver'].includes(cart.customer.capacity) ||
         evidence.customer?.id !== cart.customer.id || evidence.capacity !== cart.customer.capacity || !(evidence.result === 'eligible' || onlineDeclared) ||
