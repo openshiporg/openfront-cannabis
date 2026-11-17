@@ -211,5 +211,8 @@ export async function handleWebhookFunction({ rawBody, headers = {} }: Input) {
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) throw new Error("Webhook signature verification failed");
   const event = JSON.parse(rawBody);
-  return { isValid: true, event: { ...event, id: event.notificationId }, type: String(event.eventType || ""), resource: event.payload || {} };
+  // Authorize.net sends the transaction id as payload.id and its amount in dollars as authAmount.
+  const payload = event.payload || {};
+  const resource = { ...payload, transactionId: payload.id, ...(payload.authAmount != null ? { amountCents: cents(payload.authAmount) } : {}), currency: "USD" };
+  return { isValid: true, event: { ...event, id: event.notificationId }, type: String(event.eventType || ""), resource };
 }

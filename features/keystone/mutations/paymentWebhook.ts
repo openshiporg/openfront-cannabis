@@ -3,6 +3,7 @@ import { handleWebhook } from "../utils/paymentProviderAdapter";
 import { keystoneContext } from "../context";
 import { serializableTransaction } from "../domain/transaction";
 import { canMoveTender, tenderStatusForWebhook } from "../domain/lifecycles";
+import { CARD_PROVIDER_CODE } from "./onlinePayments";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 export async function reconcilePaymentWebhook(providerId: string, rawBody: string, headers: Record<string, string>) {
@@ -16,7 +17,10 @@ export async function reconcilePaymentWebhook(providerId: string, rawBody: strin
   const amount = resource.amount?.amount ?? resource.amountCents ?? resource.amount;
   const currency = String(resource.amount?.currency || resource.currency || "USD").toUpperCase();
   if (!eventId || !providerReference || !Number.isSafeInteger(Number(amount)) || currency !== "USD") throw new Error("Payment webhook correlation or amount is invalid");
-  const tender = await context.query.Tender.findMany({ where: { providerReference: { equals: providerReference }, configuration: { paymentProvider: { id: { equals: providerId } } } }, take: 2, query: "id amountCents status providerReference organization { id } premises { id }" });
+  // A tender is this provider's when its configuration links the provider, or when it is an online order's card,
+  // which is captured by the card provider directly (the debit tender stays on the store terminal provider).
+  const candidates = await context.query.Tender.findMany({ where: { providerReference: { equals: providerReference } }, take: 3, query: "id amountCents status providerReference organization { id } premises { id } configuration { paymentProvider { id } } sale { cart { paymentReference } }" });
+  const tender = candidates.filter((row: any) => row.configuration?.paymentProvider?.id === providerId || (provider.code === CARD_PROVIDER_CODE && row.sale?.cart?.paymentReference === providerReference));
   if (tender.length !== 1 || tender[0].amountCents !== Number(amount)) throw new Error("Payment webhook does not match exactly one tender amount");
   const lookupKey = `payment-webhook:${providerId}:${eventId}`; const requestHash = hash(rawBody);
   const wanted = tenderStatusForWebhook(String(event.type || verified.type));

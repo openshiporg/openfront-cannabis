@@ -115,6 +115,9 @@ test("webhook HMAC-SHA512 over the raw body is enforced", async () => {
   const verified = await handleWebhookFunction({ rawBody, headers: { "x-anet-signature": signature } });
   assert.equal(verified.type, "net.authorize.payment.authcapture.created");
   assert.equal(verified.event.id, "n-1");
+  // The transaction id and the dollar amount are mapped to what reconciliation reads (cents).
+  assert.equal(verified.resource.transactionId, "123");
+  assert.equal(verified.resource.amountCents, 1250);
   await assert.rejects(handleWebhookFunction({ rawBody: rawBody + " ", headers: { "x-anet-signature": signature } }), /signature/);
   await assert.rejects(handleWebhookFunction({ rawBody, headers: {} }), /signature/);
 });
