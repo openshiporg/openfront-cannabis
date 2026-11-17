@@ -48,10 +48,12 @@ export async function releaseOnlinePayment(context: Context, cartId: string) {
     }
   } catch { released = false; }
   await sudo.query.Cart.updateOne({ where: { id: cart.id }, data: { paymentStatus: released ? "voided" : "void_failed" }, query: "id" });
-  if (!released) {
+  const evidenceHash = createHash("sha256").update(`${cart.id}:${cart.paymentReference}:release_failed`).digest("hex");
+  // One open incident per stuck hold, however many times the release is retried.
+  if (!released && !(await sudo.query.ComplianceIncident.count({ where: { evidenceHash: { equals: evidenceHash }, status: { equals: "open" } } }))) {
     await sudo.query.ComplianceIncident.createOne({ data: { organization: { connect: { id: cart.organization.id } }, premises: { connect: { id: cart.premises.id } }, reference: `INC-PAY-${randomUUID()}`, type: "payment_ambiguity", severity: "high", status: "open",
       occurredAt: new Date(), detectedAt: new Date(), description: `Card authorization for online order ${cart.reference} could not be released; void it in the card processor and reconcile.`, affectedPackageUids: [],
-      customerReferenceHash: createHash("sha256").update(cart.id).digest("hex"), evidenceHash: createHash("sha256").update(`${cart.id}:${cart.paymentReference}:release_failed`).digest("hex") }, query: "id" });
+      customerReferenceHash: createHash("sha256").update(cart.id).digest("hex"), evidenceHash }, query: "id" });
   }
   return released ? "voided" : "void_failed";
 }

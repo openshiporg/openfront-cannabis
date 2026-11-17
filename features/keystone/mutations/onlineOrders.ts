@@ -11,7 +11,7 @@ import { getPublicPaymentProviderConfig } from "../utils/paymentProviderConfig";
 import { ALLOCATION_PACKAGE_SELECTION, cancelCannabisCart, purchaseWindowTotals, SYSTEM_CANCEL } from "./commerce";
 import { documentHash } from "./customers";
 import { CARD_PROVIDER_CODE, onlineCardProvider, releaseOnlinePayment } from "./onlinePayments";
-import { EXPIRABLE_CART_STATUSES, RELEASABLE_PAYMENT_STATUSES } from "../domain/lifecycles";
+import { EXPIRABLE_CART_STATUSES } from "../domain/lifecycles";
 import { publicAuthority } from "./public";
 import { assertInteger, assertText, stableHash } from "./workflow";
 import { deliverPickupConfirmation } from "../utils/orderConfirmation";
@@ -45,8 +45,9 @@ export async function releaseExpiredOrders(context: Context) {
   for (const cart of expired) {
     try { await cancelCannabisCart(null as any, { input: { cartId: cart.id, system: SYSTEM_CANCEL, idempotencyKey: `expire:${cart.id}`, reasonCode: "order_expired" } }, context); } catch { /* retried on the next visit */ }
   }
-  // A cancelled order whose card hold is still standing (the release failed or was interrupted) is released again.
-  const stuck = await sudo.query.Cart.findMany({ where: { status: { equals: "cancelled" }, paymentMethod: { equals: "card" }, paymentStatus: { in: [...RELEASABLE_PAYMENT_STATUSES] } }, take: 10, query: "id" });
+  // A cancelled order whose release was interrupted (hold still authorized) is released again. A void that failed
+  // already has its incident open for staff, and is retried only when staff cancel the order again.
+  const stuck = await sudo.query.Cart.findMany({ where: { status: { equals: "cancelled" }, paymentMethod: { equals: "card" }, paymentStatus: { equals: "authorized" } }, take: 10, query: "id" });
   for (const cart of stuck) { try { await releaseOnlinePayment(context, cart.id); } catch { /* retried on the next visit */ } }
 }
 
