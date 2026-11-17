@@ -12,7 +12,7 @@ import { assertInteger, assertText, requireOperationalAuthority, requireRulePack
 import { serializableTransaction } from '../domain/transaction.ts';
 import { capturePayment } from "../utils/paymentProviderAdapter";
 import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
-import { releaseOnlinePayment } from "./onlinePayments";
+import { onlineCardProvider, releaseOnlinePayment } from "./onlinePayments";
 import { ageAtPremises } from "../domain/premisesTime";
 import { customerBlocksSale, FINALIZABLE_CART_STATUSES, saleVoidError, tenderStatusFromCapture } from "../domain/lifecycles";
 import { verifySecondApprover, withApprover } from "./approval";
@@ -412,23 +412,6 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       if (tender.type !== "cash") tender.providerReference = assertText(tender.providerReference, "Terminal approval reference", 2, 200);
       const configurations = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: authority.organizationId } }, premises: { id: { equals: authority.premisesId } }, type: { equals: tender.type }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id code type providerCode paymentProvider { id code isInstalled capturePaymentFunction refundPaymentFunction credentials }" });
       if (configurations.length !== 1) throw new Error("Exactly one current tender configuration is required");
-      if (tender.type !== "cash") {
-        const config = configurations[0]; const provider = config.paymentProvider;
-        if (!provider || !provider.isInstalled || !isPaymentProviderConfigured(provider.code)) throw new Error("Configured payment provider is not installed or configured");
-        let result: any;
-        try {
-          result = await capturePayment({ provider, paymentId: tender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:capture:${tenderConfigs.length}` });
-          const resultAmount = Number(result?.amount); const resultCurrency = String(result?.currency || authority.actor.premises?.currencyCode || "USD").toUpperCase();
-          if (resultAmount !== amount || resultCurrency !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase()) throw new Error("Payment provider capture amount or currency mismatch");
-          if (result.status !== "captured" && result.status !== "succeeded") throw new Error("Payment capture is ambiguous");
-        } catch (error) {
-          await context.sudo().query.ComplianceIncident.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference: `INC-PAY-${randomUUID()}`, type: "payment_ambiguity", severity: "high", status: "open", occurredAt: now, detectedAt: new Date(), description: "Payment capture outcome is ambiguous; do not retry or complete this sale until reconciled.", affectedPackageUids: [], customerReferenceHash: hash(cart.customer.id), outageMode: "fail_closed", recoveryQueueReference: tender.providerReference, authorityReference: provider.code, actor: { connect: { id: authority.actor.id } }, owner: { connect: { id: authority.actor.id } }, evidenceHash: stableHash({ providerId: provider.id, paymentReference: tender.providerReference, amountCents: amount, idempotencyKey: `${input.idempotencyKey}:capture:${tenderConfigs.length}`, error: error instanceof Error ? error.message : "unknown" }) }, query: "id" });
-          throw new Error("Payment capture is ambiguous; incident recorded and reconciliation is required");
-        }
-        tender.providerReference = String(result.paymentIntentId || result.transactionId || tender.providerReference);
-        tender.providerStatus = tenderStatusFromCapture(result.status);
-        tender.paymentProviderId = provider.id;
-      }
       tenderConfigs.push(configurations[0]);
     }
     if (tenderTotal !== cart.totalCents) throw new Error("Tender total must exactly equal sale total in integer cents");
@@ -457,6 +440,29 @@ export async function finalizeCannabisSale(_root: unknown, args: { input: any },
       salePackageSnapshots.set(group.packageId, pkg as FinalSalePackageSnapshot);
       for (const balance of planSaleLineBalances(cart.lines, group, pkg.quantityOnHandMicrounits)) {
         saleLineBalances.set(balance.lineIndex, { before: balance.before, after: balance.after });
+      }
+    }
+    // Money moves only after every sale check above has passed.
+    for (const [index, tender] of tenders.entries()) {
+      const config = tenderConfigs[index]; const amount = tender.amountCents;
+      if (tender.type !== "cash") {
+        // The online order's own card authorization is captured by the card processor that authorized it;
+        // any other non-cash tender is a store terminal approval, settled through the tender's configured provider.
+        const provider = cardAuthorization && tender.providerReference === cardAuthorization ? await onlineCardProvider(tx, { organizationId: authority.organizationId!, premisesId: authority.premisesId! }, false) : config.paymentProvider;
+        if (!provider || !provider.isInstalled || !isPaymentProviderConfigured(provider.code)) throw new Error("Configured payment provider is not installed or configured");
+        let result: any;
+        try {
+          result = await capturePayment({ provider, paymentId: tender.providerReference, amount, currency: authority.actor.premises?.currencyCode || "USD", idempotencyKey: `${input.idempotencyKey}:capture:${index}` });
+          const resultAmount = Number(result?.amount); const resultCurrency = String(result?.currency || authority.actor.premises?.currencyCode || "USD").toUpperCase();
+          if (resultAmount !== amount || resultCurrency !== String(authority.actor.premises?.currencyCode || "USD").toUpperCase()) throw new Error("Payment provider capture amount or currency mismatch");
+          if (result.status !== "captured" && result.status !== "succeeded") throw new Error("Payment capture is ambiguous");
+        } catch (error) {
+          await context.sudo().query.ComplianceIncident.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, reference: `INC-PAY-${randomUUID()}`, type: "payment_ambiguity", severity: "high", status: "open", occurredAt: now, detectedAt: new Date(), description: "Payment capture outcome is ambiguous; do not retry or complete this sale until reconciled.", affectedPackageUids: [], customerReferenceHash: hash(cart.customer.id), outageMode: "fail_closed", recoveryQueueReference: tender.providerReference, authorityReference: provider.code, actor: { connect: { id: authority.actor.id } }, owner: { connect: { id: authority.actor.id } }, evidenceHash: stableHash({ providerId: provider.id, paymentReference: tender.providerReference, amountCents: amount, idempotencyKey: `${input.idempotencyKey}:capture:${index}`, error: error instanceof Error ? error.message : "unknown" }) }, query: "id" });
+          throw new Error("Payment capture is ambiguous; incident recorded and reconciliation is required");
+        }
+        tender.providerReference = String(result.paymentIntentId || result.transactionId || tender.providerReference);
+        tender.providerStatus = tenderStatusFromCapture(result.status);
+        tender.paymentProviderId = provider.id;
       }
     }
     const receiptNumber = `SALE-${randomUUID()}`;

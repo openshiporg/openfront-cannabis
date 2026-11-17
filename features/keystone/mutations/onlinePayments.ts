@@ -9,8 +9,8 @@ const PROVIDER_SELECTION = "id code isInstalled credentials createPaymentFunctio
 
 /**
  * The card provider for online orders, or null when card payment is not available.
- * Authorize.net is configured by the host's environment; its provider record and the link from the
- * debit tender are created here (idempotently) so staff can capture the authorization at pickup.
+ * Authorize.net is configured by the host's environment; its provider record is created here (idempotently)
+ * so staff can capture the authorization at pickup.
  */
 export async function onlineCardProvider(context: Context, scope: { organizationId: string; premisesId: string }, ensure: boolean) {
   if (!isPaymentProviderConfigured(CARD_PROVIDER_CODE)) return null;
@@ -24,9 +24,9 @@ export async function onlineCardProvider(context: Context, scope: { organization
   if (!ensure) return provider ?? { code: CARD_PROVIDER_CODE };
   const now = new Date();
   const debit = await sudo.query.TenderConfiguration.findMany({ where: { organization: { id: { equals: scope.organizationId } }, premises: { id: { equals: scope.premisesId } }, type: { equals: "debit" }, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, take: 2, query: "id paymentProvider { id }" });
+  // The debit tender records the sale; it stays linked to the store's own terminal provider, because the
+  // order's card authorization is captured and refunded through this card provider directly.
   if (debit.length !== 1) return null;
-  if (!debit[0].paymentProvider) await sudo.query.TenderConfiguration.updateOne({ where: { id: debit[0].id }, data: { paymentProvider: { connect: { id: provider!.id } }, providerCode: CARD_PROVIDER_CODE }, query: "id" });
-  else if (debit[0].paymentProvider.id !== provider!.id) return null;
   return provider;
 }
 
