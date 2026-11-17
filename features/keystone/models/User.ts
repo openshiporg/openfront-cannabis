@@ -1,7 +1,7 @@
 import { list } from "@keystone-6/core";
 import { denyAll } from "@keystone-6/core/access";
 import { password, relationship, select, text, timestamp } from "@keystone-6/core/fields";
-import { canFilterThrough, canManageScopedPeople, isSignedIn, rules } from "../access";
+import { canFilterThrough, canManageScopedPeople, canManageScopedSignIn, isSignedIn, rules } from "../access";
 import { trackingFields } from "./trackingFields";
 
 const authorityFieldUI = { createView: { fieldMode: 'hidden' as const }, itemView: { fieldMode: 'read' as const } };
@@ -14,9 +14,9 @@ export const User = list({
   },
   fields: {
     name: text({ validation: { isRequired: true } }),
-    email: text({ isIndexed: "unique", validation: { isRequired: true }, isFilterable: false, isOrderable: false }),
-    password: password({ isFilterable: false, isOrderable: false, access: { read: denyAll, update: async (args) => args.session?.itemId === args.item.id || await canManageScopedPeople(args as any) }, validation: { isRequired: true, length: { min: 10, max: 1000 }, rejectCommon: true } }),
-    status: select({ ui: scopedPeopleUI, access: { update: canManageScopedPeople }, type: "enum", options: [{ label: "Active", value: "active" }, { label: "Disabled", value: "disabled" }], defaultValue: "active", validation: { isRequired: true } }),
+    email: text({ isIndexed: "unique", access: { update: canManageScopedSignIn }, validation: { isRequired: true }, isFilterable: false, isOrderable: false }),
+    password: password({ isFilterable: false, isOrderable: false, access: { read: denyAll, update: (args) => canManageScopedSignIn(args as any) }, validation: { isRequired: true, length: { min: 10, max: 1000 }, rejectCommon: true } }),
+    status: select({ ui: scopedPeopleUI, access: { update: async (args) => await canManageScopedPeople(args as any) && await canManageScopedSignIn(args as any) }, type: "enum", options: [{ label: "Active", value: "active" }, { label: "Disabled", value: "disabled" }], defaultValue: "active", validation: { isRequired: true } }),
     organization: relationship({ ui: authorityFieldUI, ref: "Organization.users", isFilterable: canFilterThrough("Organization"), access: { create: denyAll, update: denyAll } }),
     premises: relationship({ ui: authorityFieldUI, ref: "Premises.users", isFilterable: canFilterThrough("Premises"), access: { create: denyAll, update: denyAll } }),
     role: relationship({ ui: authorityFieldUI, ref: "Role.assignedTo", isFilterable: canFilterThrough("Role"), access: { create: denyAll, update: denyAll } }),

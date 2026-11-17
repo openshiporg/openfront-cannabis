@@ -88,6 +88,19 @@ export async function canManageScopedPeople(args: AccessArgs & { item?: { [key: 
   return !args.item || args.item.premisesId === actor.premises.id;
 }
 
+/**
+ * Sign-in fields (email, password, status) of another user. A people manager may change them for staff at the
+ * premises, but only an owner may change an owner's, the same rule as the staff commands.
+ */
+export async function canManageScopedSignIn(args: AccessArgs & { item?: { [key: string]: unknown } }) {
+  if (!args.item || args.session?.itemId === args.item.id) return true;
+  if (!(await canManageScopedPeople(args))) return false;
+  const actor = await freshActor(args);
+  if (actor?.role?.canManageOnboarding === true) return true;
+  const target = await args.context.sudo().query.User.findOne({ where: { id: String(args.item.id) }, query: "role { canManageOnboarding }" });
+  return target?.role?.canManageOnboarding !== true;
+}
+
 export function organizationId(session?: Session) {
   return session?.data.organization?.id || null;
 }
