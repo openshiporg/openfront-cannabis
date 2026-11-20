@@ -113,6 +113,10 @@ export async function createPaymentFunction({ amount, currency, opaqueData, cart
     idempotencyKey || cart?.id || order?.id,
   );
   const tx = result.transactionResponse;
+  // responseCode 4 = held for review: the card may still be authorized, so it is not a decline.
+  if (tx?.responseCode === "4" && tx?.transId && tx.transId !== "0") {
+    return { status: "unknown", paymentIntentId: String(tx.transId), amount, currency: "USD", error: transactionError(result), data: { transId: tx.transId, heldForReview: true } };
+  }
   if (result.messages?.resultCode !== "Ok" || tx?.responseCode !== "1" || !tx?.transId || tx.transId === "0") {
     return { status: "failed", amount, currency: "USD", error: transactionError(result) };
   }

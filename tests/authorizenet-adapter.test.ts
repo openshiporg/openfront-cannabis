@@ -9,7 +9,7 @@ import {
   mapTransactionStatus,
   mapWebhookEventType,
   refundPaymentFunction,
-} from "../features/integrations/payment/authorizenet";
+} from "../features/integrations/payment/authorizenet.ts";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -56,6 +56,14 @@ test("declined authorization is a failure, never a success", async () => {
   const result = await createPaymentFunction({ amount: 1250, currency: "USD", opaqueData: { dataDescriptor: "d", dataValue: "v" } });
   assert.equal(result.status, "failed");
   assert.match(String((result as any).error), /declined/);
+});
+
+test("held for review (responseCode 4) is unknown with its transaction id, not a decline", async () => {
+  creds();
+  globalThis.fetch = (async () => reply({ messages: { resultCode: "Ok" }, transactionResponse: { responseCode: "4", transId: "778899", errors: [{ errorText: "This transaction is being held for review." }] } })) as typeof fetch;
+  const result = await createPaymentFunction({ amount: 1250, currency: "USD", opaqueData: { dataDescriptor: "d", dataValue: "v" } });
+  assert.equal(result.status, "unknown");
+  assert.equal((result as any).paymentIntentId, "778899");
 });
 
 test("non-USD and non-integer amounts are rejected", async () => {

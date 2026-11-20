@@ -199,15 +199,17 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
     try {
       result = await createPayment({ provider, amount: placed.totalCents, currency: "USD", opaqueData: raw.opaqueData, cart: { id: reference }, idempotencyKey: reference });
     } catch { lost = true; } // the answer never came back (timeout, network, bad reply): the processor may still have authorized the card
-    if (lost || (result?.status === "authorized" && !result.paymentIntentId)) {
+    // "unknown" = held for review by the processor's fraud filter: it may still be authorized, so it is handled like a lost answer.
+    const held = result?.status === "unknown";
+    if (lost || held) {
       // Unknown is not a decline: keep the order and its stock hold, mark the payment unconfirmed, tell staff to check it, and do not ask for a second charge.
-      // No transaction id came back, so there is nothing to look up; staff check the processor by the order reference (Authorize.net refId/invoice). A lost authOnly is never captured and expires at the processor.
+      // A held auth keeps its transaction id on the cart; for a lost answer no id came back, so staff check the processor by the order reference (Authorize.net refId/invoice). A lost authOnly is never captured and expires at the processor.
       paymentStatus = "unconfirmed";
       unconfirmedMessage = "We are confirming your payment. Please do not pay again; we will keep your order.";
-      await context.sudo().query.Cart.updateOne({ where: { id: placed.cartId }, data: { paymentStatus }, query: "id" });
+      await context.sudo().query.Cart.updateOne({ where: { id: placed.cartId }, data: { paymentStatus, ...(result?.paymentIntentId ? { paymentReference: String(result.paymentIntentId) } : {}) }, query: "id" });
       await context.sudo().query.ComplianceIncident.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, reference: `INC-PAY-${randomUUID()}`, type: "payment_ambiguity", severity: "high", status: "open",
-        occurredAt: new Date(), detectedAt: new Date(), description: `Card authorization for online order ${reference} got no answer; check the card processor for this order reference, void anything authorized and reconcile.`, affectedPackageUids: [],
-        customerReferenceHash: sha(placed.cartId), evidenceHash: sha(`${placed.cartId}:${reference}:auth_answer_lost`) }, query: "id" });
+        occurredAt: new Date(), detectedAt: new Date(), description: held ? `Card authorization for online order ${reference} is held for review by the card processor (transaction ${result.paymentIntentId}); approve or void it there, then reconcile.` : `Card authorization for online order ${reference} got no answer; check the card processor for this order reference, void anything authorized and reconcile.`, affectedPackageUids: [],
+        customerReferenceHash: sha(placed.cartId), evidenceHash: sha(`${placed.cartId}:${reference}:${held ? "auth_held_for_review" : "auth_answer_lost"}`) }, query: "id" });
     } else {
     if (!result || result.status !== "authorized" || !result.paymentIntentId) {
       // The processor answered and nothing was authorized, so put the stock back and tell the shopper.
