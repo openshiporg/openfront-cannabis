@@ -43,6 +43,20 @@ export async function checkInitStatus(request: NextRequest) {
   }
 }
 
+/** True when the session belongs to a shopper account. Staff rules hide a shopper from authenticatedItem, so ask the shopper's own query. */
+export async function isShopperSession(request: NextRequest) {
+  const cookie = request.headers.get("cookie") || "";
+  if (!cookie.includes("keystonejs-session=")) return false;
+  try {
+    const client = await createMiddlewareGraphQLClient({ cookie }, request.headers);
+    const data = await client.request(`query shopperSession { cannabisCustomerAccount }`) as { cannabisCustomerAccount: unknown };
+    return Boolean(data.cannabisCustomerAccount);
+  } catch (error) {
+    console.error("Shopper check failed:", safeErrorSummary(error));
+    return false;
+  }
+}
+
 // Get authenticated user from the request (adapted for dashboard)
 export async function getAuthenticatedUser(request: NextRequest) {
   const query = `

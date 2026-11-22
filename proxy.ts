@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { handleDashboardRoutes, getAuthenticatedUser } from "@/features/dashboard/middleware";
+import { handleDashboardRoutes, getAuthenticatedUser, isShopperSession } from "@/features/dashboard/middleware";
 import { handleStorefrontRoutes } from "@/features/storefront/middleware";
 import { NextResponse } from "next/server";
 import { isDashboardRoute } from "@/features/dashboard/lib/authFlow";
@@ -22,7 +22,8 @@ export async function proxy(request: NextRequest) {
   }
 
   // A signed-in shopper has no role and no place on the staff side: send them to their account (the reset page stays open).
-  if (user && !user.role && request.nextUrl.pathname.startsWith(dashboardPath) && !isDashboardRoute(request.nextUrl.pathname, "reset")) {
+  const onStaffSide = request.nextUrl.pathname === dashboardPath || request.nextUrl.pathname.startsWith(`${dashboardPath}/`);
+  if (onStaffSide && !isDashboardRoute(request.nextUrl.pathname, "reset") && (user ? !user.role : await isShopperSession(request))) {
     return NextResponse.redirect(new URL("/account", request.url));
   }
 
