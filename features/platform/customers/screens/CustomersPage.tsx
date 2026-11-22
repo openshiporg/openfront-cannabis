@@ -50,7 +50,7 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
         <Table label="Eligibility evidence" minWidth={720}>
           <THead><Th>Method</Th><Th>Capacity</Th><Th>ID valid until</Th><Th>Registry</Th><Th>Verified</Th><Th>Result</Th></THead>
           <tbody>{data.evidence.length ? data.evidence.map(record => <Tr key={record.id}>
-            <Td className="font-medium">{record.identityMethod}{record.reasonCodes.length ? <span className="block text-xs font-normal text-muted-foreground">{record.reasonCodes.map(codeLabel).join(', ')}</span> : null}</Td>
+            <Td className="font-medium">{codeLabel(record.identityMethod)}{record.reasonCodes.length ? <span className="block text-xs font-normal text-muted-foreground">{record.reasonCodes.map(codeLabel).join(', ')}</span> : null}</Td>
             <Td className="text-muted-foreground">{sentenceCase(record.capacity)}</Td>
             <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(record.identityExpiresAt, data.timezone)}</Td>
             <Td className="text-muted-foreground">{record.registryName ? `${record.registryName}${record.registryExpiresAt ? ` until ${formatWhen(record.registryExpiresAt, data.timezone)}` : ''}` : '—'}</Td>
