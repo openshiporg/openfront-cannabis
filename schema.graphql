@@ -5200,6 +5200,7 @@ type Query {
   cannabisPickupOrder(reference: String!, proof: String!): JSON!
   cannabisPickupQuote(items: JSON!): JSON!
   cannabisSalesExport(from: String!, to: String!): JSON!
+  cannabisStateReportExport(kind: String!, from: String!, to: String!): JSON!
   cannabisCustomerAccount: JSON
   publicCannabisStorefrontSettings: JSON!
   cannabisOperationsWorkspace(section: String!, options: JSON): JSON!

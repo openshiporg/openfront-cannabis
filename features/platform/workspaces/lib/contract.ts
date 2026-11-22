@@ -113,6 +113,7 @@ const sections = {
     runs: page(obj({ id: str, type: str, status: str, discrepancyCount: count, startedAt: date, completedAt: optDate })),
     integrations: arr(obj({ id: str, providerCode: str, providerType: str, status: str, facilityReference: optStr, authorityReference: str, validatedAt: optDate, lastSuccessfulSyncAt: optDate }), 20),
     inbox: page(obj({ id: str, providerCode: str, providerEventId: str, status: str, receivedAt: date, processedAt: optDate, rejectionReason: optStr })),
+    unreported: count, exports: arr(obj({ id: str, kind: str, occurredAt: date, by: str, from: str, to: str, rows: count }), 5),
   }),
   incidents: obj({ ...base, filter: str, openTotal: count, overdueTotal: count, highTotal: count,
     incidents: page(obj({ id: str, reference: str, type: str, severity: str, status: str, occurredAt: date, detectedAt: date, notificationDueAt: optDate, reportedAt: optDate, description: str, notificationState: str })),

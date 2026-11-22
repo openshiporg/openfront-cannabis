@@ -279,7 +279,10 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const installations = await sudo.query.IntegrationInstallation.count({ where: { ...scope, status: { equals: "active" } } });
     const integrations = await sudo.query.IntegrationInstallation.findMany({ where: scope, orderBy: [{ providerType: "asc" }], take: 20, query: "id providerCode providerType status facilityReference authorityReference validatedAt lastSuccessfulSyncAt" });
     const inbox = await page(context, "StateEventInbox", { where: scope, orderBy: [{ receivedAt: "desc" }], take: 25, query: "id providerCode providerEventId status receivedAt processedAt rejectionReason" });
-    return { ...base, runs, integrations, inbox };
+    const exports = await sudo.query.AuditEvent.findMany({ where: { ...scope, action: { in: ["state_report.sales_exported", "state_report.adjustments_exported"] } }, orderBy: [{ occurredAt: "desc" }], take: 5, query: "id action occurredAt evidence actor { name }" });
+    const unreported = await sudo.query.Sale.count({ where: { ...scope, status: { in: ["finalized", "state_queued", "state_rejected", "partially_refunded", "refunded"] } } });
+    return { ...base, runs, integrations, inbox, unreported,
+      exports: exports.map(event => ({ id: event.id, kind: String(event.action).includes("adjustments") ? "adjustments" : "sales", occurredAt: event.occurredAt, by: event.actor?.name ?? "", from: String((event.evidence as any)?.from ?? ""), to: String((event.evidence as any)?.to ?? ""), rows: Number((event.evidence as any)?.rows ?? 0) })) };
   }
 
   if (section === "staff") {

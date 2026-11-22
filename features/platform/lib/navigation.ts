@@ -37,7 +37,7 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Sales', href: '/platform/sales', permission: 'canManageSales', color: 'blue', description: 'Receipts, state reporting and refunds.', icon: Receipt, group: 'operations' },
   { title: 'Cash', href: '/platform/cash', permission: 'canManageFinance', color: 'yellow', description: 'Registers, shifts and cash variances.', icon: Banknote, group: 'operations' },
   { title: 'Payment providers', href: '/platform/payment-providers', permission: 'canManageFinance', color: 'indigo', description: 'Cash, debit and bank payment adapters.', icon: CreditCard, group: 'operations' },
-  { title: 'Reconciliation', href: '/platform/reconciliation', permission: 'canViewReports', color: 'indigo', description: 'Reconciliation runs and state reporting queue.', icon: Scale, group: 'operations' },
+  { title: 'State reporting', href: '/platform/reconciliation', permission: 'canViewReports', color: 'indigo', description: 'Files for the state system and what it has confirmed.', icon: Scale, group: 'operations' },
   { title: 'Incidents', href: '/platform/incidents', permission: 'canManageCompliance', color: 'red', description: 'Compliance incidents and notification deadlines.', icon: AlertTriangle, group: 'operations' },
   { title: 'Audit log', href: '/platform/audit', permission: 'canViewReports', color: 'slate', description: 'Who did what, and when.', icon: ScrollText, group: 'operations' },
 ];

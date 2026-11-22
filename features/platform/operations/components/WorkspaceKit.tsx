@@ -76,6 +76,16 @@ export function SalesExportForm({ timezone, className }: { timezone: string | nu
   </form>;
 }
 
+export function StateReportForm({ kind, timezone }: { kind: 'sales' | 'adjustments'; timezone: string | null }) {
+  const day = (offset: number) => new Intl.DateTimeFormat('en-CA', { timeZone: timezone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() - offset * 86_400_000));
+  return <form action="/dashboard/platform/reconciliation/export" method="get" className="mt-2 flex flex-wrap items-end gap-2">
+    <input type="hidden" name="kind" value={kind} />
+    <label className="text-xs font-medium text-foreground">From<input type="date" name="from" required defaultValue={day(0)} max={day(0)} className={`${inputClass} sm:w-40`} /></label>
+    <label className="text-xs font-medium text-foreground">To<input type="date" name="to" required defaultValue={day(0)} max={day(0)} className={`${inputClass} sm:w-40`} /></label>
+    <Button type="submit">{kind === 'sales' ? 'Download sales file' : 'Download adjustments file'}</Button>
+  </form>;
+}
+
 export function SearchForm({ basePath, params, name = 'search', label, placeholder }: { basePath: string; params: Record<string, string | undefined>; name?: string; label: string; placeholder?: string }) {
   const kept = Object.entries(params).filter(([key, value]) => value && key !== name && key !== 'cursor') as Array<[string, string]>;
   const clearQuery = new URLSearchParams(kept).toString();

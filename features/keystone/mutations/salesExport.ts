@@ -6,7 +6,7 @@ const MAX_DAYS = 92;
 const MAX_LINES = 5000;
 
 /** The UTC instant of local midnight for a store date, found by correcting a UTC guess with the zone's offset. */
-function storeMidnight(day: string, timeZone: string) {
+export function storeMidnight(day: string, timeZone: string) {
   const guess = new Date(`${day}T00:00:00Z`);
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(guess).map(part => [part.type, part.value]));
   const shown = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));

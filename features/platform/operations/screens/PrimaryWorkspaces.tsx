@@ -7,7 +7,7 @@ import {
   ButtonLink, Disclosure, ListBand, Notice, operatingState, Panel, RecordList, RecordRow, Ref, SectionTitle, StatusText, statusTone, Table, TabLink, Tabs, TEmpty, Td, Th, THead, Tr,
   type DotTone, codeLabel, INTERVAL_LABEL, sentenceCase,
 } from '@/features/platform/components/cannabis-ui';
-import { Empty, formatUsableThrough, formatWhen, Pager, SalesExportForm, SearchForm, Workboard } from '../components/WorkspaceKit';
+import { Empty, formatUsableThrough, formatWhen, Pager, SearchForm, StateReportForm, Workboard } from '../components/WorkspaceKit';
 import { CartPanel, CashMovementForm, CheckInForm, CloseShiftForm } from '../components/SaleForms';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
 import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RevokeCredentialForm } from '../components/OperatorForms';
@@ -51,7 +51,7 @@ const WORKSPACE_GROUPS: Array<{ title: string; items: Array<{ title: string; det
     { title: 'Customers', detail: 'Eligibility and history', href: '/dashboard/platform/customers', access: 'compliance' },
     { title: 'Recalls', detail: 'Recall cases and held packages', href: '/dashboard/platform/recalls', access: 'compliance' },
     { title: 'Incidents', detail: 'Incidents and deadlines', href: '/dashboard/platform/incidents', access: 'compliance' },
-    { title: 'Reconciliation', detail: 'State reporting queue', href: '/dashboard/platform/reconciliation', access: 'reports' },
+    { title: 'State reporting', detail: 'Files for the state system', href: '/dashboard/platform/reconciliation', access: 'reports' },
     { title: 'Audit log', detail: 'Who did what, and when', href: '/dashboard/platform/audit', access: 'reports' },
   ] },
   { title: 'Store', items: [
@@ -439,12 +439,30 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
 
 export async function ReconciliationWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
-  return frame('reconciliation', '/dashboard/platform/reconciliation', 'Reconciliation', params, data => <Workboard>
-    {!data.integrations.some(integration => integration.status === 'active') && <section aria-label="State reporting" className="rounded-[6px] border border-border bg-card p-4">
-      <h2 className="text-sm font-semibold">Sales are not sent to the state system from here</h2>
-      <p className="mt-1 max-w-[70ch] text-[13px] text-muted-foreground">This store has no live connection to the state track-and-trace system, so nothing is reported for you. Download your sales below and enter them in the state system yourself. Each row carries the package tag, quantity and time the state asks for.</p>
-      <SalesExportForm timezone={data.timezone} className="mt-3" />
-    </section>}
+  return frame('reconciliation', '/dashboard/platform/reconciliation', 'State reporting', params, data => <Workboard>
+    {(() => {
+      const connected = data.integrations.some(integration => integration.providerType === 'traceability' && integration.status === 'active');
+      const last = (kind: string) => data.exports.find(entry => entry.kind === kind);
+      const lastText = (kind: string) => { const entry = last(kind); return entry ? `${formatWhen(entry.occurredAt, data.timezone)} by ${entry.by || 'staff'} · ${entry.from} to ${entry.to} · ${entry.rows} row${entry.rows === 1 ? '' : 's'}` : 'Never'; };
+      return <section aria-label="State reporting" className="rounded-[6px] border border-border bg-card">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">{connected ? 'Sales are sent to the state system' : 'Report to the state system by upload'}</h2>
+            <p className="mt-1 max-w-[70ch] text-[13px] text-muted-foreground">{connected ? 'Sales and package changes go to the state system as they happen.' : 'This store is not connected to the state system. Download the files below and upload them in the state system: Sales, then Packages for adjustments. The columns match its import.'}</p>
+          </div>
+          <StatusText tone={connected ? 'ok' : 'warn'}>{connected ? 'Connected' : 'Manual upload'}</StatusText>
+        </div>
+        <dl className="grid gap-3 p-4 text-[13px] sm:grid-cols-3">
+          <div><dt className="text-xs text-muted-foreground">Sales not yet confirmed by the state</dt><dd className="mt-0.5 font-medium tabular-nums">{data.unreported}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Last sales file</dt><dd className="mt-0.5">{lastText('sales')}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Last adjustments file</dt><dd className="mt-0.5">{lastText('adjustments')}</dd></div>
+        </dl>
+        {!connected && <div className="space-y-4 border-t border-border p-4">
+          <div><h3 className="text-xs font-medium">Sales receipts</h3><p className="text-xs text-muted-foreground">One row per package sold. Voided sales are left out.</p><StateReportForm kind="sales" timezone={data.timezone} /></div>
+          <div><h3 className="text-xs font-medium">Package adjustments</h3><p className="text-xs text-muted-foreground">Count corrections, waste and destruction. Check each reason matches your state’s list before you upload.</p><StateReportForm kind="adjustments" timezone={data.timezone} /></div>
+        </div>}
+      </section>;
+    })()}
     <Split side="minmax(0,1fr)">
       <section data-testid="reconciliation-workbench">
         <SectionTitle meta={data.runs.total}>Reconciliation runs</SectionTitle>
@@ -470,7 +488,7 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
             <Td className="text-muted-foreground">{integration.facilityReference || '—'}</Td>
             <Td className="whitespace-nowrap text-muted-foreground">{integration.lastSuccessfulSyncAt ? formatWhen(integration.lastSuccessfulSyncAt, data.timezone) : 'Never'}</Td>
             <Td><StatusText tone={statusTone(integration.status === 'unconfigured' ? 'pending' : integration.status)}>{integration.status === 'unconfigured' ? 'Not connected' : sentenceCase(integration.status)}</StatusText></Td>
-          </Tr>) : <TEmpty colSpan={4}>No integrations.</TEmpty>}</tbody>
+          </Tr>) : <TEmpty colSpan={4}>No connections.</TEmpty>}</tbody>
         </Table>
       </section>
       <section>
