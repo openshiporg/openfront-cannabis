@@ -70,6 +70,15 @@ export async function publicCannabisStorefrontSettings(_root: unknown, _args: un
   }
 }
 
+/** THC, CBD and strain type as printed on the package that sells next; null until staff record them. */
+function publicPotency(snapshot: any) {
+  if (!snapshot || typeof snapshot !== "object" || (snapshot.unit !== "percent" && snapshot.unit !== "mg")) return null;
+  const figure = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null;
+  const thc = figure(snapshot.thc); const cbd = figure(snapshot.cbd);
+  if (thc == null && cbd == null) return null;
+  return { unit: snapshot.unit as "percent" | "mg", thc, cbd, strain: typeof snapshot.strain === "string" ? snapshot.strain : null };
+}
+
 export async function publicCannabisMenu(_root: unknown, _args: unknown, context: Context) {
   let authority: Awaited<ReturnType<typeof publicAuthority>>;
   try { authority = await publicAuthority(context); }
@@ -81,7 +90,7 @@ export async function publicCannabisMenu(_root: unknown, _args: unknown, context
     context.sudo().query.InventoryPackage.findMany({
       where: { ...scope, status: { equals: "saleable" }, testStatus: { equals: "passed" }, expiresAt: { gt: new Date() }, quantityOnHandMicrounits: { gt: 0 } },
       orderBy: [{ expiresAt: "asc" }, { createdAt: "asc" }], take: 201,
-      query: "id status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labelVersion holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku form categoryCode unitQuantityMicrounits priceCents publicDescription publicImageUrl photo { url } adultUseEligible medicalEligible status } premises { id }",
+      query: "id status testStatus expiresAt quantityOnHandMicrounits reservedMicrounits coaReference labelVersion potencySnapshot holds(where: { status: { equals: active } }, take: 1) { id } product { id name sku form categoryCode unitQuantityMicrounits priceCents publicDescription publicImageUrl photo { url } adultUseEligible medicalEligible status } premises { id }",
     })
   ]);
   if (packages.length > 200) throw new Error("Menu projection exceeds its bounded source page and requires operator review");
@@ -92,7 +101,7 @@ export async function publicCannabisMenu(_root: unknown, _args: unknown, context
     try {
       assertPackageSaleable({ status: pkg.status, testStatus: pkg.testStatus, expiresAt: pkg.expiresAt, premisesId, quantityOnHandMicrounits: pkg.quantityOnHandMicrounits, reservedMicrounits: pkg.reservedMicrounits, activeHoldCount: pkg.holds?.length || 0, coaReference: pkg.coaReference, labelVersion: pkg.labelVersion }, authority.premises.id, pkg.product.unitQuantityMicrounits);
     } catch { continue; }
-    if (!products.has(pkg.product.id)) products.set(pkg.product.id, { id: pkg.product.id, name: pkg.product.name, sku: pkg.product.sku, form: pkg.product.form, categoryCode: pkg.product.categoryCode, priceCents: pkg.product.priceCents, description: pkg.product.publicDescription, imageUrl: pkg.product.photo?.url || pkg.product.publicImageUrl || null, adultUseEligible: pkg.product.adultUseEligible, medicalEligible: pkg.product.medicalEligible, available: true });
+    if (!products.has(pkg.product.id)) products.set(pkg.product.id, { id: pkg.product.id, name: pkg.product.name, sku: pkg.product.sku, form: pkg.product.form, categoryCode: pkg.product.categoryCode, priceCents: pkg.product.priceCents, description: pkg.product.publicDescription, imageUrl: pkg.product.photo?.url || pkg.product.publicImageUrl || null, adultUseEligible: pkg.product.adultUseEligible, medicalEligible: pkg.product.medicalEligible, available: true, potency: publicPotency(pkg.potencySnapshot) });
   }
   return { jurisdictionCode: authority.organization.jurisdictionCode, rulePackVersion: authority.pack.version, currencyCode: authority.premises.currencyCode ?? null, products: [...products.values()] };
 }

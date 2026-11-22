@@ -287,6 +287,22 @@ export async function amendPremisesDetailsFromDesk(_state: CommandState, formDat
   }, 'Address and phone saved. The storefront shows them now.');
 }
 
+export async function recordPotencyFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const unit = text(formData, 'unit');
+  if (!['percent', 'mg'].includes(unit)) errors.unit = 'Choose percent or milligrams';
+  const figure = (name: string, label: string) => {
+    const raw = text(formData, name); if (!raw) return null;
+    if (!/^\d{1,6}(\.\d{1,2})?$/.test(raw) || (unit === 'percent' && Number(raw) > 100)) { errors[name] = `Enter ${label} as a number${unit === 'percent' ? ' from 0 to 100' : ''}`; return null; }
+    return Number(raw);
+  };
+  const thc = figure('thc', 'THC'); const cbd = figure('cbd', 'CBD');
+  if (thc == null && cbd == null && !errors.thc && !errors.cbd) errors.thc = 'Enter THC or CBD';
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('recordPackagePotency', 'recordPackagePotency', { idempotencyKey, packageId: text(formData, 'packageId'), unit, thc, cbd, strain: text(formData, 'strain') }, 'Potency saved. The menu shows it now.');
+}
+
 export async function placeHoldFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
   const errors: FieldErrors = {};
   const type = text(formData, 'type');

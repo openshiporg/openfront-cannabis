@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings } from '../lib/data/menu';
 import { formatPrice, formKey } from '../lib/format';
 import { chapterInk } from '../lib/chapters';
-import { CatalogEntry, ProductPlate, channelLabel } from '../components/ProductTile';
+import { CatalogEntry, ProductPlate, channelLabel, potencyFacts } from '../components/ProductTile';
 import { StorefrontShell } from '../components/StorefrontShell';
 import { AddToBag } from '../components/AddToBag';
 import { menuForms, menuItems } from './MenuPage';
@@ -35,6 +35,11 @@ export async function ProductPage({ params }: { params: Promise<{ id: string }> 
             {product.priceCents != null && <p className="cn-display cn-num text-[44px] text-cn-ink sm:text-[56px]">{formatPrice(product.priceCents, menu.currencyCode)}</p>}
             <p className="inline-flex items-baseline gap-2 text-[16px] text-cn-ink-2"><span className="cn-dot bg-cn-ok" aria-hidden="true" />In stock · order for pickup</p>
           </div>
+          {potencyFacts(product).length > 0 && <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+            {potencyFacts(product).map(fact => { const [term, ...rest] = fact.split(' '); return rest.length
+              ? <div key={fact}><dt className="text-[14px] text-cn-ink-3">{term}</dt><dd className="cn-display cn-num text-[28px] text-cn-ink">{rest.join(' ')}</dd></div>
+              : <div key={fact}><dt className="text-[14px] text-cn-ink-3">Type</dt><dd className="cn-display text-[28px] text-cn-ink">{term}</dd></div>; })}
+          </dl>}
           {product.priceCents != null && <AddToBag product={{ id: product.id, name: product.name, priceCents: product.priceCents }} cardOnline={settings.visit?.cardOnline === true} />}
           {product.description && <p className="mt-6 max-w-prose whitespace-pre-line break-words text-[17px] [text-wrap:pretty] leading-[28px] text-cn-ink-2">{product.description}</p>}
         </div>

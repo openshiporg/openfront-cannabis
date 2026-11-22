@@ -46,6 +46,7 @@ const balance: Check<{ state: 'ok'; availableMicrounits: number; onHandMicrounit
   return { state: 'ok', availableMicrounits: int(value.availableMicrounits, p), onHandMicrounits: int(value.onHandMicrounits, p), reservedMicrounits: int(value.reservedMicrounits, p) };
 };
 export const custodyPackage = obj({
+  potencySnapshot: nullable(json),
   id: str, packageUid: str, sourcePackageUid: optStr, productionBatchNumber: str, lotNumber: str, status: str, testStatus: str,
   quantityReceivedMicrounits: int, quantityOnHandMicrounits: int, reservedMicrounits: int, unitOfMeasure: str, expiresAt: date,
   receivedAt: optDate, manufacturedAt: optDate, coaReference: optStr, labName: optStr, labResultReference: optStr, labelVersion: optStr, version: int,

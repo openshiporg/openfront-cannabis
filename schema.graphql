@@ -5028,6 +5028,7 @@ type Mutation {
   openRecallCase(input: JSON!): JSON!
   advanceRecallCase(input: JSON!): JSON!
   recordPackageLabResult(input: JSON!): JSON!
+  recordPackagePotency(input: JSON!): JSON!
   releaseCannabisPackage(input: JSON!): JSON!
   recordCannabisCountCorrection(input: JSON!): JSON!
   checkInCannabisCustomer(input: JSON!): JSON!

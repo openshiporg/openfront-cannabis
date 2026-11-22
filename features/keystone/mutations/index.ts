@@ -13,7 +13,7 @@ import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSetting
 import { amendCannabisPremisesDetails, amendCannabisRulePack } from "./rulePack";
 import { changeStaffPermissions, setStaffTemporaryPassword } from "./staffAccess";
 import { exposeRuleErrors } from "./ruleErrors";
-import { advanceRecallCase, openRecallCase, placePackageHold, recordPackageLabResult, releaseCannabisPackage } from "./custody";
+import { advanceRecallCase, openRecallCase, placePackageHold, recordPackageLabResult, recordPackagePotency, releaseCannabisPackage } from "./custody";
 import { checkInCannabisCustomer } from "./customers";
 import { cannabisSalesExport } from "./salesExport";
 import { cancelCannabisPickupOrder, cannabisPickupOptions, cannabisPickupOrder, cannabisPickupQuote, placeCannabisPickupOrder } from "./onlineOrders";
@@ -61,6 +61,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         openRecallCase(input: JSON!): JSON!
         advanceRecallCase(input: JSON!): JSON!
         recordPackageLabResult(input: JSON!): JSON!
+        recordPackagePotency(input: JSON!): JSON!
         releaseCannabisPackage(input: JSON!): JSON!
         recordCannabisCountCorrection(input: JSON!): JSON!
         checkInCannabisCustomer(input: JSON!): JSON!
@@ -115,6 +116,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         openRecallCase,
         advanceRecallCase,
         recordPackageLabResult,
+        recordPackagePotency,
         releaseCannabisPackage,
         recordCannabisCountCorrection,
         checkInCannabisCustomer,

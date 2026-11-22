@@ -6,6 +6,7 @@ import { NEUTRAL_STOREFRONT_SETTINGS, type PublicStorefrontSettings } from '@/fe
 export type PublicLiveMenuItem = {
   id: string; name: string; sku?: string; form: string; categoryCode: string; priceCents: number; description?: string | null;
   imageUrl?: string | null; adultUseEligible?: boolean; medicalEligible?: boolean;
+  potency?: { unit: 'percent' | 'mg'; thc: number | null; cbd: number | null; strain: string | null } | null;
 };
 
 export type PublicCannabisMenu = {

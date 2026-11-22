@@ -6,7 +6,7 @@ import type { WorkspaceData } from '@/features/platform/workspaces/lib/contract'
 import { formatUsableThrough, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { ButtonLink, Dot, DotLabel, Panel, Ref, StatusText, statusTone, TabBar, TabLink, Tabs, type DotTone, codeLabel, sentenceCase } from '@/features/platform/components/cannabis-ui';
 import { PlaceHoldForm } from './PlaceHoldForm';
-import { CountCorrectionForm, LabResultForm, ReleaseHoldForm, ReleasePackageForm } from '@/features/platform/operations/components/SaleForms';
+import { CountCorrectionForm, LabResultForm, PotencyForm, ReleaseHoldForm, ReleasePackageForm } from '@/features/platform/operations/components/SaleForms';
 import { hasDiscrepancy, readable, readinessReasons, type CustodyPackage } from '../lib/custody';
 
 type Props = { data: WorkspaceData<'inventory'>; params: Record<string, string | undefined> };
@@ -18,6 +18,12 @@ function packageTone(pkg: CustodyPackage): DotTone {
   if (hasDiscrepancy(pkg)) return 'danger';
   if (pkg.readiness.ready) return 'ok';
   return statusTone(pkg.status);
+}
+
+function potencyText(potency: Record<string, unknown> | null) {
+  if (!potency || (potency.unit !== 'percent' && potency.unit !== 'mg')) return '';
+  const unit = potency.unit === 'percent' ? '%' : ' mg';
+  return [typeof potency.thc === 'number' ? `THC ${potency.thc}${unit}` : '', typeof potency.cbd === 'number' ? `CBD ${potency.cbd}${unit}` : '', typeof potency.strain === 'string' && potency.strain ? potency.strain[0].toUpperCase() + potency.strain.slice(1) : ''].filter(Boolean).join(' · ');
 }
 
 function Quantity({ pkg }: { pkg: CustodyPackage }) {
@@ -36,9 +42,11 @@ function PackageDetail({ pkg, release, timezone }: { pkg: CustodyPackage; releas
       <div><dt className="text-xs text-muted-foreground">Usable through</dt><dd className="mt-0.5">{formatUsableThrough(pkg.expiresAt, timezone)}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Batch</dt><dd className="mt-0.5 break-all font-mono text-xs">{pkg.productionBatchNumber}</dd></div>
       <div><dt className="text-xs text-muted-foreground">COA reference</dt><dd className="mt-0.5 break-all font-mono text-xs">{pkg.coaReference || 'Not recorded'}</dd></div>
+      <div className="col-span-2"><dt className="text-xs text-muted-foreground">Potency on the menu</dt><dd className="mt-0.5">{potencyText(pkg.potencySnapshot) || 'Not recorded'}</dd></div>
       <div className="col-span-2"><dt className="text-xs text-muted-foreground">Source package</dt><dd className="mt-0.5 break-all font-mono text-xs">{pkg.sourcePackageUid || 'Not recorded'}</dd></div>
     </dl>
     {pkg.balance.state === 'discrepancy' && <p role="alert" className="flex items-baseline gap-2 text-sm text-destructive"><Dot tone="danger" />On-hand and reserved quantities don’t reconcile ({String(pkg.quantityOnHandMicrounits)} on hand, {String(pkg.reservedMicrounits)} reserved, stored microunits). Record an inventory discrepancy incident.</p>}
+    {!['depleted', 'destroyed'].includes(pkg.status) && <PotencyForm key={`potency-${pkg.id}`} packageId={pkg.id} packageUid={pkg.packageUid} potency={pkg.potencySnapshot} />}
     <section>
       <h3 className="text-xs font-semibold text-foreground">Ready to sell</h3>
       {pkg.readiness.ready ? <p className="mt-1.5"><DotLabel tone="ok" className="text-sm">Ready</DotLabel></p> : <ul className="mt-1.5 space-y-1 text-sm">{reasons.map(reason => <li key={reason} className="flex items-baseline gap-2"><Dot tone="warn" />{reason}</li>)}</ul>}

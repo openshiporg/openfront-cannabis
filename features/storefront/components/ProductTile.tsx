@@ -7,7 +7,15 @@ import { chapterInk } from '../lib/chapters';
 export type TileProduct = {
   id: string; name: string; form: string; priceCents?: number; imageUrl?: string | null; description?: string | null;
   adultUseEligible?: boolean; medicalEligible?: boolean;
+  potency?: { unit: 'percent' | 'mg'; thc: number | null; cbd: number | null; strain: string | null } | null;
 };
+
+/** "Hybrid", "THC 24.5%", "CBD 0.1%": only what staff recorded from the label. */
+export function potencyFacts(product: TileProduct): string[] {
+  const potency = product.potency; if (!potency) return [];
+  const unit = potency.unit === 'percent' ? '%' : ' mg';
+  return [potency.strain ? potency.strain[0].toUpperCase() + potency.strain.slice(1) : '', potency.thc != null ? `THC ${potency.thc}${unit}` : '', potency.cbd != null ? `CBD ${potency.cbd}${unit}` : ''].filter(Boolean);
+}
 
 export const channelLabel = (product: TileProduct) => [product.adultUseEligible && 'Adult-use', product.medicalEligible && 'Medical'].filter(Boolean).join(' · ');
 
@@ -27,8 +35,8 @@ export function CatalogEntry({ product, currencyCode, showChannel = true }: { pr
       </span>
       <span className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[14px] text-cn-ink-2">
         <span>{product.form}</span>
+        {potencyFacts(product).map(fact => <span key={fact} className="cn-num text-cn-ink">{fact}</span>)}
         {channel && <span>{channel}</span>}
-        <span className="text-cn-ink-3">Pickup</span>
       </span>
       {product.description && <span className="mt-1.5 line-clamp-2 block max-w-[60ch] text-[15px] [text-wrap:pretty] leading-[22px] text-cn-ink-3">{product.description}</span>}
     </span>

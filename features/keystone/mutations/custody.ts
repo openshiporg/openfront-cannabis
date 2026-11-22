@@ -109,6 +109,41 @@ export async function recordPackageLabResult(_root: unknown, args: { input: any 
   });
 }
 
+const POTENCY_UNITS = new Set(["percent", "mg"]);
+const STRAINS = new Set(["", "indica", "sativa", "hybrid", "cbd"]);
+/** A potency figure from the label: up to 100 for percent, up to 100,000 for milligrams, at most 2 decimals. */
+function potencyNumber(value: unknown, label: string, unit: string) {
+  if (value == null || value === "") return null;
+  const number = typeof value === "number" ? value : Number(String(value));
+  if (!Number.isFinite(number) || number < 0 || number > (unit === "percent" ? 100 : 100_000) || Math.round(number * 100) !== number * 100) throw new Error(`${label} must be a number${unit === "percent" ? " from 0 to 100" : ""} with up to 2 decimals`);
+  return number;
+}
+
+/**
+ * Record the THC and CBD printed on a package's label and certificate of analysis, and its strain type.
+ * The menu shows these to shoppers; a sale keeps the figures that applied when it was made.
+ */
+export async function recordPackagePotency(_root: unknown, args: { input: any }, context: Context) {
+  const input = args.input || {};
+  const packageId = assertText(input.packageId, "Package");
+  const unit = assertText(input.unit, "Unit");
+  if (!POTENCY_UNITS.has(unit)) throw new Error("Unit must be percent or milligrams");
+  const thc = potencyNumber(input.thc, "THC", unit); const cbd = potencyNumber(input.cbd, "CBD", unit);
+  if (thc == null && cbd == null) throw new Error("Enter THC or CBD");
+  const strain = String(input.strain ?? "");
+  if (!STRAINS.has(strain)) throw new Error("Strain type is not recognised");
+  return runControlledOperation(context, input, { permission: "canManageInventory", activity: "inventory", scope: "recordPackagePotency", resourceType: "InventoryPackage", action: "inventory.potency.recorded", lockKeys: [`package:${packageId}`] }, async (tx, authority) => {
+    const sudo = tx.sudo();
+    const pkg = await sudo.query.InventoryPackage.findOne({ where: { id: packageId }, query: "id packageUid status version organization { id } premises { id }" });
+    if (!pkg || pkg.organization?.id !== authority.organizationId || pkg.premises?.id !== authority.premisesId) throw new Error("Package is outside this premises");
+    if (["depleted", "destroyed"].includes(String(pkg.status))) throw new Error(`Potency can't be changed on a ${pkg.status} package`);
+    const potencySnapshot = { unit, thc, cbd, strain: strain || null, recordedAt: new Date().toISOString() };
+    const changed = await tx.prisma.inventoryPackage.updateMany({ where: { id: pkg.id, version: pkg.version }, data: { potencySnapshot, version: { increment: 1 } } });
+    if (changed.count !== 1) throw new Error("This package changed since you opened it. Refresh and try again.");
+    return { id: pkg.id, status: String(pkg.status), reference: pkg.packageUid };
+  });
+}
+
 /** Release a received or quarantined package for sale once its lab result has passed. */
 export async function releaseCannabisPackage(_root: unknown, args: { input: any }, context: Context) {
   const input = args.input || {};

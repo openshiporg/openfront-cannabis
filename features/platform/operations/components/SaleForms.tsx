@@ -10,7 +10,7 @@ import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quan
 import { getAllocationQuote, type AllocationQuoteReadback } from '@/features/platform/fulfillment/actions/allocationQuote';
 import {
   addCartLineFromDesk, advanceRecallFromDesk, cancelCartFromDesk, correctCountFromDesk, checkInAndStartSaleFromDesk, closeShiftFromDesk, finalizeSaleFromDesk,
-  recordLabResultFromDesk, refundSaleFromDesk, voidSaleFromDesk, releaseHoldFromDesk, releasePackageFromDesk,
+  recordLabResultFromDesk, recordPotencyFromDesk, refundSaleFromDesk, voidSaleFromDesk, releaseHoldFromDesk, releasePackageFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
 
@@ -40,6 +40,26 @@ function ApproverFields({ errors, role }: { errors?: FieldErrors; role: string }
     <Field name="approverEmail" title="Approver email" type="email" autoComplete="off" errors={errors} required />
     <Field name="approverPassword" title="Approver password" type="password" autoComplete="off" errors={errors} required />
   </fieldset>;
+}
+
+/** THC, CBD and strain type from the label. Shoppers see these on the menu. */
+export function PotencyForm({ packageId, packageUid, potency }: { packageId: string; packageUid: string; potency?: Record<string, unknown> | null }) {
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(recordPotencyFromDesk);
+  const errors = state.fieldErrors;
+  const shown = (value: unknown) => typeof value === 'number' ? String(value) : '';
+  return <Disclosure label={potency?.unit ? 'Change potency' : 'Add potency'}>
+    <form onSubmit={onSubmit()} onChange={markDirty} className="space-y-3" aria-label={`Potency for ${packageUid}`}>
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="packageId" value={packageId} />
+      <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
+        <Field name="thc" title="THC" errors={errors} inputMode="decimal" defaultValue={shown(potency?.thc)} placeholder="24.5" />
+        <Field name="cbd" title="CBD" errors={errors} inputMode="decimal" defaultValue={shown(potency?.cbd)} placeholder="0.1" />
+        <Select name="unit" title="Measured in" errors={errors} required defaultValue={potency?.unit === 'mg' ? 'mg' : 'percent'}><option value="percent">Percent (flower, pre-rolls, concentrates, vapes)</option><option value="mg">Milligrams per package (edibles, topicals)</option></Select>
+        <Select name="strain" title="Type" errors={errors} defaultValue={typeof potency?.strain === 'string' ? potency.strain : ''}><option value="">Not stated</option><option value="indica">Indica</option><option value="sativa">Sativa</option><option value="hybrid">Hybrid</option><option value="cbd">CBD</option></Select>
+      </fieldset>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Save potency'}</Button></Actions>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </Disclosure>;
 }
 
 export function LabResultForm({ packageId, packageUid, labName, labResultReference, coaReference }: { packageId: string; packageUid: string; labName?: string | null; labResultReference?: string | null; coaReference?: string | null }) {
