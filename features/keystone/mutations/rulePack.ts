@@ -122,6 +122,10 @@ export async function amendCannabisRulePack(_root: unknown, args: { input: any }
       labelRequirements: current.labelRequirements, returnRules: current.returnRules, outagePolicy: current.outagePolicy, privacyRules: current.privacyRules, retentionRules: current.retentionRules,
       medicalEnabled: next.medicalEnabled, pickupEnabled: next.pickupEnabled, deliveryEnabled: current.deliveryEnabled, offlineSalesAllowed: current.offlineSalesAllowed,
     }, query: "id version" });
+    // Open carts and pickup orders were priced and checked under the old version. When the change does not touch
+    // what they were checked against (limits, tax, ages, medical sales), they carry over instead of being stranded.
+    const pricedUnder = (pack: Record<string, any>) => stableHash({ purchaseLimits: pack.purchaseLimits, taxRules: pack.taxRules, adultMinimumAge: pack.adultMinimumAge, medicalMinimumAge: pack.medicalMinimumAge, medicalEnabled: pack.medicalEnabled === true });
+    if (pricedUnder(current) === pricedUnder(next)) await tx.prisma.cart.updateMany({ where: { organizationId: authority.organizationId, premisesId: authority.premisesId, rulePackId: current.id, status: { in: ["preliminarily_eligible", "reserved", "picking", "staged", "final_verification"] } }, data: { rulePackId: created.id } });
     await syncTenderConfigurations(tx, authority, next.allowedTenderTypes as string[], now, expiresAt, input.tenderReference);
     let approvalLimitCents: number | null = null;
     if (input.ownerApprovalLimitCents !== undefined && input.ownerApprovalLimitCents !== null && input.ownerApprovalLimitCents !== "") {
