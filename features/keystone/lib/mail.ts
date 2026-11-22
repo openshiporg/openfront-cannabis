@@ -34,12 +34,12 @@ ${emailMuted("If you did not request this, you can safely ignore this email. You
   });
 }
 
-export async function sendPasswordResetEmail(resetToken: string, to: string, baseUrl?: string): Promise<void> {
+export async function sendPasswordResetEmail(resetToken: string, to: string, baseUrl?: string): Promise<{ messageId?: string; response?: string }> {
   // Use provided baseUrl or fall back to utility function
   const frontendUrl = baseUrl || getBaseUrlForEmails();
   
   // email the user a token
-  await mailTransport().sendMail({
+  return mailTransport().sendMail({
     to,
     from: process.env.SMTP_FROM,
     subject: "Reset your password",
