@@ -15,6 +15,8 @@ export async function ResetPage({ searchParams }: ResetPageProps) {
       ? resolvedSearchParams.token
       : null;
   const mode = token ? "reset" : "request";
+  // Shoppers arrive from the storefront sign-in and go back there, not to staff sign-in.
+  const fromShop = resolvedSearchParams.from === "account";
   const emailUnavailable = mode === "request" && !passwordResetEmailAvailable();
 
   return (
@@ -37,7 +39,7 @@ export async function ResetPage({ searchParams }: ResetPageProps) {
         {!emailUnavailable && <ResetForm mode={mode} token={token} />}
         <p className="mt-6 text-sm">
           <Link
-            href="/dashboard/signin"
+            href={fromShop ? "/account/signin" : "/dashboard/signin"}
             className="font-medium text-primary hover:text-primary/90 dark:text-primary hover:dark:text-primary/90"
           >
             Back to sign in

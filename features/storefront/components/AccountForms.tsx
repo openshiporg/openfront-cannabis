@@ -18,7 +18,7 @@ export function SignInForm({ next }: { next?: string }) {
     <Problem state={state} />
     <button type="submit" data-tone="ink" className="cn-btn min-h-12 w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
     <p className="text-[15px] text-cn-ink-2">New here? <Link href={next ? `/account/signup?next=${encodeURIComponent(next)}` : '/account/signup'} className="cn-link">Create an account</Link></p>
-    <p className="text-[15px] text-cn-ink-2"><Link href="/dashboard/reset" className="cn-link">Forgot your password?</Link></p>
+    <p className="text-[15px] text-cn-ink-2"><Link href="/dashboard/reset?from=account" className="cn-link">Forgot your password?</Link></p>
   </form>;
 }
 
