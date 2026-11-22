@@ -190,3 +190,18 @@ h3.tiptap-heading + h2.tiptap-heading {
     display: none;
   }
 }
+
+/* Staff tables. Wide screens: a normal table. Phones: each row is a card of labelled values, so no column is cut off. */
+.cn-table { min-width: var(--table-min, 0); }
+@media (max-width: 767px) {
+  .cn-table { min-width: 0; display: block; }
+  .cn-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cn-table tbody { display: block; }
+  .cn-table tbody tr { display: block; padding: 10px 12px; }
+  .cn-table tbody td { display: block; padding: 2px 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .cn-table tbody td[data-label] { display: grid; grid-template-columns: 7rem minmax(0, 1fr); column-gap: 8px; align-items: baseline; }
+  .cn-table tbody td[data-label]::before { content: attr(data-label); font-size: 12px; color: var(--muted-foreground); }
+  .cn-table tbody td[data-label]:first-child { display: block; font-size: 14px; padding-bottom: 4px; }
+  .cn-table tbody td[data-label]:first-child::before { content: none; }
+  .cn-table tbody td:empty { display: none; }
+}

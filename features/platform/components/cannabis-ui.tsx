@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import type React from 'react';
-import type { ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /** A stored code as sentence-case text: "inventory_discrepancy" → "Inventory discrepancy". */
@@ -170,10 +170,37 @@ export function BandEmpty({ children }: { children: ReactNode }) {
 // ---------------------------------------------------------------------------------------------
 // Tables
 
-/** A dense table in a bordered frame; scrolls sideways on a phone instead of squeezing columns. */
+/** Text of a header cell, for labelling the same column's cells on a phone. */
+function headerText(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(headerText).join('');
+  return isValidElement<{ children?: ReactNode }>(node) ? headerText(node.props.children) : '';
+}
+
+/** Give each body cell its column's heading as data-label, so a phone can show rows as labelled cards. */
+function labelCells(children: ReactNode): ReactNode {
+  const parts = Children.toArray(children);
+  const head = parts.find(part => isValidElement(part) && part.type === THead);
+  if (!isValidElement<{ children?: ReactNode }>(head)) return children;
+  const labels = Children.toArray(head.props.children).map(headerText);
+  return parts.map(part => {
+    if (!isValidElement<{ children?: ReactNode }>(part) || part.type !== 'tbody') return part;
+    return cloneElement(part, {}, Children.map(part.props.children, row => {
+      if (!isValidElement<{ children?: ReactNode }>(row) || row.type !== Tr) return row;
+      let column = 0;
+      return cloneElement(row, {}, Children.map(row.props.children, cell => {
+        if (!isValidElement<{ label?: string; colSpan?: number }>(cell) || cell.type !== Td) return cell;
+        const label = labels[column] ?? ''; column += cell.props.colSpan ?? 1;
+        return cloneElement(cell, { label });
+      }));
+    }));
+  });
+}
+
+/** A dense table in a bordered frame. On a phone each row becomes a card of labelled values, so nothing is cut off. */
 export function Table({ label, className, children, minWidth = 640 }: { label?: string; className?: string; children: ReactNode; minWidth?: number }) {
   return <div className={cn('relative min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card', className)}>
-    <table aria-label={label} className="w-full border-collapse text-[13px]" style={{ minWidth }}>{children}</table>
+    <table aria-label={label} className="cn-table w-full border-collapse text-[13px]" style={{ '--table-min': `${minWidth}px` } as React.CSSProperties}>{labelCells(children)}</table>
   </div>;
 }
 
@@ -189,8 +216,8 @@ export function Tr({ children, className, id }: { children: ReactNode; className
   return <tr id={id} className={cn('border-b border-border/70 last:border-b-0 transition-colors hover:bg-muted/30', className)}>{children}</tr>;
 }
 
-export function Td({ children, align = 'left', className, colSpan }: { children?: ReactNode; align?: 'left' | 'right'; className?: string; colSpan?: number }) {
-  return <td colSpan={colSpan} className={cn('px-3 py-2 align-baseline', align === 'right' && 'text-right tabular-nums', className)}>{children}</td>;
+export function Td({ children, align = 'left', className, colSpan, label }: { children?: ReactNode; align?: 'left' | 'right'; className?: string; colSpan?: number; label?: string }) {
+  return <td colSpan={colSpan} data-label={label || undefined} className={cn('px-3 py-2 align-baseline', align === 'right' && 'text-right tabular-nums', className)}>{children}</td>;
 }
 
 /** The whole-row empty state for a table. */
