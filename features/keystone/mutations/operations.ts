@@ -92,7 +92,7 @@ export async function recordCashMovement(_root: unknown, args: { input: any }, c
     const signed = type === "paid_in" ? amount : -amount;
     if (expected + signed < 0) throw new Error("That is more cash than the drawer should hold");
     await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: shift.id } }, type: type as "paid_in" | "paid_out" | "safe_drop", amountCents: signed, reasonCode, actor: { connect: { id: authority.actor.id } }, occurredAt: new Date(), idempotencyKey: `${correlationId}:${type}`, evidenceHash: stableHash({ shiftId: shift.id, type, amount, reasonCode, note }) }, query: "id" });
-    await sudo.query.RegisterShift.updateOne({ where: { id: shift.id }, data: { expectedCashCents: expected + signed }, query: "id" });
+    // Expected cash is worked out from the ledger when the drawer is counted; it is not stored on an open shift.
     return { id: shift.id, status: "open", reference: String(shift.register?.code ?? ""), expectedCashCents: expected + signed };
   });
 }
