@@ -413,7 +413,7 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
       <section>
         <SectionTitle meta={data.tenders.filter(tender => tender.enabled).length} action={canOpenPlatformHref('/dashboard/platform/authority', data.grants) ? <ButtonLink href="/dashboard/platform/authority#sales-rules" tone="quiet">Change payment types</ButtonLink> : undefined}>Payment types</SectionTitle>
         <Table label="Payment types" minWidth={420}>
-          <THead><Th>Type</Th><Th>Authority</Th><Th>Until</Th><Th>Status</Th></THead>
+          <THead><Th>Type</Th><Th>Agreement</Th><Th>Until</Th><Th>Status</Th></THead>
           <tbody>{data.tenders.length ? data.tenders.map(tender => <Tr key={tender.id}>
             <Td className="font-medium">{tender.displayName}</Td>
             <Td className="text-muted-foreground">{tender.authorityReference}</Td>
@@ -459,10 +459,10 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
         <Table label="Integrations" minWidth={420}>
           <THead><Th>Provider</Th><Th>Facility</Th><Th>Last sync</Th><Th>Status</Th></THead>
           <tbody>{data.integrations.length ? data.integrations.map(integration => <Tr key={integration.id}>
-            <Td><Ref>{integration.providerCode}</Ref><span className="block text-xs text-muted-foreground">{sentenceCase(integration.providerType)} · {integration.authorityReference}</span></Td>
+            <Td><span className="font-medium">{sentenceCase(integration.providerCode)}</span><span className="block text-xs text-muted-foreground">{integration.providerType === 'traceability' ? 'State tracking system' : sentenceCase(integration.providerType)}{integration.status === 'active' && integration.authorityReference ? ` · ${integration.authorityReference}` : ''}</span></Td>
             <Td className="text-muted-foreground">{integration.facilityReference || '—'}</Td>
             <Td className="whitespace-nowrap text-muted-foreground">{integration.lastSuccessfulSyncAt ? formatWhen(integration.lastSuccessfulSyncAt, data.timezone) : 'Never'}</Td>
-            <Td><StatusText tone={statusTone(integration.status === 'unconfigured' ? 'pending' : integration.status)}>{sentenceCase(integration.status)}</StatusText></Td>
+            <Td><StatusText tone={statusTone(integration.status === 'unconfigured' ? 'pending' : integration.status)}>{integration.status === 'unconfigured' ? 'Not connected' : sentenceCase(integration.status)}</StatusText></Td>
           </Tr>) : <TEmpty colSpan={4}>No integrations.</TEmpty>}</tbody>
         </Table>
       </section>
