@@ -241,7 +241,7 @@ export type PosCart = {
   lines: Array<{ id: string; titleSnapshot: string; quantityMicrounits: number; totalCents: number; package: { unitOfMeasure: string } | null }>;
 };
 
-export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId }: { cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string }) {
+export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId, sellingOpen = true }: { cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string; sellingOpen?: boolean }) {
   const money = (cents: number | null) => formatMinorUnits(cents ?? 0, currencyCode);
   const online = cart.source === 'pickup' && !cart.shift;
   const mine = online || cart.shift?.operator?.id === actorId;
@@ -253,7 +253,7 @@ export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId }
     </ul> : <p className="text-sm text-muted-foreground">No items yet.</p>}
     {!mine ? <p className="text-sm text-muted-foreground">Rung up on another person’s shift.</p> : open ? <>
       {!online && <AddLineForm cartId={cart.id} products={products} currencyCode={currencyCode} />}
-      {cart.lines.length > 0 && cart.status === 'reserved' && <PayForm cart={cart} tenderTypes={tenderTypes} money={money} />}
+      {cart.lines.length > 0 && cart.status === 'reserved' && sellingOpen && <PayForm cart={cart} tenderTypes={tenderTypes} money={money} />}
       <CancelCartForm cartId={cart.id} reference={cart.reference} />
     </> : null}
   </div>;
