@@ -115,8 +115,8 @@ const STRAINS = new Set(["", "indica", "sativa", "hybrid", "cbd"]);
 function potencyNumber(value: unknown, label: string, unit: string) {
   if (value == null || value === "") return null;
   const number = typeof value === "number" ? value : Number(String(value));
-  if (!Number.isFinite(number) || number < 0 || number > (unit === "percent" ? 100 : 100_000) || Math.round(number * 100) !== number * 100) throw new Error(`${label} must be a number${unit === "percent" ? " from 0 to 100" : ""} with up to 2 decimals`);
-  return number;
+  if (!Number.isFinite(number) || number < 0 || number > (unit === "percent" ? 100 : 100_000) || Math.abs(Math.round(number * 100) - number * 100) > 1e-6) throw new Error(`${label} must be a number${unit === "percent" ? " from 0 to 100" : ""} with up to 2 decimals`);
+  return Math.round(number * 100) / 100;
 }
 
 /**
