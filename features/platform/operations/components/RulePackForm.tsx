@@ -4,13 +4,13 @@ import { useId, useState, type ReactNode } from 'react';
 import { Actions, buttonClass, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
 import { parseQuantityToMicrounits } from '@/features/lib/quantity';
 import { amendRulePackFromDesk } from '@/features/platform/workspaces/actions/workflows';
-import { LimitsEditor, TaxEditor } from '@/features/platform/onboarding/components/RuleEditors';
-import { buildLimits, buildTaxes, emptyLimit, emptyTax, limitsToRows, minuteToTime, taxesToRows, TENDER_TYPES, timeToMinute, type RuleErrors } from '@/features/platform/onboarding/lib/pack';
+import { DiscountEditor, LimitsEditor, TaxEditor } from '@/features/platform/onboarding/components/RuleEditors';
+import { buildDiscounts, buildLimits, buildTaxes, discountsToRows, emptyLimit, emptyTax, limitsToRows, minuteToTime, taxesToRows, TENDER_TYPES, timeToMinute, type RuleErrors } from '@/features/platform/onboarding/lib/pack';
 import { CommandStatus, useCommand } from './useCommand';
 
 type Rules = {
   version: string; adultMinimumAge: number; medicalMinimumAge: number; medicalEnabled: boolean; operatingStartMinute: number; operatingEndMinute: number;
-  purchaseLimits: Array<Record<string, unknown>>; taxRules: Array<Record<string, unknown>>; allowedTenderTypes: string[];
+  purchaseLimits: Array<Record<string, unknown>>; taxRules: Array<Record<string, unknown>>; discountRules?: Array<Record<string, unknown>>; allowedTenderTypes: string[];
 };
 
 /** Owner-only: supersede the current sales rules with a corrected version, effective now. */
@@ -18,6 +18,7 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(amendRulePackFromDesk);
   const [limits, setLimits] = useState(() => { const rows = limitsToRows(rules.purchaseLimits); return rows.length ? rows : [emptyLimit()]; });
   const [taxes, setTaxes] = useState(() => { const rows = taxesToRows(rules.taxRules); return rows.length ? rows : [emptyTax()]; });
+  const [discounts, setDiscounts] = useState(() => discountsToRows(rules.discountRules ?? []));
   const [errors, setErrors] = useState<RuleErrors>({});
   const [opensAt, setOpensAt] = useState(minuteToTime(rules.operatingStartMinute));
   const [closesAt, setClosesAt] = useState(minuteToTime(rules.operatingEndMinute));
@@ -29,7 +30,7 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
 
   function prepare(formData: FormData) {
     const found: RuleErrors = {};
-    const purchaseLimits = buildLimits(limits, found); const taxRules = buildTaxes(taxes, found);
+    const purchaseLimits = buildLimits(limits, found); const taxRules = buildTaxes(taxes, found); const discountRules = buildDiscounts(discounts, found);
     const operatingStartMinute = timeToMinute(opensAt); const operatingEndMinute = timeToMinute(closesAt);
     if (operatingStartMinute == null) found.opensAt = 'Enter a time'; if (operatingEndMinute == null) found.closesAt = 'Enter a time';
     const adultMinimumAge = Number(adultAge); const medicalMinimumAge = Number(medicalAge);
@@ -40,7 +41,7 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
     if (!tenders.length) found.tenders = 'Choose at least one payment type';
     setErrors(found);
     if (Object.keys(found).length) return false;
-    formData.set('payload', JSON.stringify({ purchaseLimits, taxRules, operatingStartMinute, operatingEndMinute, adultMinimumAge, medicalMinimumAge, ownerApprovalLimitCents: Math.round(micro! / 10_000), allowedTenderTypes: tenders, medicalEnabled: medical }));
+    formData.set('payload', JSON.stringify({ purchaseLimits, taxRules, discountRules, operatingStartMinute, operatingEndMinute, adultMinimumAge, medicalMinimumAge, ownerApprovalLimitCents: Math.round(micro! / 10_000), allowedTenderTypes: tenders, medicalEnabled: medical }));
   }
 
   const err = (name: string) => errors[name] ? <span className="mt-1 block font-normal text-destructive">{errors[name]}</span> : null;
@@ -64,6 +65,7 @@ export function RulePackForm({ rules, approvalLimitCents }: { rules: Rules; appr
       </div>
       <section className="space-y-2"><h3 className="text-xs font-medium">Purchase limits</h3><LimitsEditor rows={limits} onChange={setLimits} errors={errors} /></section>
       <section className="space-y-2"><h3 className="text-xs font-medium">Tax rules</h3><TaxEditor rows={taxes} onChange={setTaxes} errors={errors} /></section>
+      <section className="space-y-2"><h3 className="text-xs font-medium">Discounts</h3><DiscountEditor rows={discounts} onChange={setDiscounts} errors={errors} categories={[...new Set(taxes.map(row => row.categoryCode.trim()).filter(Boolean))]} /></section>
     </fieldset>
     <div className="flex flex-wrap items-center gap-3">
       <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Save as new version'}</Button></Actions>

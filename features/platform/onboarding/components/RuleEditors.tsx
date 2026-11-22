@@ -2,7 +2,7 @@
 
 import { Plus, X } from 'lucide-react';
 import { ActionTrack, inputClass, labelClass, PillButton } from '@/features/platform/components/cannabis-ui';
-import { CAPACITIES, emptyLimit, emptyTax, LIMIT_WINDOWS, type LimitRow, type RuleErrors, type TaxRow } from '../lib/pack';
+import { CAPACITIES, emptyDiscount, emptyLimit, emptyTax, LIMIT_WINDOWS, type DiscountRow, type LimitRow, type RuleErrors, type TaxRow } from '../lib/pack';
 
 const select = `${inputClass} pr-8`;
 
@@ -45,5 +45,26 @@ export function TaxEditor({ rows, onChange, errors }: { rows: TaxRow[]; onChange
     </div>)}
     {errors?.taxes && <p className="text-xs text-destructive">{errors.taxes}</p>}
     <ActionTrack><PillButton onClick={() => onChange([...rows, emptyTax()])}><Plus className="size-3.5" aria-hidden="true" />Add tax rule</PillButton></ActionTrack>
+  </div>;
+}
+
+/** The store's discounts: a code staff pick at the till, what it takes off, what it applies to and its last day. */
+export function DiscountEditor({ rows, onChange, errors, categories }: { rows: DiscountRow[]; onChange: (rows: DiscountRow[]) => void; errors?: RuleErrors; categories: string[] }) {
+  const set = (index: number, patch: Partial<DiscountRow>) => onChange(rows.map((row, at) => at === index ? { ...row, ...patch } : row));
+  const label = (code: string) => code ? code[0].toUpperCase() + code.slice(1).replaceAll('_', ' ').replaceAll('-', ' ') : '';
+  return <div className="space-y-2">
+    {!rows.length && <p className="text-[13px] text-muted-foreground">No discounts. Staff cannot take money off a sale.</p>}
+    {rows.map((row, index) => <div key={index} className="flex gap-2 rounded-lg bg-background/70 p-3 ring-1 ring-inset ring-border/60">
+      <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-3">
+        <label className={labelClass}>Name staff pick<input value={row.code} onChange={event => set(index, { code: event.target.value.toUpperCase() })} placeholder="FRIDAY10" maxLength={30} aria-invalid={Boolean(errors?.[`discount-${index}-code`]) || undefined} className={`${inputClass} font-mono`} /><RowError errors={errors} name={`discount-${index}-code`} /></label>
+        <label className={labelClass}>Applies to<select value={row.categoryCode} onChange={event => set(index, { categoryCode: event.target.value })} aria-invalid={Boolean(errors?.[`discount-${index}-categoryCode`]) || undefined} className={select}><option value="" disabled>Choose</option>{[...new Set([...categories, row.categoryCode].filter(Boolean))].map(code => <option key={code} value={code}>{label(code)}</option>)}</select><RowError errors={errors} name={`discount-${index}-categoryCode`} /></label>
+        <label className={labelClass}>Buyer<select value={row.capacity} onChange={event => set(index, { capacity: event.target.value })} className={select}><option value="all">All buyers</option>{CAPACITIES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <label className={labelClass}>Takes off<select value={row.kind} onChange={event => set(index, { kind: event.target.value as DiscountRow['kind'] })} className={select}><option value="percent">A percentage</option><option value="amount">A fixed amount</option></select></label>
+        <label className={labelClass}>{row.kind === 'percent' ? 'Percent off' : 'Amount off'}<input value={row.value} onChange={event => set(index, { value: event.target.value })} inputMode="decimal" placeholder={row.kind === 'percent' ? '10' : '5.00'} aria-invalid={Boolean(errors?.[`discount-${index}-value`]) || undefined} className={`${inputClass} font-mono`} /><RowError errors={errors} name={`discount-${index}-value`} /></label>
+        <label className={labelClass}>Last day<input type="date" suppressHydrationWarning value={row.endsOn} onChange={event => set(index, { endsOn: event.target.value })} aria-invalid={Boolean(errors?.[`discount-${index}-endsOn`]) || undefined} className={inputClass} /><RowError errors={errors} name={`discount-${index}-endsOn`} /></label>
+      </div>
+      <RemoveButton label="Remove discount" onClick={() => onChange(rows.filter((_, at) => at !== index))} />
+    </div>)}
+    <ActionTrack><PillButton onClick={() => onChange([...rows, emptyDiscount(categories[0] ?? '')])}><Plus className="size-3.5" aria-hidden="true" />Add discount</PillButton></ActionTrack>
   </div>;
 }

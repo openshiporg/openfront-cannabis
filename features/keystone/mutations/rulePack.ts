@@ -92,6 +92,18 @@ export async function amendCannabisRulePack(_root: unknown, args: { input: any }
       pickupEnabled: input.pickupEnabled === undefined ? current.pickupEnabled : input.pickupEnabled === true,
     };
     if (!Array.isArray(next.discountRules)) throw new Error("Discount rules must be a list; leave it empty to prohibit discounts");
+    if (next.discountRules.length > 50) throw new Error("A store can have up to 50 discounts");
+    const discountKeys = new Set<string>();
+    for (const rule of next.discountRules as any[]) {
+      if (!rule || typeof rule.code !== "string" || !/^[A-Z0-9][A-Z0-9-]{1,29}$/.test(rule.code)) throw new Error("A discount code is 2 to 30 capital letters, numbers or dashes");
+      if (typeof rule.categoryCode !== "string" || !rule.categoryCode.trim() || !["adult_use", "patient", "caregiver", "all"].includes(rule.capacity)) throw new Error(`Discount ${rule.code} needs a category and a buyer type`);
+      if (!["basis_points", "fixed_cents"].includes(rule.type) || !Number.isSafeInteger(rule.value) || rule.value < 1 || (rule.type === "basis_points" && rule.value > 10_000)) throw new Error(`Discount ${rule.code} needs a percentage up to 100 or an amount`);
+      const starts = new Date(rule.startsAt).getTime(); const ends = new Date(rule.expiresAt).getTime();
+      if (!Number.isFinite(starts) || !Number.isFinite(ends) || ends <= starts) throw new Error(`Discount ${rule.code} needs an end date after its start`);
+      const key = `${rule.code}:${rule.categoryCode}:${rule.capacity}`;
+      if (discountKeys.has(key)) throw new Error(`Discount ${rule.code} is listed twice for the same category and buyer`);
+      discountKeys.add(key);
+    }
     assertEffectiveRulePack({ id: "amendment", ...next } as unknown as EffectiveRulePack, now);
     const policyHash = stableHash(policyIdentity({
       jurisdictionCode: next.jurisdictionCode, ruleVersion: version, ruleAuthorityCitations: current.authorityCitations, ruleEffectiveAt: now.toISOString(), ruleExpiresAt: expiresAt.toISOString(),

@@ -190,9 +190,11 @@ export function CheckInForm({ shifts, medicalEnabled }: { shifts: Array<{ id: st
   </form>;
 }
 
-type CartProduct = { id: string; name: string; sku: string; form: string; unitOfMeasure: string; unitQuantityMicrounits: number };
+type CartProduct = { id: string; name: string; sku: string; form: string; categoryCode?: string | null; unitOfMeasure: string; unitQuantityMicrounits: number };
+export type TillDiscount = { code: string; categoryCode: string; capacity: string; type: string; value: number };
 
-function AddLineForm({ cartId, products, currencyCode }: { cartId: string; products: CartProduct[]; currencyCode: string | null }) {
+function AddLineForm({ cartId, products, currencyCode, discounts, capacity }: { cartId: string; products: CartProduct[]; currencyCode: string | null; discounts: TillDiscount[]; capacity: string | null }) {
+  const [promotionCode, setPromotionCode] = useState('');
   const [productId, setProductId] = useState(products[0]?.id ?? '');
   const [quantity, setQuantity] = useState('');
   const [quote, setQuote] = useState<{ data: AllocationQuoteReadback; productId: string; micro: number } | null>(null);
@@ -201,16 +203,19 @@ function AddLineForm({ cartId, products, currencyCode }: { cartId: string; produ
   // A confirmed add clears the priced line; the page data refreshes with the server action.
   const { state, onSubmit, pending, key, summary } = useCommand(async (previous, formData) => {
     const next = await addCartLineFromDesk(previous, formData);
-    if (next.success) { setQuote(null); setQuantity(''); }
+    if (next.success) { setQuote(null); setQuantity(''); setPromotionCode(''); }
     return next;
   });
   const product = products.find(entry => entry.id === productId);
+  // Only discounts that fit this product and this customer are offered.
+  const offers = discounts.filter(rule => rule.categoryCode === product?.categoryCode && (rule.capacity === 'all' || rule.capacity === capacity));
+  const applied = offers.some(rule => rule.code === promotionCode) ? promotionCode : '';
   function price() {
     setQuote(null); setMessage('');
     const micro = product ? parseQuantityToMicrounits(quantity) : null;
     if (!product || !micro) { setMessage('Choose a product and a quantity.'); return; }
     if (micro % product.unitQuantityMicrounits !== 0) { setMessage(`Quantity must be a whole number of ${formatMicrounits(product.unitQuantityMicrounits, product.unitOfMeasure)} units.`); return; }
-    const form = new FormData(); form.set('cartId', cartId); form.set('productId', product.id); form.set('quantityMicrounits', String(micro));
+    const form = new FormData(); form.set('cartId', cartId); form.set('productId', product.id); form.set('quantityMicrounits', String(micro)); if (applied) form.set('promotionCode', applied);
     startQuote(async () => {
       const result = await getAllocationQuote(form);
       if ('data' in result) setQuote({ data: result.data, productId: product.id, micro }); else setMessage(result.error);
@@ -223,11 +228,12 @@ function AddLineForm({ cartId, products, currencyCode }: { cartId: string; produ
       <label className={labelClass}>Quantity{product ? ` (${product.unitOfMeasure})` : ''}<input value={quantity} onChange={event => { setQuantity(event.target.value); setQuote(null); }} inputMode="decimal" placeholder={product ? formatMicrounits(product.unitQuantityMicrounits) : ''} className={`${inputClass} font-mono`} /></label>
       <Actions><Button onClick={price} disabled={quoting}>{quoting ? 'Pricing…' : 'Price'}</Button></Actions>
     </div>
+    {offers.length > 0 && <label className={labelClass}>Discount<select value={applied} onChange={event => { setPromotionCode(event.target.value); setQuote(null); }} className={inputClass}><option value="">No discount</option>{offers.map(rule => <option key={`${rule.code}:${rule.capacity}`} value={rule.code}>{rule.code} · {rule.type === 'fixed_cents' ? formatMinorUnits(rule.value, currencyCode) : `${rule.value / 100}%`} off</option>)}</select></label>}
     {message && <p role="status" className="text-sm">{message}</p>}
     {quote && <form onSubmit={onSubmit()} className="flex flex-wrap items-center gap-3" aria-label="Add to cart">
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="cartId" value={cartId} /><input type="hidden" name="productId" value={quote.productId} />
-      <input type="hidden" name="quantityMicrounits" value={quote.micro} /><input type="hidden" name="expectedCartVersion" value={quote.data.cartVersion} /><input type="hidden" name="reviewedQuoteHash" value={quote.data.quoteHash} />
-      <span className="tabular-nums text-sm">{formatMicrounits(quote.micro, quote.data.unitOfMeasure)} · {formatMinorUnits(quote.data.totalCents, quote.data.currencyCode ?? currencyCode)} <span className="text-muted-foreground">incl. tax {formatMinorUnits(quote.data.taxCents, quote.data.currencyCode ?? currencyCode)}</span></span>
+      <input type="hidden" name="quantityMicrounits" value={quote.micro} /><input type="hidden" name="expectedCartVersion" value={quote.data.cartVersion} /><input type="hidden" name="reviewedQuoteHash" value={quote.data.quoteHash} />{applied && <input type="hidden" name="promotionCode" value={applied} />}
+      <span className="tabular-nums text-sm">{formatMicrounits(quote.micro, quote.data.unitOfMeasure)} · {formatMinorUnits(quote.data.totalCents, quote.data.currencyCode ?? currencyCode)} <span className="text-muted-foreground">incl. tax {formatMinorUnits(quote.data.taxCents, quote.data.currencyCode ?? currencyCode)}{quote.data.discountCents ? ` · ${formatMinorUnits(quote.data.discountCents, quote.data.currencyCode ?? currencyCode)} off` : ''}</span></span>
       <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Adding…' : 'Add to cart'}</Button></Actions>
     </form>}
     <CommandStatus state={state} summary={summary} />
@@ -241,7 +247,7 @@ export type PosCart = {
   lines: Array<{ id: string; titleSnapshot: string; quantityMicrounits: number; totalCents: number; package: { unitOfMeasure: string } | null }>;
 };
 
-export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId, sellingOpen = true }: { cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string; sellingOpen?: boolean }) {
+export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId, sellingOpen = true, discounts = [] }: { discounts?: TillDiscount[]; cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string; sellingOpen?: boolean }) {
   const money = (cents: number | null) => formatMinorUnits(cents ?? 0, currencyCode);
   const online = cart.source === 'pickup' && !cart.shift;
   const mine = online || cart.shift?.operator?.id === actorId;
@@ -252,7 +258,7 @@ export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId, 
       <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-xs text-muted-foreground"><span>Subtotal {money(cart.subtotalCents)} · tax {money(cart.taxCents)}{cart.discountCents ? ` · discount ${money(cart.discountCents)}` : ''}</span><span className="tabular-nums text-sm font-medium text-foreground">{money(cart.totalCents)}</span></li>
     </ul> : <p className="text-sm text-muted-foreground">No items yet.</p>}
     {!mine ? <p className="text-sm text-muted-foreground">Rung up on another person’s shift.</p> : open ? <>
-      {!online && <AddLineForm cartId={cart.id} products={products} currencyCode={currencyCode} />}
+      {!online && <AddLineForm cartId={cart.id} products={products} currencyCode={currencyCode} discounts={discounts} capacity={cart.customer?.capacity ?? null} />}
       {cart.lines.length > 0 && cart.status === 'reserved' && sellingOpen && <PayForm cart={cart} tenderTypes={tenderTypes} money={money} />}
       <CancelCartForm cartId={cart.id} reference={cart.reference} />
     </> : null}

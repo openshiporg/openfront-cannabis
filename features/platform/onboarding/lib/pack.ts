@@ -14,7 +14,36 @@ export type TaxRow = { categoryCode: string; capacity: string; rate: string };
 export const emptyLimit = (): LimitRow => ({ capacity: 'adult_use', categoryCode: '', window: 'transaction', windowDays: '', max: '' });
 export const emptyTax = (): TaxRow => ({ categoryCode: '', capacity: 'all', rate: '' });
 
+export type DiscountRow = { code: string; categoryCode: string; capacity: string; kind: 'percent' | 'amount'; value: string; endsOn: string; startsAt: string };
+export const emptyDiscount = (categoryCode = ''): DiscountRow => ({ code: '', categoryCode, capacity: 'all', kind: 'percent', value: '', endsOn: '', startsAt: '' });
+
 export type RuleErrors = Record<string, string>;
+
+/** Discount rows to stored rules. A discount runs from when it was first saved to the end of its last day. */
+export function buildDiscounts(rows: DiscountRow[], errors: RuleErrors) {
+  const seen = new Set<string>();
+  return rows.map((row, index) => {
+    const code = row.code.trim().toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9-]{1,29}$/.test(code)) errors[`discount-${index}-code`] = 'Letters, numbers or dashes, e.g. FRIDAY10';
+    if (!row.categoryCode) errors[`discount-${index}-categoryCode`] = 'Choose what it applies to';
+    const match = /^(\d{1,5})(?:\.(\d{1,2}))?$/.exec(row.value.trim());
+    const hundredths = match ? Number(match[1]) * 100 + Number((match[2] || '').padEnd(2, '0')) : 0;
+    if (!match || hundredths < 1 || (row.kind === 'percent' && hundredths > 100_00)) errors[`discount-${index}-value`] = row.kind === 'percent' ? 'Percent off, e.g. 10' : 'Amount off, e.g. 5.00';
+    const ends = /^\d{4}-\d{2}-\d{2}$/.test(row.endsOn) ? new Date(`${row.endsOn}T23:59:59`) : null;
+    if (!ends || ends.getTime() <= Date.now()) errors[`discount-${index}-endsOn`] = 'Choose a last day, today or later';
+    const key = `${code}:${row.categoryCode}:${row.capacity}`;
+    if (seen.has(key)) errors[`discount-${index}-code`] = 'Already listed for this category and buyer';
+    seen.add(key);
+    return { code, categoryCode: row.categoryCode, capacity: row.capacity, type: row.kind === 'percent' ? 'basis_points' : 'fixed_cents', value: hundredths, startsAt: row.startsAt || new Date().toISOString(), expiresAt: (ends ?? new Date()).toISOString() };
+  });
+}
+
+export function discountsToRows(value: unknown): DiscountRow[] {
+  if (!Array.isArray(value)) return [];
+  const day = (iso: unknown) => { const date = new Date(String(iso)); if (!Number.isFinite(date.getTime())) return ''; return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
+  return value.map(rule => ({ code: String(rule?.code ?? ''), categoryCode: String(rule?.categoryCode ?? ''), capacity: String(rule?.capacity ?? 'all'), kind: rule?.type === 'fixed_cents' ? 'amount' as const : 'percent' as const,
+    value: Number.isSafeInteger(rule?.value) ? String(rule.value / 100) : '', endsOn: day(rule?.expiresAt), startsAt: typeof rule?.startsAt === 'string' ? rule.startsAt : '' }));
+}
 
 const CATEGORY = /^[a-z0-9][a-z0-9_-]{0,59}$/;
 

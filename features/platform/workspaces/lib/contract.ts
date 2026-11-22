@@ -55,7 +55,7 @@ export const custodyPackage = obj({
 });
 export type CustodyPackage = ReturnType<typeof custodyPackage>;
 
-const product = obj({ id: str, name: str, sku: str, form: str, unitOfMeasure: str, unitQuantityMicrounits: int });
+const product = obj({ id: str, name: str, sku: str, form: str, categoryCode: optStr, unitOfMeasure: str, unitQuantityMicrounits: int });
 const incident = obj({ id: str, reference: str, type: str, severity: str, status: str, detectedAt: date, notificationDueAt: optDate, notificationState: str });
 const interval = { id: str, status: str, effectiveAt: date, expiresAt: date, intervalState: str };
 
@@ -71,7 +71,7 @@ const sections = {
     ruleVersions: arr(obj({ id: str, version: str, status: str, effectiveAt: date, expiresAt: date, approvedAt: optDate, approvedBy: nullable(named) }), 20),
     premises: obj({ name: optStr, line1: optStr, city: optStr, region: optStr, postalCode: optStr, country: optStr, phone: optStr }),
     rules: nullable(obj({ id: str, version: str, effectiveAt: date, expiresAt: date, adultMinimumAge: int, medicalMinimumAge: int, medicalEnabled: bool, operatingStartMinute: int, operatingEndMinute: int,
-      purchaseLimits: arr(json, 50), taxRules: arr(json, 50), discountRuleCount: count, allowedTenderTypes: arr(str, 10) })),
+      purchaseLimits: arr(json, 50), taxRules: arr(json, 50), discountRuleCount: count, discountRules: arr(json, 50), allowedTenderTypes: arr(str, 10) })),
     licenses: page(obj({ ...interval, licenseNumber: str, licenseType: str, regulatorName: str })),
     credentials: page(obj({ ...interval, credentialType: str, approvalLimitCents: optInt, user: nullable(obj({ id: str, name: str })) })),
   }),
@@ -93,7 +93,7 @@ const sections = {
   menu: obj({ ...base, search: optStr, inactiveTotal: count, categories: obj({ limit: arr(str, 50), tax: arr(str, 50) }),
     products: page(obj({ id: str, name: str, sku: str, form: str, categoryCode: str, taxCategoryCode: str, priceCents: int, status: str, unitOfMeasure: str, adultUseEligible: bool, medicalEligible: bool, updatedAt: date, publicDescription: optStr, readyPackageCount: count, readyCountComplete: bool, availableMicrounits: int })),
   }),
-  pos: obj({ ...base, selling: nullable(obj({ open: bool, startMinute: int, endMinute: int })), productSearch: optStr, actorId: str, medicalEnabled: bool,
+  pos: obj({ ...base, selling: nullable(obj({ open: bool, startMinute: int, endMinute: int })), discounts: arr(obj({ code: str, categoryCode: str, capacity: str, type: str, value: int }), 50), productSearch: optStr, actorId: str, medicalEnabled: bool,
     myShifts: arr(obj({ id: str, register: nullable(obj({ name: str, code: str })) }), 5),
     registers: arr(obj({ id: str, code: str, name: str, status: str }), 50),
     tenderTypes: arr(obj({ type: str, displayName: str }), 10),

@@ -181,6 +181,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
         operatingStartMinute: rulePack.operatingStartMinute, operatingEndMinute: rulePack.operatingEndMinute,
         purchaseLimits: Array.isArray(rulePack.purchaseLimits) ? rulePack.purchaseLimits.slice(0, 50) : [], taxRules: Array.isArray(rulePack.taxRules) ? rulePack.taxRules.slice(0, 50) : [],
         discountRuleCount: Array.isArray(rulePack.discountRules) ? rulePack.discountRules.length : 0,
+        discountRules: Array.isArray(rulePack.discountRules) ? rulePack.discountRules.slice(0, 50) : [],
         allowedTenderTypes: Array.isArray(rulePack.allowedTenderTypes) ? rulePack.allowedTenderTypes.filter((type: unknown) => typeof type === "string").slice(0, 10) : [],
       } : null,
       ruleVersions: (await sudo.query.JurisdictionRulePack.findMany({ where: scope, orderBy: [{ effectiveAt: "desc" }], take: 20, query: "id version status effectiveAt expiresAt approvedAt approvedBy { name }" })),
@@ -247,7 +248,10 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const myShifts = await sudo.query.RegisterShift.findMany({ where: { ...scope, status: { equals: "open" }, operator: { id: { equals: authority.actor.id } } }, orderBy: [{ openedAt: "desc" }], take: 5, query: "id register { name code }" });
     const tenderTypes = await sudo.query.TenderConfiguration.findMany({ where: { ...scope, enabled: { equals: true }, effectiveAt: { lte: now }, expiresAt: { gt: now } }, orderBy: [{ type: "asc" }], take: 10, query: "type displayName" });
     const productSearch = options.productSearch ? { OR: [{ name: { contains: options.productSearch, mode: "insensitive" } }, { sku: { contains: options.productSearch, mode: "insensitive" } }] } : {};
-    const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, productSearch] }, orderBy: [{ name: "asc" }], take: 100, query: "id name sku form unitQuantityMicrounits unitOfMeasure" });
+    const products = await page(context, "Product", { where: { AND: [scope, { status: { equals: "active" } }, productSearch] }, orderBy: [{ name: "asc" }], take: 100, query: "id name sku form categoryCode unitQuantityMicrounits unitOfMeasure" });
+    // Discounts the owner has set that are running right now; the till offers only these.
+    const discounts = (Array.isArray(rulePack?.discountRules) ? rulePack!.discountRules as any[] : []).filter(rule => rule && typeof rule.code === "string" && new Date(rule.startsAt).getTime() <= now.getTime() && new Date(rule.expiresAt).getTime() > now.getTime())
+      .slice(0, 50).map(rule => ({ code: String(rule.code), categoryCode: String(rule.categoryCode), capacity: String(rule.capacity), type: String(rule.type), value: Number(rule.value) }));
     const sales = await page(context, "Sale", { where: scope, orderBy: [{ finalizedAt: "desc" }], take: 25, query: "id receiptNumber status totalCents finalizedAt" });
     // With no open shift the page offers to open one here (openRegisterShift accepts the sales grant for your own shift).
     // A register someone else still has an unresolved shift on cannot be opened, so it is not offered.
@@ -259,7 +263,7 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const clock = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: authority.actor.premises?.timezone || "UTC", hourCycle: "h23", hour: "2-digit", minute: "2-digit" }).formatToParts(now).map(part => [part.type, part.value]));
     const minute = Number(clock.hour) * 60 + Number(clock.minute);
     const selling = Number.isInteger(start) && Number.isInteger(end) ? { open: start <= end ? minute >= start && minute < end : minute >= start || minute < end, startMinute: start, endMinute: end } : null;
-    return { ...base, selling, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, registers, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
+    return { ...base, selling, discounts, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, registers, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
   }
 
   if (section === "cash") {

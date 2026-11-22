@@ -205,6 +205,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
                 ['Minimum age', <>Adult-use {rules.adultMinimumAge}{rules.medicalEnabled ? <> · medical {rules.medicalMinimumAge}</> : ' · medical sales off'}</>],
                 ['Purchase limits', rules.purchaseLimits.length ? rules.purchaseLimits.map((rule, index) => <span key={index} className="block">{describeLimit(rule)}</span>) : 'None'],
                 ['Tax rules', rules.taxRules.length ? rules.taxRules.map((rule, index) => <span key={index} className="block">{describeTax(rule)}</span>) : 'None'],
+                ['Discounts', rules.discountRules.length ? rules.discountRules.map((rule, index) => <span key={index} className="block">{describeDiscount(rule, data.currencyCode, data.timezone)}</span>) : 'None'],
                 ['Payment types', rules.allowedTenderTypes.map(type => TENDER_LABEL[type] ?? sentenceCase(type)).join(', ') || 'None'],
               ] as Array<[string, React.ReactNode]>).map(([term, value]) => <div key={term} className="grid gap-1 px-3 py-2 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted-foreground">{term}</dt><dd className="min-w-0 break-words">{value}</dd></div>)}
             </dl>
@@ -290,6 +291,11 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
 }
 
 const MENU_COLUMNS = '9.5rem minmax(0,2.2fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1fr) 4rem';
+function describeDiscount(rule: Record<string, unknown>, currencyCode: string | null, timezone: string | null) {
+  const off = rule.type === 'fixed_cents' ? formatMinorUnits(Number(rule.value), currencyCode) : `${Number(rule.value) / 100}%`;
+  const ended = new Date(String(rule.expiresAt)).getTime() <= Date.now();
+  return `${String(rule.code)} · ${off} off ${codeLabel(String(rule.categoryCode ?? '')).toLowerCase()} · ${CAPACITY_LABEL[String(rule.capacity)] ?? 'all buyers'} · ${ended ? 'ended' : 'until'} ${formatWhen(String(rule.expiresAt), timezone)}`;
+}
 const CASH_EVENT_LABEL: Record<string, string> = { opening_float: 'Opening float', sale: 'Cash sale', refund: 'Cash refund', paid_in: 'Cash in', paid_out: 'Cash out', safe_drop: 'Safe drop', count: 'Count at close', deposit: 'Deposit' };
 const MENU_HEADERS = [{ label: 'Status' }, { label: 'Product' }, { label: 'Form' }, { label: 'Channel' }, { label: 'Price', align: 'right' as const }, { label: 'Free stock', align: 'right' as const }, { label: '', align: 'right' as const }];
 
@@ -344,7 +350,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
                   <StatusText tone={statusTone(cart.status)}>{sentenceCase(cart.status)}</StatusText>
                   <span className="font-semibold tabular-nums sm:text-right">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>
                 </div>
-                {(cart.source === 'pos' || cart.source === 'pickup') && data.operating.open && <div className="mt-3"><CartPanel sellingOpen={data.selling?.open !== false} cart={cart} products={data.products.items} tenderTypes={data.tenderTypes} currencyCode={data.currencyCode} actorId={data.actorId} /></div>}
+                {(cart.source === 'pos' || cart.source === 'pickup') && data.operating.open && <div className="mt-3"><CartPanel sellingOpen={data.selling?.open !== false} discounts={data.discounts} cart={cart} products={data.products.items} tenderTypes={data.tenderTypes} currencyCode={data.currencyCode} actorId={data.actorId} /></div>}
               </div>) : <Empty>No open carts.</Empty>}
               <Pager basePath="/dashboard/platform/pos" params={params} nextCursor={data.carts.nextCursor} shown={data.carts.items.length} total={data.carts.total} noun="carts" />
             </ListBand>

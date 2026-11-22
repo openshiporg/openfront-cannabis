@@ -25,7 +25,7 @@ export function calculateAllocationQuote(pkg: AllocationQuotePackage, cart: { id
   let discountSnapshot: Record<string, string | number> = {};
   if (promotionCode) {
     const discounts = (pack.discountRules || []).filter(candidate => candidate.code === promotionCode && candidate.categoryCode === product.categoryCode && (candidate.capacity === cart.customer.capacity || candidate.capacity === 'all'));
-    if (discounts.length !== 1) throw new Error('Exactly one configured promotion must match');
+    if (discounts.length !== 1) throw new Error('That discount does not apply to this product and customer');
     discountCents = calculateDiscountCents(subtotalCents, discounts[0], now);
     discountSnapshot = { code: discounts[0].code, type: discounts[0].type, value: discounts[0].value, authorityPackVersion: pack.version };
   }
