@@ -105,5 +105,5 @@ test("a finance user at another premises cannot close the shift; one at its prem
 test("Cash shows the Close form on every open shift, not only the viewer's own", () => {
   const screen = readFileSync(new URL("../features/platform/operations/screens/PrimaryWorkspaces.tsx", import.meta.url), "utf8");
   const cash = screen.slice(screen.indexOf("export async function CashWorkspacePage"), screen.indexOf("export async function ReconciliationWorkspacePage"));
-  assert.match(cash, /shift\.status === 'open' && data\.operating\.open && <div className="mt-2"><CloseShiftForm shiftId=\{shift\.id\} \/>/);
+  assert.match(cash, /shift\.status === 'open' && data\.operating\.open && <div className="mt-2 space-y-2"><CashMovementForm shiftId=\{shift\.id\} \/><CloseShiftForm shiftId=\{shift\.id\} \/>/);
 });
