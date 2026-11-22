@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-import { ArrowUpRight } from 'lucide-react';
-import { addressLines, ageRule, directionsHref, openState, tenderLabels } from '../lib/visit';
+import { addressLines, ageRule, openState, tenderLabels } from '../lib/visit';
 import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings, type PublicCannabisMenu } from '../lib/data/menu';
 import { formKey } from '../lib/format';
 import { chapterId, chapterInk } from '../lib/chapters';
@@ -81,7 +80,6 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
   const name = storeName(settings);
   const open = openState(settings.visit);
   const address = addressLines(settings.visit);
-  const directions = directionsHref(settings.visit);
   const tenders = tenderLabels(settings.visit);
   const ages = ageRule(settings.visit);
   const showChannel = hasMedical && hasAdult;
@@ -95,35 +93,34 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
   return <StorefrontShell settings={settings} forms={forms} current="menu">
     <section aria-labelledby="cn-cover-title" className="mx-auto grid max-w-[1440px] lg:min-h-[calc(100svh-var(--cn-header)-30px)] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
       <figure className="relative flex min-w-0 flex-col bg-cn-bg lg:min-h-0">
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-cn-raise lg:absolute lg:inset-0 lg:aspect-auto">
+        <div className="relative aspect-[16/9] w-full overflow-hidden bg-cn-raise sm:aspect-[4/3] lg:absolute lg:inset-0 lg:aspect-auto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={coverPhoto(settings).src} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover" style={{ objectPosition: coverPhoto(settings).position }} />
         </div>
-        <figcaption className="relative px-4 pb-6 pt-5 sm:px-7 lg:absolute lg:inset-x-0 lg:bottom-0 lg:bg-cn-bg/80 lg:pb-7 lg:pt-6">
-          <h1 id="cn-cover-title" className="cn-display break-words text-[56px] text-cn-ink [text-wrap:balance] sm:text-[88px] xl:text-[112px]">{settings.isConfigured ? name : 'Dispensary menu'}</h1>
+        <figcaption className="relative px-4 pb-1 pt-5 sm:px-7 sm:pb-6 lg:absolute lg:inset-x-0 lg:bottom-0 lg:bg-cn-bg/80 lg:pb-7 lg:pt-6">
+          <h1 id="cn-cover-title" className="cn-display break-words text-[44px] text-cn-ink [text-wrap:balance] sm:text-[88px] xl:text-[112px]">{settings.isConfigured ? name : 'Dispensary menu'}</h1>
           {settings.tagline && <p className="cn-name mt-3 max-w-[40ch] break-words text-[18px] leading-[24px] text-cn-ink-2 sm:text-[21px] sm:leading-[27px]">{settings.tagline}</p>}
         </figcaption>
       </figure>
-      <div className="flex min-w-0 flex-col gap-7 bg-cn-page px-4 py-7 sm:px-8 sm:py-9 lg:px-10">
+      <div className="flex min-w-0 flex-col gap-5 px-4 pb-2 pt-4 sm:gap-7 sm:bg-cn-page sm:px-8 sm:py-9 lg:px-10">
         <div>
-          <p className="cn-display flex items-baseline gap-3 text-[44px] text-cn-ink sm:text-[52px]">
-            <span aria-hidden="true" className={`cn-dot size-3 ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} />{open ? (open.open ? 'Open now' : 'Closed') : 'Order for pickup'}
+          <p className="flex items-baseline gap-2.5 text-[17px] font-semibold text-cn-ink sm:gap-3 sm:text-[52px] sm:font-extrabold sm:[font-family:var(--font-cn-display)] sm:[font-variation-settings:'wdth'_75] sm:leading-[0.92]">
+            <span aria-hidden="true" className={`cn-dot sm:size-3 ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} />{open ? (open.open ? 'Open now' : 'Closed') : 'Order for pickup'}
           </p>
-          <p className="mt-2 text-[16px] text-cn-ink-2">{open ? `${open.label.split(' · ')[1] ?? open.hours} · order ahead for pickup` : 'Order ahead, then bring a valid ID to pick up'}</p>
+          <p className="mt-1 text-[16px] text-cn-ink-2 sm:mt-2">{open ? `${open.label.split(' · ')[1] ?? open.hours} · order ahead for pickup` : 'Order ahead, then bring a valid ID to pick up'}</p>
           {settings.unavailable
             ? <p role="status" className="mt-3 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Store information unavailable</p>
             : !settings.isConfigured && <p role="status" data-testid="unconfigured-storefront-identity" className="mt-3 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-ink-3" aria-hidden="true" />Store not set up</p>}
         </div>
-        {settings.description && <p className="max-w-[52ch] break-words text-[16px] leading-[25px] text-cn-ink-2">{settings.description}</p>}
-        <dl className="grid gap-x-6 gap-y-3 border-y border-cn-line py-4 text-[15px] sm:grid-cols-[6rem_minmax(0,1fr)]">
+        {settings.description && <p className="hidden max-w-[52ch] break-words sm:block text-[16px] leading-[25px] text-cn-ink-2">{settings.description}</p>}
+        <dl className="hidden gap-x-6 gap-y-3 border-y border-cn-line py-4 text-[15px] sm:grid sm:grid-cols-[6rem_minmax(0,1fr)]">
           {facts.map(([term, value]) => <div key={term} className="contents"><dt className="text-cn-ink-3">{term}</dt><dd className="min-w-0 break-words text-cn-ink">{value}</dd></div>)}
         </dl>
         <div className="flex flex-wrap gap-2">
-          {directions && <a href={directions} target="_blank" rel="noreferrer" data-tone="ink" className="cn-btn">Directions<ArrowUpRight className="size-4" aria-hidden="true" /></a>}
-          <Link href="/visit" className="cn-btn">Visit details</Link>
-          <Link href="/bag" data-tone="ink" className="cn-btn">Order for pickup</Link>
+          <Link href="/#menu" data-tone="ink" className="cn-btn min-h-12 flex-1 sm:flex-none">Order for pickup</Link>
+          <Link href="/visit" className="cn-btn min-h-12 flex-1 sm:flex-none">Hours and directions</Link>
         </div>
-        {forms.length > 0 && <nav aria-labelledby="cn-index-title" className="mt-auto">
+        {forms.length > 0 && <nav aria-labelledby="cn-index-title" className="mt-auto hidden sm:block">
           <div className="flex items-baseline justify-between gap-3"><h2 id="cn-index-title" className="cn-name text-[20px] text-cn-ink">Menu</h2><span className="cn-num text-[15px] text-cn-ink-3">{catalog.length}</span></div>
           <ul className="mt-2 border-b border-cn-line">
             {forms.map(form => <li key={form.key} className="border-t border-cn-line">
@@ -138,14 +135,14 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
       </div>
     </section>
 
-    <section id="menu" aria-labelledby="menu-title" className="scroll-mt-[var(--cn-header)] pt-10 sm:pt-14" style={chapters.length < 2 ? { '--cn-rail': '0px' } as CSSProperties : undefined}>
+    <section id="menu" aria-labelledby="menu-title" className="scroll-mt-[var(--cn-header)] pt-6 sm:pt-14" style={chapters.length < 2 ? { '--cn-rail': '0px' } as CSSProperties : undefined}>
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 sm:px-6">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h2 id="menu-title" className="cn-display text-[48px] text-cn-ink sm:text-[64px]">{activeForm ? forms.find(form => form.key === activeForm)?.label : 'The menu'}</h2>
+          <h2 id="menu-title" className="cn-display text-[40px] text-cn-ink sm:text-[64px]">{activeForm ? forms.find(form => form.key === activeForm)?.label : 'The menu'}</h2>
           <span className="cn-num text-[16px] text-cn-ink-3">{shown.length} {shown.length === 1 ? 'item' : 'items'}</span>
         </div>
         {catalog.length > 0 && <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <form action="/#menu" role="search" className="flex w-full min-w-0 items-center gap-2 lg:max-w-[520px]">
+          <form action="/#menu" role="search" className="hidden w-full min-w-0 items-center gap-2 sm:flex lg:max-w-[520px]">
             {activeForm && <input type="hidden" name="form" value={activeForm} />}{channel && <input type="hidden" name="channel" value={channel} />}{sort !== 'featured' && <input type="hidden" name="sort" value={sort} />}
             <label className="min-w-0 flex-1"><span className="sr-only">Search the menu</span><input name="q" type="search" defaultValue={q} maxLength={80} placeholder="Search by name or form" className="cn-field" /></label>
             <button type="submit" className="cn-btn min-h-12">Search</button>
@@ -169,7 +166,7 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
         {!menu.reason && <Link href="/" className="cn-btn">Try again</Link>}
       </div>}
 
-      {chapters.length > 0 && <div data-testid="package-backed-live-catalog" className="mt-8">
+      {chapters.length > 0 && <div data-testid="package-backed-live-catalog" className="mt-4 sm:mt-8">
         <ChapterRail chapters={chapters.map(chapter => ({ id: chapter.id, label: chapter.label, count: chapter.items.length, ink: chapter.ink }))} />
         <div className="cn-print">
           {chapters.map(chapter => <section key={chapter.key} id={chapter.id} aria-labelledby={`${chapter.id}-title`} style={{ '--chapter': chapter.ink } as CSSProperties} className="scroll-mt-[calc(var(--cn-header)+var(--cn-rail))] pb-10">

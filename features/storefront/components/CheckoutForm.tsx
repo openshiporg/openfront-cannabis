@@ -77,9 +77,9 @@ export function CheckoutForm() {
       <ul className="mt-4 border-t border-cn-line">
         {bag.items.map(item => <li key={item.id} className="flex items-center justify-between gap-4 border-b border-cn-line py-3">
           <span className="min-w-0"><Link href={`/menu/${encodeURIComponent(item.id)}`} className="block break-words text-[17px] text-cn-ink">{item.name}</Link><span className="cn-num text-[14px] text-cn-ink-3">{money(item.priceCents)} each</span></span>
-          <span className="inline-flex shrink-0 items-center gap-1">
+          <span role="group" aria-label={`Quantity of ${item.name}`} className="inline-flex h-11 shrink-0 items-center rounded-[4px] border border-cn-line">
             <button type="button" aria-label={`Fewer ${item.name}`} onClick={() => bag.setUnits(item.id, item.units - 1)} className="size-11 text-[20px]">−</button>
-            <span className="cn-num w-6 text-center" aria-live="polite">{item.units}</span>
+            <span className="cn-num w-7 text-center" aria-live="polite">{item.units}</span>
             <button type="button" aria-label={`More ${item.name}`} onClick={() => bag.setUnits(item.id, item.units + 1)} className="size-11 text-[20px]">+</button>
           </span>
         </li>)}
@@ -103,11 +103,11 @@ export function CheckoutForm() {
       </label>
       <fieldset className="space-y-2">
         <legend className="cn-name mb-2 text-[18px] text-cn-ink">Payment</legend>
-        {card && <label className="flex min-h-12 items-center gap-3"><input type="radio" name="method" checked={method === 'card'} onChange={() => setMethod('card')} />Card · authorized now, charged when you pick up</label>}
-        {options?.payAtPickup !== false && <label className="flex min-h-12 items-center gap-3"><input type="radio" name="method" checked={method === 'pickup'} onChange={() => setMethod('pickup')} />Pay at pickup</label>}
+        {card && <label className="flex min-h-12 items-center gap-3"><input type="radio" name="method" className="cn-check" checked={method === 'card'} onChange={() => setMethod('card')} />Card · authorized now, charged when you pick up</label>}
+        {options?.payAtPickup !== false && <label className="flex min-h-12 items-center gap-3"><input type="radio" name="method" className="cn-check" checked={method === 'pickup'} onChange={() => setMethod('pickup')} />Pay at pickup</label>}
       </fieldset>
       {method === 'card' && card && <><CardFields />{anet.error && <p role="alert">{anet.error}</p>}</>}
-      <label className="flex items-start gap-3 text-[16px]"><input type="checkbox" name="idNotice" required className="mt-1.5" /><span>I’ll bring a valid government-issued photo ID to pickup. No ID, no order.</span></label>
+      <label className="flex min-h-11 items-start gap-3 text-[16px]"><input type="checkbox" name="idNotice" required className="cn-check mt-0.5" /><span>I’ll bring a valid government-issued photo ID to pickup. No ID, no order.</span></label>
       {error && <p role="alert" className="text-[16px] font-semibold text-cn-warn">{error}</p>}
       <button type="submit" data-tone="ink" className="cn-btn min-h-12 w-full sm:w-auto" disabled={busy || !options || (method === 'card' && !anet.loaded)}>{busy ? 'Placing your order…' : 'Place pickup order'}</button>
     </form>

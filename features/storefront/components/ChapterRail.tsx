@@ -36,7 +36,7 @@ export function ChapterRail({ chapters }: { chapters: Chapter[] }) {
 
   if (chapters.length < 2) return null;
   return <nav ref={rail} aria-label="Chapters" className="sticky top-[var(--cn-header)] z-30 border-b border-cn-line bg-cn-bg">
-    <div className="cn-scroll mx-auto flex h-[var(--cn-rail)] max-w-[1440px] items-center gap-6 overflow-x-auto px-4 sm:px-6">
+    <div className="cn-scroll cn-fade-x mx-auto flex h-[var(--cn-rail)] max-w-[1440px] items-center gap-6 overflow-x-auto px-4 sm:px-6">
       {chapters.map(chapter => <a key={chapter.id} href={`#${chapter.id}`} aria-current={current === chapter.id ? 'true' : undefined} className="cn-tab">
         <span aria-hidden="true" className="inline-block size-2.5 rounded-[2px]" style={{ background: chapter.ink }} />{chapter.label}<span className="cn-num text-[13px] font-normal text-cn-ink-3">{chapter.count}</span>
       </a>)}

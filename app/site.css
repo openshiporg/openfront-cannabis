@@ -231,6 +231,55 @@ body {
   .cn-tab[aria-current="page"]::after, .cn-tab[aria-current="true"]::after { transform: scaleX(1); }
   @media (hover: hover) and (pointer: fine) { .cn-tab:hover { color: #ece8dc; } }
 
+  /* Icon buttons in the header and the drawer: a 44px square, no box until hovered or focused. */
+  .cn-icon-btn {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: #ece8dc;
+    transition: background-color 160ms var(--cn-ease), transform 140ms var(--cn-ease);
+  }
+  .cn-icon-btn:active { transform: scale(0.94); }
+  .cn-icon-btn:focus-visible { outline: 2px solid #ece8dc; outline-offset: -2px; }
+  @media (hover: hover) and (pointer: fine) { .cn-icon-btn:hover { background: rgb(236 232 220 / 0.08); } }
+
+  /* The phone menu: a full-height sheet from the right over a dimmed page. */
+  .cn-drawer {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(100vw, 400px);
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid rgb(236 232 220 / 0.13);
+    background: #161a14;
+    color: #ece8dc;
+  }
+  .cn-drawer::backdrop { background: rgb(5 6 4 / 0.72); }
+  @media (prefers-reduced-motion: no-preference) {
+    .cn-drawer[open] { animation: cn-drawer-in 240ms var(--cn-ease); }
+    .cn-drawer[open]::backdrop { animation: cn-fade-in 200ms ease-out; }
+  }
+  @keyframes cn-drawer-in { from { transform: translateX(24px); opacity: 0; } }
+  @keyframes cn-fade-in { from { opacity: 0; } }
+  /* The page behind an open drawer does not scroll. */
+  html:has(.cn-drawer[open]) { overflow: hidden; }
+
+  /* Native choices, drawn in the catalog's ink instead of the browser's blue. */
+  .cn-check {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    accent-color: #ece8dc;
+  }
+
   .cn-dot { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 999px; transform: translateY(-0.1em); }
 
   /* Chapter band: solid process ink, pinned under the header and the rail while its entries scroll. */
@@ -266,6 +315,8 @@ body {
   .cn-field:focus-visible { border-color: #ece8dc; outline: none; }
 
   .cn-scroll { scrollbar-width: none; }
+  /* A row that scrolls sideways fades out at the edge it continues past, so a cut-off label reads as more to come. */
+  .cn-fade-x { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); padding-right: 40px; }
   .cn-scroll::-webkit-scrollbar { display: none; }
 
   /* Chapters print in once as the page opens. */
@@ -287,7 +338,7 @@ body {
 
 @media (max-width: 639px) {
   /* Touch targets for the public storefront only; dashboard controls keep their shared sizing. */
-  .storefront-theme :where(button, a[href], summary, select, textarea, input:not([type="hidden"])) {
+  .storefront-theme :where(button, a[href], summary, select, textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"])) {
     min-width: 44px;
     min-height: 44px;
   }

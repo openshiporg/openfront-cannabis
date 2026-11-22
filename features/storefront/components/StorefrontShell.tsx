@@ -1,7 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { Suspense, type CSSProperties, type ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Search } from 'lucide-react';
 import type { PublicStorefrontSettingsResult } from '../lib/data/menu';
 import { AGE_COOKIE } from '../lib/age';
 import { storeBrand } from '../lib/brand';
@@ -54,27 +54,37 @@ export async function StorefrontShell({ settings, forms = [], current, children 
       </div>
     </div>
     <header className="sticky top-0 z-40 border-b border-cn-line bg-cn-bg">
-      <div className="mx-auto flex h-[var(--cn-header)] max-w-[1440px] items-center justify-between gap-6 px-4 sm:px-6">
+      <div className="mx-auto flex h-[var(--cn-header)] max-w-[1440px] items-center justify-between gap-3 pl-4 pr-2.5 sm:gap-6 sm:px-6">
         <Link href="/" aria-label={`${name} menu`} className="inline-flex min-w-0 items-center text-cn-ink">{logo()}</Link>
         <nav aria-label="Store" className="hidden items-center gap-7 sm:flex">
           <Link href="/#menu" aria-current={current === 'menu' ? 'page' : undefined} className="cn-tab">Menu</Link>
           <Link href="/visit" aria-current={current === 'visit' ? 'page' : undefined} className="cn-tab">Visit</Link>
           <BagLink />
-          <Link href="/dashboard/signin" className="cn-tab text-cn-ink-3">Staff sign in<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
         </nav>
-        <PhoneMenu>
-          <nav aria-label="Phone menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[calc(100vw-2rem)] max-w-sm rounded-[4px] border border-cn-line bg-cn-page p-2 shadow-[0_24px_48px_-16px_rgb(0_0_0/0.8)]">
-            <ul className="divide-y divide-cn-line">
-              <li><Link href="/#menu" className="flex min-h-12 items-center justify-between px-3 text-[16px] font-semibold text-cn-ink">Menu<span className="cn-num text-[14px] font-normal text-cn-ink-3">{forms.reduce((sum, form) => sum + form.count, 0)}</span></Link></li>
-              {forms.map(form => <li key={form.key}><Link href={`/?form=${encodeURIComponent(form.key)}#menu`} className="flex min-h-12 items-center justify-between gap-3 px-3 text-[16px] text-cn-ink-2">
-                <span className="inline-flex items-center gap-2.5"><span aria-hidden="true" className="inline-block size-2.5 rounded-[2px]" style={{ background: chapterInk(form.label) }} />{form.label}</span><span className="cn-num text-[14px] text-cn-ink-3">{form.count}</span>
-              </Link></li>)}
-              <li><BagLink className="flex min-h-12 items-center px-3 text-[16px] font-semibold text-cn-ink" /></li>
-              <li><Link href="/visit" className="flex min-h-12 items-center px-3 text-[16px] font-semibold text-cn-ink">Visit · hours and address</Link></li>
-              <li><Link href="/dashboard/signin" className="flex min-h-12 items-center justify-between px-3 text-[15px] text-cn-ink-2">Staff sign in<ArrowUpRight className="size-4" aria-hidden="true" /></Link></li>
-            </ul>
-          </nav>
-        </PhoneMenu>
+        <div className="flex shrink-0 items-center gap-1 sm:hidden">
+          <BagLink icon />
+          <Suspense fallback={null}><PhoneMenu title={name}>
+            <form action="/#menu" role="search" className="flex items-center gap-2 border-b border-cn-line p-4">
+              <label className="min-w-0 flex-1"><span className="sr-only">Search the menu</span><input name="q" type="search" maxLength={80} placeholder="Search the menu" className="cn-field" /></label>
+              <button type="submit" aria-label="Search" className="cn-btn min-h-12 px-3.5"><Search className="size-5" aria-hidden="true" /></button>
+            </form>
+            <nav aria-label="Phone menu" className="px-4">
+              <ul className="divide-y divide-cn-line border-b border-cn-line">
+                <li><Link href="/#menu" className="flex min-h-14 items-center justify-between text-[18px] font-semibold text-cn-ink">Menu<span className="cn-num text-[15px] font-normal text-cn-ink-3">{forms.reduce((sum, form) => sum + form.count, 0)}</span></Link></li>
+                {forms.map(form => <li key={form.key}><Link href={`/?form=${encodeURIComponent(form.key)}#menu`} className="flex min-h-12 items-center justify-between gap-3 pl-1 text-[17px] text-cn-ink-2">
+                  <span className="inline-flex min-w-0 items-center gap-3"><span aria-hidden="true" className="inline-block h-5 w-1.5 shrink-0 rounded-[1px]" style={{ background: chapterInk(form.label) }} /><span className="truncate">{form.label}</span></span><span className="cn-num text-[15px] text-cn-ink-3">{form.count}</span>
+                </Link></li>)}
+                <li><BagLink className="flex min-h-14 items-center text-[18px] font-semibold text-cn-ink" /></li>
+                <li><Link href="/visit" className="flex min-h-14 items-center text-[18px] font-semibold text-cn-ink">Visit</Link></li>
+              </ul>
+            </nav>
+            <div className="space-y-1 px-4 py-5 text-[15px] text-cn-ink-2">
+              {open && <p className="inline-flex items-baseline gap-2 text-cn-ink"><span aria-hidden="true" className={`cn-dot ${open.open ? 'bg-cn-ok' : 'bg-cn-ink-3'}`} />{open.label}</p>}
+              {address.map(line => <p key={line} className="break-words">{line}</p>)}
+              {visit?.phone && <p><a href={`tel:${visit.phone.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-11 items-center font-semibold text-cn-ink underline decoration-cn-line decoration-2 underline-offset-4">{visit.phone}</a></p>}
+            </div>
+          </PhoneMenu></Suspense>
+        </div>
       </div>
     </header>
     <main className="flex-1">{children}</main>

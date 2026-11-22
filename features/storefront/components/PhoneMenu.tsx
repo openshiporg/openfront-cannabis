@@ -1,13 +1,30 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
-import { Menu as MenuIcon } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Menu as MenuIcon, X } from 'lucide-react';
 
-/** Disclosure for the phone menu; any link tapped inside closes it. */
-export function PhoneMenu({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  return <details ref={ref} className="group relative shrink-0 sm:hidden" onClick={event => { if ((event.target as HTMLElement).closest('a') && ref.current) ref.current.open = false; }}>
-    <summary aria-label="Open menu" className="flex size-11 cursor-pointer list-none items-center justify-center rounded-[4px] border border-cn-line text-cn-ink [&::-webkit-details-marker]:hidden"><MenuIcon className="size-5" aria-hidden="true" /></summary>
-    {children}
-  </details>;
+/** The phone menu: a full-height drawer. Escape, the close button, the backdrop or any link inside closes it. */
+export function PhoneMenu({ title, children }: { title: string; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const pathname = usePathname();
+  const query = useSearchParams()?.toString() ?? "";
+  const close = () => ref.current?.close();
+
+  // Following a link closes the drawer, including a link to the page already open.
+  useEffect(() => { ref.current?.close(); }, [pathname, query]);
+
+  return <div className="shrink-0 sm:hidden">
+    <button type="button" aria-label="Open menu" aria-haspopup="dialog" onClick={() => ref.current?.showModal()} className="cn-icon-btn"><MenuIcon className="size-[22px]" aria-hidden="true" /></button>
+    <dialog ref={ref} aria-label={title} className="cn-drawer"
+      onClick={event => { const target = event.target as HTMLElement; if (target === ref.current || target.closest('a')) close(); }}>
+      <div className="flex h-full flex-col">
+        <div className="flex h-[var(--cn-header)] shrink-0 items-center justify-between border-b border-cn-line pl-4 pr-2.5">
+          <p className="cn-name text-[21px] text-cn-ink">{title}</p>
+          <button type="button" aria-label="Close menu" onClick={close} className="cn-icon-btn"><X className="size-[22px]" aria-hidden="true" /></button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">{children}</div>
+      </div>
+    </dialog>
+  </div>;
 }
