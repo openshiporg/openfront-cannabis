@@ -10,7 +10,7 @@ const PERMISSION_LABEL: Array<[string, string]> = [
 ];
 
 const STAFF_COLUMNS = 'minmax(0,1.3fr) minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,0.6fr) minmax(0,1fr)';
-const STAFF_HEADERS = [{ label: 'Person' }, { label: 'Role' }, { label: 'Credential' }, { label: 'Limit', align: 'right' as const }, { label: 'Status' }];
+const STAFF_HEADERS = [{ label: 'Person' }, { label: 'Role' }, { label: 'Credential' }, { label: 'Can approve', align: 'right' as const }, { label: 'Status' }];
 
 export async function StaffPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
