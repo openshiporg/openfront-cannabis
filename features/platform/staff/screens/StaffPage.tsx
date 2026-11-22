@@ -32,7 +32,7 @@ export async function StaffPage({ searchParams }: { searchParams?: SearchParams 
             <span key="n" className="block min-w-0"><span className="font-medium">{person.name}</span>{person.id === data.selfId && <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>}<span className="block truncate text-xs text-muted-foreground">{person.email}</span></span>,
             <span key="r">{person.role?.name ?? 'No role'}<span className="block text-xs text-muted-foreground">{grants.join(', ') || 'No permissions'}</span></span>,
             credential ? <span key="c">{credential.credentialType.toLowerCase() !== person.role?.name?.toLowerCase() && <>{sentenceCase(credential.credentialType)} </>}<Ref>{credential.credentialReference}</Ref><span className="block text-xs text-muted-foreground">until {formatWhen(credential.expiresAt, data.timezone)}</span></span> : <span key="c" className="text-muted-foreground">None</span>,
-            <span key="l">{credential ? formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode) : '—'}</span>,
+            <span key="l">{credential?.approvalLimitCents ? `up to ${formatMinorUnits(credential.approvalLimitCents, data.currencyCode)}` : 'None'}</span>,
             <StatusText key="s" tone={tone}>{person.status !== 'active' ? sentenceCase(person.status) : credential ? (credential.intervalState === 'current' ? sentenceCase(credential.status) : INTERVAL_LABEL[credential.intervalState] ?? sentenceCase(credential.intervalState)) : 'No credential'}</StatusText>,
           ]}>
             {credential && credential.allowedActivities.length > 0 && <p className="mt-1.5 text-xs text-muted-foreground">Activities: {credential.allowedActivities.map(sentenceCase).join(', ')}</p>}

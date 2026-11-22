@@ -146,7 +146,7 @@ const LICENSE_HEADERS = [{ label: 'Status' }, { label: 'License' }, { label: 'Ty
 const CREDENTIAL_COLUMNS = '11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,0.7fr)';
 const clockLabel = (minute: number) => { const hour = Math.floor(minute / 60); const rest = minute % 60; return `${hour % 12 || 12}${rest ? `:${String(rest).padStart(2, '0')}` : ''} ${hour < 12 ? 'AM' : 'PM'}`; };
 
-const CREDENTIAL_HEADERS = [{ label: 'Status' }, { label: 'Person' }, { label: 'Credential' }, { label: 'Valid' }, { label: 'Approval limit', align: 'right' as const }];
+const CREDENTIAL_HEADERS = [{ label: 'Status' }, { label: 'Person' }, { label: 'Credential' }, { label: 'Valid' }, { label: 'Drawer difference they can approve', align: 'right' as const }];
 
 export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
@@ -185,7 +185,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
               <span key="n" className="font-medium">{credential.user?.name || 'Unassigned'}{credential.id === data.self.credentialId && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</span>,
               <span key="t" className="text-muted-foreground">{credential.credentialType}</span>,
               <span key="v" className="whitespace-nowrap text-muted-foreground">{formatUsableThrough(credential.effectiveAt, data.timezone)} – {formatUsableThrough(credential.expiresAt, data.timezone)}</span>,
-              <span key="l">{formatMinorUnits(credential.approvalLimitCents ?? 0, data.currencyCode)}</span>,
+              <span key="l">{credential.approvalLimitCents ? `up to ${formatMinorUnits(credential.approvalLimitCents, data.currencyCode)}` : 'None'}</span>,
             ]}>
               {actions.length > 0 && <div className="mt-2 flex flex-wrap items-start gap-2 md:pl-[calc(11rem+1rem)]">{actions}</div>}
             </RecordRow>;
@@ -232,7 +232,7 @@ export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: 
             </dl>
             {data.self.isOwner && <AmendRulesDisclosure initiallyOpen={false} label="Edit address and phone"><PremisesDetailsForm premises={data.premises} /></AmendRulesDisclosure>}
           </ListBand>
-          <p className="mt-2 text-xs text-muted-foreground">Your approval limit: {formatMinorUnits(data.self.approvalLimitCents, data.currencyCode)}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{data.self.approvalLimitCents ? `You can approve a drawer difference of up to ${formatMinorUnits(data.self.approvalLimitCents, data.currencyCode)}.` : 'You cannot approve drawer differences. The owner sets this under Authority.'}</p>
         </section>
       </Split>
     </Workboard>;

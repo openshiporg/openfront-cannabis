@@ -213,7 +213,7 @@ export function ProvisionStaffForm() {
       <Field name="credentialReference" title="Credential number" errors={errors} required autoComplete="off" />
       <Field name="effectiveAt" title="Valid from" type="date" errors={errors} required />
       <Field name="expiresAt" title="Valid until" type="date" errors={errors} required />
-      <Field name="approvalLimit" title="Approval limit (optional)" errors={errors} inputMode="decimal" placeholder="0.00" />
+      <Field name="approvalLimit" title="Drawer difference they can approve (optional)" errors={errors} inputMode="decimal" placeholder="0.00" />
     </fieldset>
     <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-2"><legend className="mb-1.5 text-xs font-semibold text-foreground">Permissions</legend>{PERMISSIONS.map(([permission, title]) => <Check key={permission} name={`permission:${permission}`} title={title} />)}</fieldset>
     <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3" aria-describedby={errors?.activities ? 'field-activities-error' : undefined}><legend className="mb-1.5 text-xs font-semibold text-foreground">Credential activities</legend>{ACTIVITIES.map(activity => <Check key={activity} name={`activity:${activity}`} title={sentence(activity)} />)}<span id="field-activities" tabIndex={-1} /><FieldError name="activities" errors={errors} /></fieldset>
