@@ -49,7 +49,8 @@ export async function cannabisStateReportExport(_root: unknown, args: { kind: st
       ((Number(line.totalCents) - Number(line.taxCents)) / 100).toFixed(2)]);
   } else {
     const events = await sudo.query.InventoryEvent.findMany({
-      where: { ...scope, eventType: { in: ADJUSTMENT_TYPES as any }, occurredAt: { gte: start, lt: end } },
+      // A voided sale is left out of the sales file, so the stock it put back is not an adjustment either.
+      where: { ...scope, eventType: { in: ADJUSTMENT_TYPES as any }, reasonCode: { not: { equals: "sale_voided" } }, occurredAt: { gte: start, lt: end } },
       orderBy: [{ occurredAt: "asc" }], take: MAX_ROWS + 1,
       query: "eventType quantityDeltaMicrounits reasonCode occurredAt package { packageUid unitOfMeasure } actor { name staffCredential { credentialReference } }",
     });
