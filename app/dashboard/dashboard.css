@@ -205,3 +205,11 @@ h3.tiptap-heading + h2.tiptap-heading {
   .cn-table tbody td[data-label]:first-child::before { content: none; }
   .cn-table tbody td:empty { display: none; }
 }
+
+/* Phones: every control in a staff page is tall enough to tap, and text fields are 16px so the page does not zoom. */
+@media (max-width: 767px) {
+  main :is(button, select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"]), a[class*="rounded"]) { min-height: 44px; }
+  main :is(select, input:not([type="checkbox"], [type="radio"]), textarea) { font-size: 16px; }
+  main input:is([type="checkbox"], [type="radio"]) { width: 20px; height: 20px; }
+  header button { min-width: 44px; min-height: 44px; }
+}
