@@ -10,10 +10,10 @@ import { formatInstant } from '@/features/platform/lib/time';
 import { AllocationQuotePanel, type QuoteProduct } from './AllocationQuotePanel';
 import { intentSlot, parsePreparationIntents, preparationIntentForm, preparationKey, PREPARATION_INTENTS_KEY, REASON_CODE_HTML_PATTERN, removePreparationIntent, storePreparationIntent, type PreparationIntent } from '../preparationIntent';
 
-const actions: Record<string, Array<{ status: string; label: string }>> = {
-  reserved: [{ status: 'picking', label: 'Start picking' }],
-  picking: [{ status: 'staged', label: 'Mark staged' }, { status: 'reserved', label: 'Return to reserved' }],
-  staged: [{ status: 'picking', label: 'Reopen picking' }],
+const actions: Record<string, Array<{ status: string; label: string; reason: string }>> = {
+  reserved: [{ status: 'picking', label: 'Start picking', reason: 'picking_started' }],
+  picking: [{ status: 'staged', label: 'Ready for pickup', reason: 'staged_for_pickup' }, { status: 'reserved', label: 'Put back', reason: 'returned_to_reserved' }],
+  staged: [{ status: 'picking', label: 'Reopen picking', reason: 'picking_reopened' }],
 };
 
 const INTENT_CHANGE = 'cannabis-preparation-intent-change';
@@ -148,12 +148,9 @@ export function CartPreparationClient({ carts, authorityFingerprint, products, p
         {detail.linesHasMore && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="warn" />Too many lines to show; preparation steps unavailable.</p>}
         {expired && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="danger" />Reservation expired</p>}
         {saved?.state === 'pending' && <p role="status" className="flex items-baseline gap-2 text-sm"><Dot tone="warn" />A step for this cart is not confirmed. Resolve it under Saved commands.</p>}
-        {!detail.linesHasMore && !expired && journal && saved?.state !== 'pending' && actions[detail.status]?.map(action => <form key={`${detail.id}:${detail.version}:${action.status}`} onSubmit={event => { event.preventDefault(); submit(new FormData(event.currentTarget)); }} className="flex flex-col gap-3 rounded-[5px] border border-border bg-muted/20 p-3 sm:flex-row sm:items-end">
+        {!detail.linesHasMore && !expired && journal && saved?.state !== 'pending' && actions[detail.status]?.map(action => <form key={`${detail.id}:${detail.version}:${action.status}`} onSubmit={event => { event.preventDefault(); submit(new FormData(event.currentTarget)); }} className="inline-flex">
           <input type="hidden" name="cartId" value={detail.id} /><input type="hidden" name="expectedVersion" value={detail.version} /><input type="hidden" name="nextStatus" value={action.status} />
-          <label className={`${labelClass} flex-1`}>Reason code
-            <input name="reasonCode" required pattern={REASON_CODE_HTML_PATTERN} maxLength={100} disabled={pending} placeholder="picking_started" aria-describedby={`reason-help-${action.status}`} className={`${inputClass} font-mono`} />
-            <span id={`reason-help-${action.status}`} className="mt-1 block font-normal text-muted-foreground">a–z, 0–9 and _ only</span>
-          </label>
+          <input type="hidden" name="reasonCode" value={action.reason} />
           <Actions><Button disabled={pending} type="submit" tone="primary">{action.label}</Button></Actions>
         </form>)}
         {!actions[detail.status] && <p className="text-sm text-muted-foreground">No preparation step is available for this cart status.</p>}

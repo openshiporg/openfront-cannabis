@@ -1,4 +1,5 @@
 'use client';
+import { ReasonSelect } from '../../components/ReasonSelect';
 import { ViewerTime } from '@/features/dashboard/components/ViewerTime';
 
 import { useState, useTransition } from 'react';
@@ -95,7 +96,7 @@ export function ReleaseHoldForm({ holdId, label }: { holdId: string; label: stri
       <fieldset disabled={pending} className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field name="releaseAuthorityReference" title="Release reference" errors={errors} required className="font-mono" />
-          <Field name="reasonCode" title="Reason code" errors={errors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="retest_passed" className="font-mono" />
+          <ReasonSelect kind="release" errors={errors} />
         </div>
         <ApproverFields errors={errors} role="compliance" />
       </fieldset>
@@ -300,7 +301,7 @@ export function RefundForm({ saleId, tenders, remainingCents, currencyCode }: { 
       <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
         <Select name="originalTenderId" title="Original payment" errors={errors} value={tenderId} onChange={event => setTenderId(event.target.value)}>{tenders.map(entry => <option key={entry.id} value={entry.id}>{entry.typeSnapshot === 'ach' ? 'ACH' : entry.typeSnapshot.charAt(0).toUpperCase() + entry.typeSnapshot.slice(1)} · {formatMinorUnits(entry.amountCents, currencyCode)}</option>)}</Select>
         <Field name="amount" title={`Amount (up to ${formatMinorUnits(remainingCents, currencyCode)})`} errors={errors} required inputMode="decimal" className="font-mono" />
-        <Field name="reasonCode" title="Reason code" errors={errors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="damaged_product" className="font-mono" />
+        <ReasonSelect kind="refund" errors={errors} />
         <Select name="inventoryDisposition" title="Returned product" errors={errors} required defaultValue="">{[<option key="" value="" disabled>Choose</option>, ...DISPOSITIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)]}</Select>
         {tender && tender.typeSnapshot !== 'cash' && <Field name="providerReference" title="Terminal refund reference" errors={errors} required autoComplete="off" className="font-mono" />}
       </fieldset>

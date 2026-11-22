@@ -1,5 +1,6 @@
 'use client';
 
+import { ReasonSelect } from '../../components/ReasonSelect';
 import { Children, isValidElement } from 'react';
 import { Select as SelectRoot, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Actions, buttonClass, inputClass, labelClass, Button, textareaClass } from '@/features/platform/components/cannabis-ui';
@@ -149,7 +150,7 @@ export function IncidentTransitionForm({ incident }: { incident: { id: string; r
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="incidentId" value={incident.id} /><input type="hidden" name="expectedStatus" value={incident.status} />
     <fieldset disabled={pending} className="grid gap-2 sm:grid-cols-3">
       <Select name="nextStatus" title="Next step" errors={errors}>{options.map(option => <option key={option.status} value={option.status}>{option.label}</option>)}</Select>
-      <Field name="reasonCode" title="Reason code" errors={errors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="contained_on_site" />
+      <ReasonSelect kind="incident" errors={errors} />
       <Field name="authorityReference" title="Report reference (when reporting)" errors={errors} />
     </fieldset>
     <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Saving…' : 'Update incident'}</Button></Actions>
@@ -189,7 +190,7 @@ export function ApproveVarianceForm({ shiftId }: { shiftId: string }) {
   const { state, onSubmit, pending, key, summary, markDirty } = useCommand(approveVarianceFromDesk);
   return <form onSubmit={onSubmit()} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2">
     <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="shiftId" value={shiftId} />
-    <Field name="reasonCode" title="Variance reason code" errors={state.fieldErrors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="counting_error" disabled={pending} />
+    <ReasonSelect kind="variance" title="Why the drawer was off" errors={state.fieldErrors} disabled={pending} />
     <Actions><Button type="submit" disabled={pending} tone="primary">{pending ? 'Approving…' : 'Approve variance'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
@@ -247,7 +248,7 @@ export function RevokeCredentialForm({ credentialId, status, name }: { credentia
     <form onSubmit={onSubmit(confirmChange)} onChange={markDirty} className="mt-2 flex flex-wrap items-end gap-2">
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="credentialId" value={credentialId} />
       <Select name="nextStatus" title="Change to" errors={state.fieldErrors} disabled={pending} required defaultValue=""><option value="" disabled>Choose</option>{status !== 'suspended' && <option value="suspended">Suspended</option>}<option value="terminated">Terminated</option></Select>
-      <Field name="reasonCode" title="Reason code" errors={state.fieldErrors} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="reason_code" disabled={pending} />
+      <ReasonSelect kind="revoke" errors={state.fieldErrors} disabled={pending} />
       <Actions><Button type="submit" disabled={pending} tone="danger">{pending ? 'Saving…' : 'Update credential'}</Button></Actions>
       <CommandStatus state={state} summary={summary} />
     </form>

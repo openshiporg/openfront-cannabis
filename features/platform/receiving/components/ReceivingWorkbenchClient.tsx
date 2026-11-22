@@ -1,5 +1,6 @@
 'use client';
 
+import { ReasonSelect } from '../../components/ReasonSelect';
 import { useState } from 'react';
 import { formatMicrounits } from '@/features/lib/quantity';
 import { FieldError, fieldProps, type FieldErrors } from '@/features/platform/lib/formErrors';
@@ -51,7 +52,7 @@ function ReceivePackageForm({ products, productsHasMore, timezone }: { products:
             <Field name="expiresAt" title={`Usable through${timezone ? ` (${timezone})` : ''}`} type="date" errors={errors} required />
             <Field name="manufacturedAt" title="Manufactured date (optional)" type="date" errors={errors} />
             <Field name="labelVersion" title="Label version" errors={errors} required />
-            <Field name="reasonCode" title="Reason code" errors={errors} required defaultValue="manifest_receipt" pattern="[a-z][a-z0-9_]{2,99}" />
+            <ReasonSelect kind="receive" errors={errors} defaultValue="manifest_receipt" />
           </Group>
           <Group title="Lab (recorded as unverified)">
             <Field name="coaReference" title="COA reference (optional)" errors={errors} />

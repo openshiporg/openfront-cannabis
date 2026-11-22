@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { formatMinorUnits } from '@/features/lib/money';
 import { PageTitle, Ref, SectionTitle, StatusText, Table, TabBar, TabLink, Tabs, TEmpty, Td, Th, THead, Tr, codeLabel, sentenceCase, statusTone } from '@/features/platform/components/cannabis-ui';
-import { AsOf, formatWhen, Pager, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
+import { AsOf, formatWhen, Pager, SalesExportForm, SearchForm } from '@/features/platform/operations/components/WorkspaceKit';
 import { frame, readParams, type SearchParams } from '@/features/platform/operations/lib/frame';
 import { SaleReceiptDetail } from '@/features/platform/fulfillment/components/SaleReceiptDetail';
 import { getSaleReceipt } from '@/features/platform/fulfillment/actions/receipt';
@@ -21,6 +21,10 @@ const filterHref = (id: string, search?: string) => {
 export async function SalesPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('sales', '/dashboard/platform/sales', 'Sales', params, data => <div className="space-y-6 px-4 pb-28 md:px-6">
+    <section aria-label="Export" className="rounded-[6px] border border-border bg-card p-3">
+      <p className="mb-2 text-[13px] text-muted-foreground">One row for every package sold, with its tag, quantity, price and tax.</p>
+      <SalesExportForm timezone={data.timezone} />
+    </section>
     <section className="space-y-4">
       <TabBar aside={<SearchForm basePath="/dashboard/platform/sales" params={params} label="Search receipts" placeholder="Receipt number" />}>
         <Tabs label="Sale status">{FILTERS.map(item => <TabLink key={item.id} href={filterHref(item.id, params.search)} active={data.filter === item.id} count={data.counts[item.id]}>{item.label}</TabLink>)}</Tabs>

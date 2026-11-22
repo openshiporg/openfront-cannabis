@@ -15,6 +15,7 @@ import { changeStaffPermissions, setStaffTemporaryPassword } from "./staffAccess
 import { exposeRuleErrors } from "./ruleErrors";
 import { advanceRecallCase, openRecallCase, placePackageHold, recordPackageLabResult, releaseCannabisPackage } from "./custody";
 import { checkInCannabisCustomer } from "./customers";
+import { cannabisSalesExport } from "./salesExport";
 import { cancelCannabisPickupOrder, cannabisPickupOptions, cannabisPickupOrder, cannabisPickupQuote, placeCannabisPickupOrder } from "./onlineOrders";
 import { cannabisCustomerAccount, changeCannabisCustomerPassword, registerCannabisCustomer, updateCannabisCustomerProfile } from "./customerAccounts";
 
@@ -30,6 +31,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         cannabisPickupOptions: JSON!
         cannabisPickupOrder(reference: String!, proof: String!): JSON!
         cannabisPickupQuote(items: JSON!): JSON!
+        cannabisSalesExport(from: String!, to: String!): JSON!
         cannabisCustomerAccount: JSON
         publicCannabisStorefrontSettings: JSON!
         cannabisOperationsWorkspace(section: String!, options: JSON): JSON!
@@ -93,7 +95,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
     `,
     resolvers: {
-      Query: exposeRuleErrors({ cannabisPickupOptions, cannabisPickupOrder, cannabisPickupQuote, cannabisCustomerAccount, redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
+      Query: exposeRuleErrors({ cannabisSalesExport, cannabisPickupOptions, cannabisPickupOrder, cannabisPickupQuote, cannabisCustomerAccount, redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
       Mutation: exposeRuleErrors({
         placeCannabisPickupOrder,
         cancelCannabisPickupOrder,

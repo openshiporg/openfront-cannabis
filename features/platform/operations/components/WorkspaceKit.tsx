@@ -66,6 +66,16 @@ export function Pager({ basePath, params, nextCursor, shown, total, noun }: { ba
   </nav>;
 }
 
+/** Download sales as a spreadsheet file for a range of store dates. A plain GET form: the browser saves the file. */
+export function SalesExportForm({ timezone, className }: { timezone: string | null; className?: string }) {
+  const day = (offset: number) => new Intl.DateTimeFormat('en-CA', { timeZone: timezone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() - offset * 86_400_000));
+  return <form action="/dashboard/platform/sales/export" method="get" className={`flex flex-wrap items-end gap-2 ${className ?? ''}`}>
+    <label className="text-xs font-medium text-foreground">From<input type="date" name="from" required defaultValue={day(6)} max={day(0)} className={`${inputClass} sm:w-40`} /></label>
+    <label className="text-xs font-medium text-foreground">To<input type="date" name="to" required defaultValue={day(0)} max={day(0)} className={`${inputClass} sm:w-40`} /></label>
+    <Button type="submit">Download sales (CSV)</Button>
+  </form>;
+}
+
 export function SearchForm({ basePath, params, name = 'search', label, placeholder }: { basePath: string; params: Record<string, string | undefined>; name?: string; label: string; placeholder?: string }) {
   const kept = Object.entries(params).filter(([key, value]) => value && key !== name && key !== 'cursor') as Array<[string, string]>;
   const clearQuery = new URLSearchParams(kept).toString();

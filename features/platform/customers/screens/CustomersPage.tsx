@@ -18,13 +18,13 @@ const filterHref = (id: string, search?: string) => {
 export async function CustomersPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('customers', '/dashboard/platform/customers', 'Customers', params, data => <div className="space-y-4 px-4 pb-28 md:px-6">
-    <TabBar aside={<SearchForm basePath="/dashboard/platform/customers" params={params} label="Search customers" placeholder="Customer reference" />}>
+    <TabBar aside={<SearchForm basePath="/dashboard/platform/customers" params={params} label="Search customers" placeholder="Name, email or number" />}>
       <Tabs label="Customer status">{FILTERS.map(item => <TabLink key={item.id} href={filterHref(item.id, params.search)} active={data.filter === item.id} count={data.counts[item.id]}>{item.id !== 'all' && <Dot tone={statusTone(item.id)} />}{item.label}</TabLink>)}</Tabs>
     </TabBar>
     <Table label="Customers" minWidth={560}>
       <THead><Th>Customer</Th><Th>Capacity</Th><Th>Since</Th><Th>Marketing</Th><Th>Status</Th></THead>
       <tbody>{data.customers.items.length ? data.customers.items.map(customer => <Tr key={customer.id}>
-        <Td><Link href={`/dashboard/platform/customers/${encodeURIComponent(customer.id)}`} className="font-medium underline-offset-4 hover:underline"><Ref>{customer.reference}</Ref></Link></Td>
+        <Td><Link href={`/dashboard/platform/customers/${encodeURIComponent(customer.id)}`} className="font-medium underline-offset-4 hover:underline">{customer.name || 'No name given'}</Link><span className="block text-xs text-muted-foreground"><Ref>{customer.reference}</Ref></span></Td>
         <Td className="text-muted-foreground">{sentenceCase(customer.capacity)}</Td>
         <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(customer.createdAt, data.timezone)}</Td>
         <Td className="text-muted-foreground">{customer.marketingConsent ? 'Consented' : '—'}</Td>
@@ -43,7 +43,7 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
     const customer = data.customer;
     return <div className="space-y-6 px-4 pb-28 md:px-6">
       <dl className="grid overflow-hidden rounded-[6px] border border-border bg-card text-[13px] sm:grid-cols-4">
-        {([['Capacity', sentenceCase(customer.capacity)], ['Status', <StatusText key="s" tone={statusTone(customer.status)}>{sentenceCase(customer.status)}</StatusText>], ['Since', formatWhen(customer.createdAt, data.timezone)], ['Marketing consent', customer.marketingConsent ? 'Yes' : 'No']] as Array<[string, React.ReactNode]>).map(([term, value]) => <div key={term} className="border-b border-border px-3 py-2 sm:border-b-0 sm:border-r sm:last:border-r-0"><dt className="text-xs text-muted-foreground">{term}</dt><dd className="mt-0.5 font-medium">{value}</dd></div>)}
+        {([['Name', customer.name || 'Not given'], ['Email', customer.email || 'Not given'], ['Phone', customer.phone || 'Not given'], ['Online account', customer.hasAccount ? 'Yes' : 'No'], ['Capacity', sentenceCase(customer.capacity)], ['Status', <StatusText key="s" tone={statusTone(customer.status)}>{sentenceCase(customer.status)}</StatusText>], ['Since', formatWhen(customer.createdAt, data.timezone)], ['Marketing consent', customer.marketingConsent ? 'Yes' : 'No']] as Array<[string, React.ReactNode]>).map(([term, value]) => <div key={term} className="border-b border-border px-3 py-2 sm:border-b-0 sm:border-r sm:last:border-r-0"><dt className="text-xs text-muted-foreground">{term}</dt><dd className="mt-0.5 font-medium">{value}</dd></div>)}
       </dl>
       <section>
         <SectionTitle meta={data.evidence.length}>Eligibility evidence</SectionTitle>
@@ -87,5 +87,5 @@ export async function CustomerDetailPage({ params: routeParams, searchParams }: 
       </div>
     </div>;
   }, data => data.customer ? { tone: statusTone(data.customer.status), state: sentenceCase(data.customer.status) } : { tone: 'muted', state: '' },
-  { crumbs: [{ label: 'Customers', href: '/dashboard/platform/customers' }, { label: 'Customer' }], heading: data => data.customer?.reference ?? 'Customer', missing: data => !data.customer });
+  { crumbs: [{ label: 'Customers', href: '/dashboard/platform/customers' }, { label: 'Customer' }], heading: data => data.customer?.name || data.customer?.reference || 'Customer', missing: data => !data.customer });
 }

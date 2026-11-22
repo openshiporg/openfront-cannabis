@@ -1,5 +1,6 @@
 'use client';
 
+import { ReasonSelect } from '../../components/ReasonSelect';
 import { FieldError, fieldProps } from '@/features/platform/lib/formErrors';
 import { Actions, buttonClass, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
 import { placeHoldFromDesk } from '@/features/platform/workspaces/actions/workflows';
@@ -17,7 +18,7 @@ export function PlaceHoldForm({ packageId, packageUid }: { packageId: string; pa
       <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="packageId" value={packageId} />
       <fieldset disabled={pending} className="grid gap-3">
         <label className={labelClass}>Hold type<select {...fieldProps('type', errors)} required defaultValue="" className={inputClass}><option value="" disabled>Choose</option>{TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><FieldError name="type" errors={errors} /></label>
-        <label className={labelClass}>Reason code<input {...fieldProps('reasonCode', errors)} required pattern="[a-z][a-z0-9_]{2,99}" placeholder="damaged_seal" className={`${inputClass} font-mono`} /><FieldError name="reasonCode" errors={errors} /></label>
+        <ReasonSelect kind="hold" errors={errors} />
         <label className={labelClass}>What was found<input {...fieldProps('reason', errors)} required minLength={4} maxLength={1000} className={inputClass} /><FieldError name="reason" errors={errors} /></label>
       </fieldset>
       <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Placing…' : 'Place hold'}</Button></Actions>

@@ -51,6 +51,9 @@ const AUDIT_RESOURCE_LABELS: Record<string, string> = {
   StorefrontSettings: "businessName", Customer: "reference", Sale: "receiptNumber", RegulatedManifest: "manifestNumber",
 };
 
+/** The name a shopper gave, for staff lists. Contact stays out of the payload otherwise. */
+const named = <T extends Record<string, any>>(customer: T) => { const { contact, ...rest } = customer; return { ...rest, name: typeof contact?.name === "string" ? contact.name : "" }; };
+
 async function page(context: Context, list: keyof Context["query"] & string, args: { where: Record<string, unknown>; orderBy: Array<Record<string, "asc" | "desc">>; query: string; cursor?: string | null; take?: number }) {
   const take = args.take ?? WORKSPACE_PAGE_SIZE;
   const api = context.sudo().query[list] as any;
@@ -187,12 +190,12 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   }
 
   if (section === "compliance") {
-    const pendingCustomers = await page(context, "Customer", { where: { ...scope, status: { equals: "pending_verification" } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference capacity status createdAt" });
+    const pendingCustomers = await page(context, "Customer", { where: { ...scope, status: { equals: "pending_verification" } }, orderBy: [{ createdAt: "asc" }], cursor: options.cursor, query: "id reference capacity status createdAt contact" });
     const holds = await page(context, "PackageHold", { where: { ...scope, status: { equals: "active" } }, orderBy: [{ placedAt: "asc" }], query: "id type reasonCode placedAt package { id packageUid }" });
     const recalls = await page(context, "RecallCase", { where: scope, orderBy: [{ openedAt: "desc" }], query: "id reference status reason openedAt" });
     return {
       ...base,
-      pendingCustomers: { ...pendingCustomers, items: pendingCustomers.items.map(customer => ({ ...customer, kind: "customer_eligibility" })) },
+      pendingCustomers: { ...pendingCustomers, items: pendingCustomers.items.map(customer => ({ ...named(customer), kind: "customer_eligibility" })) },
       holds,
       recalls: { ...recalls, items: recalls.items.map(recall => ({ ...recall, kind: "recall_case" })) },
     };
@@ -251,7 +254,12 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const busy = myShifts.length ? [] : await busyRegisterIds(sudo, scope);
     const registers = myShifts.length ? [] : await sudo.query.Register.findMany({ where: { ...scope, status: { equals: "active" } }, orderBy: [{ code: "asc" }], take: 50, query: "id code name status" }).then(rows => rows.filter(register => !busy.includes(register.id)));
     const allowed = Array.isArray(rulePack?.allowedTenderTypes) ? rulePack!.allowedTenderTypes as string[] : [];
-    return { ...base, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, registers, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
+    // Sales can only be completed inside the store's selling hours; the page says so instead of failing at the last step.
+    const start = Number(rulePack?.operatingStartMinute); const end = Number(rulePack?.operatingEndMinute);
+    const clock = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: authority.actor.premises?.timezone || "UTC", hourCycle: "h23", hour: "2-digit", minute: "2-digit" }).formatToParts(now).map(part => [part.type, part.value]));
+    const minute = Number(clock.hour) * 60 + Number(clock.minute);
+    const selling = Number.isInteger(start) && Number.isInteger(end) ? { open: start <= end ? minute >= start && minute < end : minute >= start || minute < end, startMinute: start, endMinute: end } : null;
+    return { ...base, selling, carts, products, sales, productSearch: options.productSearch, actorId: authority.actor.id, myShifts, registers, medicalEnabled: rulePack?.medicalEnabled === true, tenderTypes: tenderTypes.filter(tender => allowed.includes(String(tender.type))) };
   }
 
   if (section === "cash") {
@@ -280,14 +288,14 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
   if (section === "customers") {
     const statuses = ["pending_verification", "eligible", "ineligible", "suspended"];
     const filter = options.filter && statuses.includes(options.filter) ? options.filter : "all";
-    const search = options.search ? { reference: { contains: options.search, mode: "insensitive" } } : {};
-    const customers = await page(context, "Customer", { where: { AND: [scope, filter === "all" ? {} : { status: { equals: filter } }, search] }, orderBy: [{ createdAt: "desc" }], cursor: options.cursor, query: "id reference capacity status marketingConsent createdAt" });
+    const search = options.search ? { OR: [{ reference: { contains: options.search, mode: "insensitive" } }, { contact: { path: ["name"], string_contains: options.search, mode: "insensitive" } }, { contact: { path: ["email"], string_contains: options.search, mode: "insensitive" } }] } : {};
+    const customers = await page(context, "Customer", { where: { AND: [scope, filter === "all" ? {} : { status: { equals: filter } }, search] }, orderBy: [{ createdAt: "desc" }], cursor: options.cursor, query: "id reference capacity status marketingConsent createdAt contact" });
     const counts = Object.fromEntries(await Promise.all(["all", ...statuses].map(async status => [status, await sudo.query.Customer.count({ where: { ...scope, ...(status === "all" ? {} : { status: { equals: status as any } }) } })])));
-    return { ...base, filter, search: options.search, customers, counts };
+    return { ...base, filter, search: options.search, customers: { ...customers, items: customers.items.map(named) }, counts };
   }
 
   if (section === "customer") {
-    const customer = options.id ? await sudo.query.Customer.findOne({ where: { id: options.id }, query: "id reference capacity status marketingConsent createdAt organization { id } premises { id }" }) : null;
+    const customer = options.id ? await sudo.query.Customer.findOne({ where: { id: options.id }, query: "id reference capacity status marketingConsent createdAt contact user { id } organization { id } premises { id }" }) : null;
     if (!customer || customer.organization?.id !== authority.organizationId || customer.premises?.id !== authority.premisesId) return { ...base, customer: null, evidence: [], carts: [], sales: [] };
     const byCustomer = { customer: { id: { equals: customer.id } } };
     const [evidence, carts, sales] = await Promise.all([
@@ -295,8 +303,8 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
       sudo.query.Cart.findMany({ where: byCustomer, orderBy: [{ createdAt: "desc" }], take: 20, query: "id reference source status totalCents expiresAt createdAt" }),
       sudo.query.Sale.findMany({ where: byCustomer, orderBy: [{ finalizedAt: "desc" }], take: 20, query: "id receiptNumber status totalCents finalizedAt" }),
     ]);
-    const { organization: _organization, premises: _premises, ...rest } = customer;
-    return { ...base, customer: rest, evidence, carts, sales };
+    const { organization: _organization, premises: _premises, contact, user, ...rest } = customer as any;
+    return { ...base, customer: { ...rest, name: String(contact?.name ?? ""), email: String(contact?.email ?? ""), phone: String(contact?.phone ?? ""), hasAccount: Boolean(user) }, evidence, carts, sales };
   }
 
   if (section === "sales") {

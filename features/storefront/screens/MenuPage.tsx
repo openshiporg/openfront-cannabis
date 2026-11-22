@@ -102,12 +102,13 @@ export default async function MenuPage({ searchParams }: { searchParams?: Search
           {settings.tagline && <p className="cn-name mt-3 max-w-[40ch] break-words text-[18px] leading-[24px] text-cn-ink-2 sm:text-[21px] sm:leading-[27px]">{settings.tagline}</p>}
         </figcaption>
       </figure>
-      <div className="flex min-w-0 flex-col gap-5 px-4 pb-2 pt-4 sm:gap-7 sm:bg-cn-page sm:px-8 sm:py-9 lg:px-10">
+      <div className="flex min-w-0 flex-col gap-0 px-4 pb-2 pt-4 sm:gap-7 sm:bg-cn-page sm:px-8 sm:py-9 lg:px-10">
         <div>
-          <p className="flex items-baseline gap-2.5 text-[17px] font-semibold text-cn-ink sm:gap-3 sm:text-[52px] sm:font-extrabold sm:[font-family:var(--font-cn-display)] sm:[font-variation-settings:'wdth'_75] sm:leading-[0.92]">
+          {/* On a phone the strip above the header already says open or closed, so it is not repeated here. */}
+          <p className="hidden items-baseline gap-2.5 text-[17px] font-semibold text-cn-ink sm:flex sm:gap-3 sm:text-[52px] sm:font-extrabold sm:[font-family:var(--font-cn-display)] sm:[font-variation-settings:'wdth'_75] sm:leading-[0.92]">
             <span aria-hidden="true" className={`cn-dot sm:size-3 ${open ? (open.open ? 'bg-cn-ok' : 'bg-cn-ink-3') : 'bg-cn-accent'}`} />{open ? (open.open ? 'Open now' : 'Closed') : 'Order for pickup'}
           </p>
-          <p className="mt-1 text-[16px] text-cn-ink-2 sm:mt-2">{open ? `${open.label.split(' · ')[1] ?? open.hours} · order ahead for pickup` : 'Order ahead, then bring a valid ID to pick up'}</p>
+          <p className="hidden text-[16px] text-cn-ink-2 sm:mt-2 sm:block">{open ? `${open.label.split(' · ')[1] ?? open.hours} · order ahead for pickup` : 'Order ahead, then bring a valid ID to pick up'}</p>
           {settings.unavailable
             ? <p role="status" className="mt-3 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-warn" aria-hidden="true" />Store information unavailable</p>
             : !settings.isConfigured && <p role="status" data-testid="unconfigured-storefront-identity" className="mt-3 inline-flex items-baseline gap-2 text-[15px] text-cn-ink-2"><span className="cn-dot bg-cn-ink-3" aria-hidden="true" />Store not set up</p>}

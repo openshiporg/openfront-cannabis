@@ -7,7 +7,7 @@ import {
   ButtonLink, Disclosure, ListBand, Notice, operatingState, Panel, RecordList, RecordRow, Ref, SectionTitle, StatusText, statusTone, Table, TabLink, Tabs, TEmpty, Td, Th, THead, Tr,
   type DotTone, codeLabel, INTERVAL_LABEL, sentenceCase,
 } from '@/features/platform/components/cannabis-ui';
-import { Empty, formatUsableThrough, formatWhen, Pager, SearchForm, Workboard } from '../components/WorkspaceKit';
+import { Empty, formatUsableThrough, formatWhen, Pager, SalesExportForm, SearchForm, Workboard } from '../components/WorkspaceKit';
 import { CartPanel, CheckInForm, CloseShiftForm } from '../components/SaleForms';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
 import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RevokeCredentialForm } from '../components/OperatorForms';
@@ -144,6 +144,8 @@ export async function ControlRoomPage({ searchParams }: { searchParams?: SearchP
 const LICENSE_COLUMNS = '11rem minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr)';
 const LICENSE_HEADERS = [{ label: 'Status' }, { label: 'License' }, { label: 'Type and regulator' }, { label: 'Valid' }];
 const CREDENTIAL_COLUMNS = '11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,0.7fr)';
+const clockLabel = (minute: number) => { const hour = Math.floor(minute / 60); const rest = minute % 60; return `${hour % 12 || 12}${rest ? `:${String(rest).padStart(2, '0')}` : ''} ${hour < 12 ? 'AM' : 'PM'}`; };
+
 const CREDENTIAL_HEADERS = [{ label: 'Status' }, { label: 'Person' }, { label: 'Credential' }, { label: 'Valid' }, { label: 'Approval limit', align: 'right' as const }];
 
 export async function AuthorityWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
@@ -259,7 +261,7 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
         <Table label="Customers awaiting verification" minWidth={420}>
           <THead><Th>Customer</Th><Th>Capacity</Th><Th>Since</Th><Th>Status</Th></THead>
           <tbody>{data.pendingCustomers.items.length ? data.pendingCustomers.items.map(customer => <Tr key={`${customer.kind}:${customer.id}`}>
-            <Td><Link href={`/dashboard/platform/customers/${encodeURIComponent(customer.id)}`} className="underline-offset-4 hover:underline"><Ref>{customer.reference}</Ref></Link></Td>
+            <Td><Link href={`/dashboard/platform/customers/${encodeURIComponent(customer.id)}`} className="underline-offset-4 hover:underline">{customer.name || 'No name given'}</Link><span className="block text-xs text-muted-foreground"><Ref>{customer.reference}</Ref></span></Td>
             <Td className="text-muted-foreground">{sentenceCase(customer.capacity)}</Td>
             <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(customer.createdAt, data.timezone)}</Td>
             <Td><StatusText tone={statusTone(customer.status)}>{sentenceCase(customer.status)}</StatusText></Td>
@@ -330,13 +332,14 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
       {params.sale && <SaleReceiptDetail saleId={params.sale} currencyCode={data.currencyCode} timezone={data.timezone} />}
       <Split side="minmax(0,1.05fr)">
         <div className="min-w-0 space-y-6">
-          {data.operating.open && <Panel title="New sale">{data.myShifts.length ? <CheckInForm shifts={data.myShifts} medicalEnabled={data.medicalEnabled} /> : <div className="space-y-3"><p className="text-sm text-muted-foreground">Open a shift on a register to sell.</p><OpenShiftForm registers={data.registers} /></div>}</Panel>}
+          {data.selling && !data.selling.open && <Notice tone="info">Selling hours are {clockLabel(data.selling.startMinute)} to {clockLabel(data.selling.endMinute)}. You can prepare pickup orders now, and take payment when the store opens.</Notice>}
+          {data.operating.open && data.selling?.open !== false && <Panel title="New sale">{data.myShifts.length ? <CheckInForm shifts={data.myShifts} medicalEnabled={data.medicalEnabled} /> : <div className="space-y-3"><p className="text-sm text-muted-foreground">Open a shift on a register to sell.</p><OpenShiftForm registers={data.registers} /></div>}</Panel>}
           <section data-testid="pos-fulfillment-workbench">
             <SectionTitle meta={<>{data.carts.total}{finalVerification ? ` · ${finalVerification} in final verification` : ''}</>}>Open carts</SectionTitle>
             <ListBand>
               {data.carts.items.length ? data.carts.items.map(cart => <div key={cart.id} className="px-3 py-2.5">
                 <div className="grid gap-1 text-[13px] sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-baseline sm:gap-4">
-                  <span className="min-w-0"><Ref className="font-medium">{cart.reference}</Ref><span className="ml-2 text-xs text-muted-foreground">customer <Ref>{cart.customer?.reference || 'not recorded'}</Ref>{cart.customer ? ` · ${sentenceCase(cart.customer.capacity)}` : ''} · expires {formatWhen(cart.expiresAt, data.timezone)}</span></span>
+                  <span className="min-w-0">{cart.pickupName ? <span className="font-semibold">{cart.pickupName}</span> : <span className="font-semibold">Counter sale</span>}<Ref className="ml-2 text-muted-foreground">{cart.reference}</Ref><span className="block text-xs text-muted-foreground">{cart.pickupWindowStart ? `Pickup ${formatWhen(cart.pickupWindowStart, data.timezone)} · ` : ''}{cart.customer ? `${sentenceCase(cart.customer.capacity)} · ` : ''}held until {formatWhen(cart.expiresAt, data.timezone)}</span></span>
                   <StatusText tone={statusTone(cart.status)}>{sentenceCase(cart.status)}</StatusText>
                   <span className="font-semibold tabular-nums sm:text-right">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>
                 </div>
@@ -430,6 +433,11 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
 export async function ReconciliationWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
   return frame('reconciliation', '/dashboard/platform/reconciliation', 'Reconciliation', params, data => <Workboard>
+    {!data.integrations.some(integration => integration.status === 'active') && <section aria-label="State reporting" className="rounded-[6px] border border-border bg-card p-4">
+      <h2 className="text-sm font-semibold">Sales are not sent to the state system from here</h2>
+      <p className="mt-1 max-w-[70ch] text-[13px] text-muted-foreground">This store has no live connection to the state track-and-trace system, so nothing is reported for you. Download your sales below and enter them in the state system yourself. Each row carries the package tag, quantity and time the state asks for.</p>
+      <SalesExportForm timezone={data.timezone} className="mt-3" />
+    </section>}
     <Split side="minmax(0,1fr)">
       <section data-testid="reconciliation-workbench">
         <SectionTitle meta={data.runs.total}>Reconciliation runs</SectionTitle>
