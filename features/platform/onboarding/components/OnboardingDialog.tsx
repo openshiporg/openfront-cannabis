@@ -211,7 +211,7 @@ function SetupForm({ onDirtyChange, onDone }: { onDirtyChange: (dirty: boolean) 
     <fieldset disabled={pending || done} className="min-w-0 space-y-5">
       <div className="space-y-2 border-b pb-4">
         <Track label="Start from">
-          {([['sample', 'Sample dispensary'], ['blank', 'Blank']] as const).map(([value, label]) => <button key={value} type="button" data-active={template === value} onClick={() => chooseTemplate(value)} className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:data-[active=true]:bg-zinc-800">{label}</button>)}
+          {([['sample', 'Full store'], ['blank', 'Blank']] as const).map(([value, label]) => <button key={value} type="button" data-active={template === value} onClick={() => chooseTemplate(value)} className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-[0_1px_2px_rgb(0_0_0/0.12)] dark:data-[active=true]:bg-zinc-800">{label}</button>)}
         </Track>
         <p className="text-xs text-muted-foreground">{template === 'sample' ? `${SAMPLE_STORE.name}: ${SAMPLE_STORE.description}` : 'Enter your own license, premises, credential and sales rules.'}</p>
       </div>
@@ -304,7 +304,7 @@ function SetupForm({ onDirtyChange, onDone }: { onDirtyChange: (dirty: boolean) 
     {done && template === 'sample' && <div className="space-y-3 md:col-start-2" data-testid="sample-stocking">
       <p role={stock?.error ? 'alert' : 'status'} aria-live="polite" className={`flex items-baseline gap-2 text-sm ${stock?.error ? 'text-destructive' : ''}`}>
         <Dot tone={stock?.error ? 'danger' : stock?.step === SAMPLE_STEPS.length ? 'ok' : 'warn'} />
-        {stock?.step === SAMPLE_STEPS.length ? 'Setup complete. The sample menu is stocked and live.'
+        {stock?.step === SAMPLE_STEPS.length ? 'Setup complete. The menu is stocked and live.'
           : stock?.error ? `Setup is installed, but stocking stopped at ${SAMPLE_STEPS[stock.step]}: ${stock.error}`
           : `Setup installed. Stocking the menu: ${Math.min((stock?.step ?? 0) + 1, SAMPLE_STEPS.length)} of ${SAMPLE_STEPS.length}, ${SAMPLE_STEPS[stock?.step ?? 0]}`}
       </p>
