@@ -21,7 +21,7 @@ type SortId = (typeof SORTS)[number]['id'];
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
 export function menuItems(menu: PublicCannabisMenu): TileProduct[] {
-  return menu.products.map(product => ({ id: product.id, name: product.name, form: product.form, priceCents: product.priceCents, imageUrl: product.imageUrl, description: product.description, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible }));
+  return menu.products.map(product => ({ id: product.id, name: product.name, form: product.form, priceCents: product.priceCents, imageUrl: product.imageUrl, description: product.description, adultUseEligible: product.adultUseEligible, medicalEligible: product.medicalEligible, potency: product.potency ?? null }));
 }
 
 export function menuForms(items: TileProduct[]): ShellForm[] {
