@@ -463,7 +463,8 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
         </div>}
       </section>;
     })()}
-    <Split side="minmax(0,1fr)">
+    {/* Runs and inbound events only come from a live state-system connection; with none, the sections stay hidden. */}
+    {data.runs.total > 0 && <Split side="minmax(0,1fr)">
       <section data-testid="reconciliation-workbench">
         <SectionTitle meta={data.runs.total}>Reconciliation runs</SectionTitle>
         <Table label="Reconciliation runs" minWidth={420}>
@@ -477,7 +478,7 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
         </Table>
         <Pager basePath="/dashboard/platform/reconciliation" params={params} nextCursor={data.runs.nextCursor} shown={data.runs.items.length} total={data.runs.total} noun="runs" />
       </section>
-    </Split>
+    </Split>}
     <Split side="minmax(0,1fr)">
       <section>
         <SectionTitle meta={data.integrations.length}>Integrations</SectionTitle>
@@ -491,7 +492,7 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
           </Tr>) : <TEmpty colSpan={4}>No connections.</TEmpty>}</tbody>
         </Table>
       </section>
-      <section>
+      {data.inbox.total > 0 && <section>
         <SectionTitle meta={data.inbox.total}>Inbound state events</SectionTitle>
         <Table label="Inbound state events" minWidth={420}>
           <THead><Th>Event</Th><Th>Received</Th><Th>Status</Th></THead>
@@ -501,7 +502,7 @@ export async function ReconciliationWorkspacePage({ searchParams }: { searchPara
             <Td><StatusText tone={statusTone(event.status === 'processed' ? 'completed' : event.status)}>{sentenceCase(event.status)}</StatusText></Td>
           </Tr>) : <TEmpty colSpan={3}>No inbound events.</TEmpty>}</tbody>
         </Table>
-      </section>
+      </section>}
     </Split>
   </Workboard>, data => operatingState(data.operating));
 }
