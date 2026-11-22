@@ -8,7 +8,8 @@ export function formatInstant(value: string | null | undefined, timeZone?: strin
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return 'Unknown';
   try {
-    return date.toLocaleString('en-US', { timeZone: zoneOf(timeZone), year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+    // Staff work in the store's own zone, so its times carry no zone label; with no store zone the UTC label stays.
+    return date.toLocaleString('en-US', { timeZone: zoneOf(timeZone), year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', ...(timeZone ? {} : { timeZoneName: 'short' as const }) });
   } catch {
     return date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
   }

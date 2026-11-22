@@ -34,7 +34,7 @@ export async function SalesPage({ searchParams }: { searchParams?: SearchParams 
         <tbody>{data.sales.items.length ? data.sales.items.map(sale => <Tr key={sale.id}>
           <Td><Link href={`/dashboard/platform/sales/${encodeURIComponent(sale.id)}`} className="font-medium underline-offset-4 hover:underline"><Ref>{sale.receiptNumber}</Ref></Link></Td>
           <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(sale.finalizedAt, data.timezone)}</Td>
-          <Td className="text-muted-foreground">{sentenceCase(sale.customerCapacitySnapshot)}</Td>
+          <Td>{sale.buyerName || <span className="text-muted-foreground">Walk-in</span>}</Td>
           <Td align="right">{sale.linesCount}</Td>
           <Td><StatusText tone={statusTone(sale.status)}>{sentenceCase(sale.status)}</StatusText></Td>
           <Td align="right"><span className="font-medium">{formatMinorUnits(sale.totalCents, data.currencyCode)}</span>{sale.refundedCents > 0 && <span className="block text-xs text-muted-foreground">refunded {formatMinorUnits(sale.refundedCents, data.currencyCode)}</span>}</Td>

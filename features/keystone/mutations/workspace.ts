@@ -319,6 +319,10 @@ export default async function cannabisOperationsWorkspace(_root: unknown, args: 
     const filter = options.filter && groups[options.filter] ? options.filter : "all";
     const search = options.search ? { receiptNumber: { contains: options.search, mode: "insensitive" } } : {};
     const sales = await page(context, "Sale", { where: { AND: [scope, filter === "all" ? {} : { status: { in: groups[filter] } }, search] }, orderBy: [{ finalizedAt: "desc" }], cursor: options.cursor, query: "id receiptNumber status totalCents refundedCents customerCapacitySnapshot finalizedAt linesCount" });
+    // Who bought: the pickup name, else the customer's own name; a counter customer with neither is a walk-in.
+    const buyers = await sudo.query.Sale.findMany({ where: { id: { in: sales.items.map((sale: any) => sale.id) } }, query: "id cart { pickupName } customer { contact }" });
+    const buyerOf = new Map(buyers.map((row: any) => { const contact = row.customer?.contact && typeof row.customer.contact === "object" ? row.customer.contact : {}; const name = String(row.cart?.pickupName || contact.name || "").trim(); return [row.id, name || null]; }));
+    sales.items = sales.items.map((sale: any) => ({ ...sale, buyerName: buyerOf.get(sale.id) ?? null }));
     const counts = Object.fromEntries(await Promise.all(["all", ...Object.keys(groups)].map(async group => [group, await sudo.query.Sale.count({ where: { ...scope, ...(group === "all" ? {} : { status: { in: groups[group] as any } }) } })])));
     const refunds = await page(context, "Refund", { where: scope, orderBy: [{ occurredAt: "desc" }], take: 10, query: "id amountCents reasonCode status inventoryDisposition occurredAt sale { id receiptNumber }" });
     return { ...base, filter, search: options.search, sales, counts, refunds };

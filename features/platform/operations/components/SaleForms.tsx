@@ -1,6 +1,6 @@
 'use client';
+import { formatInstant } from '@/features/platform/lib/time';
 import { ReasonSelect } from '../../components/ReasonSelect';
-import { ViewerTime } from '@/features/dashboard/components/ViewerTime';
 
 import { useState, useTransition } from 'react';
 import { Actions, inputClass, labelClass, Button } from '@/features/platform/components/cannabis-ui';
@@ -247,13 +247,13 @@ export type PosCart = {
   lines: Array<{ id: string; titleSnapshot: string; quantityMicrounits: number; totalCents: number; package: { unitOfMeasure: string } | null }>;
 };
 
-export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId, sellingOpen = true, discounts = [] }: { discounts?: TillDiscount[]; cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string; sellingOpen?: boolean }) {
+export function CartPanel({ cart, products, tenderTypes, currencyCode, actorId, sellingOpen = true, discounts = [], timezone = null }: { timezone?: string | null; discounts?: TillDiscount[]; cart: PosCart; products: CartProduct[]; tenderTypes: Array<{ type: string; displayName: string }>; currencyCode: string | null; actorId: string; sellingOpen?: boolean }) {
   const money = (cents: number | null) => formatMinorUnits(cents ?? 0, currencyCode);
   const online = cart.source === 'pickup' && !cart.shift;
   const mine = online || cart.shift?.operator?.id === actorId;
   const open = ['preliminarily_eligible', 'reserved'].includes(cart.status);
   return <div className="space-y-4">
-    {online && <p className="rounded-[5px] border border-border bg-muted/30 px-3 py-2 text-sm">Online pickup order{cart.pickupName ? ` for ${cart.pickupName}` : ''}{cart.pickupPhone ? ` · ${cart.pickupPhone}` : ''}{cart.pickupWindowStart ? <> · pickup <ViewerTime value={cart.pickupWindowStart} style="datetime" /></> : ''} · {cart.paymentMethod === 'card' ? (cart.paymentStatus === 'authorized' ? 'card authorized, not yet charged' : `card ${cart.paymentStatus ?? ''}`) : 'pays at pickup'}</p>}
+    {online && <p className="rounded-[5px] border border-border bg-muted/30 px-3 py-2 text-sm">Online pickup order{cart.pickupName ? ` for ${cart.pickupName}` : ''}{cart.pickupPhone ? ` · ${cart.pickupPhone}` : ''}{cart.pickupWindowStart ? <> · pickup {formatInstant(cart.pickupWindowStart, timezone)}</> : ''} · {cart.paymentMethod === 'card' ? (cart.paymentStatus === 'authorized' ? 'card authorized, not yet charged' : `card ${cart.paymentStatus ?? ''}`) : 'pays at pickup'}</p>}
     {cart.lines.length ? <ul className="divide-y divide-border overflow-hidden rounded-[5px] border border-border bg-background">{cart.lines.map(line => <li key={line.id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm"><span className="min-w-0">{line.titleSnapshot} <span className="tabular-nums text-xs text-muted-foreground">{formatMicrounits(line.quantityMicrounits, line.package?.unitOfMeasure)}</span></span><span className="tabular-nums">{money(line.totalCents)}</span></li>)}
       <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-xs text-muted-foreground"><span>Subtotal {money(cart.subtotalCents)} · tax {money(cart.taxCents)}{cart.discountCents ? ` · discount ${money(cart.discountCents)}` : ''}</span><span className="tabular-nums text-sm font-medium text-foreground">{money(cart.totalCents)}</span></li>
     </ul> : <p className="text-sm text-muted-foreground">No items yet.</p>}

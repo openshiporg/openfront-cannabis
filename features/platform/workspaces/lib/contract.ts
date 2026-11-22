@@ -133,7 +133,7 @@ const sections = {
     sales: arr(obj({ id: str, receiptNumber: str, status: str, totalCents: int, finalizedAt: date }), 20),
   }),
   sales: obj({ ...base, filter: str, search: optStr,
-    sales: page(obj({ id: str, receiptNumber: str, status: str, totalCents: int, refundedCents: int, customerCapacitySnapshot: str, finalizedAt: date, linesCount: count })),
+    sales: page(obj({ id: str, receiptNumber: str, status: str, totalCents: int, refundedCents: int, customerCapacitySnapshot: str, buyerName: optStr, finalizedAt: date, linesCount: count })),
     counts: obj({ all: count, finalized: count, reporting: count, reported: count, refunds: count }),
     refunds: page(obj({ id: str, amountCents: int, reasonCode: str, status: str, inventoryDisposition: str, occurredAt: date, sale: nullable(obj({ id: str, receiptNumber: str })) })),
   }),

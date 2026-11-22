@@ -350,7 +350,7 @@ export async function PosFulfillmentWorkspacePage({ searchParams }: { searchPara
                   <StatusText tone={statusTone(cart.status)}>{sentenceCase(cart.status)}</StatusText>
                   <span className="font-semibold tabular-nums sm:text-right">{formatMinorUnits(cart.totalCents, data.currencyCode)}</span>
                 </div>
-                {(cart.source === 'pos' || cart.source === 'pickup') && data.operating.open && <div className="mt-3"><CartPanel sellingOpen={data.selling?.open !== false} discounts={data.discounts} cart={cart} products={data.products.items} tenderTypes={data.tenderTypes} currencyCode={data.currencyCode} actorId={data.actorId} /></div>}
+                {(cart.source === 'pos' || cart.source === 'pickup') && data.operating.open && <div className="mt-3"><CartPanel timezone={data.timezone} sellingOpen={data.selling?.open !== false} discounts={data.discounts} cart={cart} products={data.products.items} tenderTypes={data.tenderTypes} currencyCode={data.currencyCode} actorId={data.actorId} /></div>}
               </div>) : <Empty>No open carts.</Empty>}
               <Pager basePath="/dashboard/platform/pos" params={params} nextCursor={data.carts.nextCursor} shown={data.carts.items.length} total={data.carts.total} noun="carts" />
             </ListBand>
