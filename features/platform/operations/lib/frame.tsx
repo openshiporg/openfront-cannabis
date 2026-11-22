@@ -37,7 +37,7 @@ export async function frame<S extends WorkspaceSection>(section: S, path: string
   const data = result.data;
   if (extra.missing?.(data)) notFound();
   const { tone, state } = titleState ? titleState(data) : operatingState(data.operating);
-  const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} />{data.jurisdictionCode && <span>{data.jurisdictionCode}</span>}</span>;
+  const meta = <span className="flex flex-wrap gap-x-3"><AsOf generatedAt={data.generatedAt} timezone={data.timezone} /></span>;
   const rulesNotice = data.salesRules.problem && section !== 'authority'
     ? <div className="mb-4 px-4 md:px-6"><Notice tone="danger" action={canOpenPlatformHref('/dashboard/platform/authority', data.grants) ? <ButtonLink href="/dashboard/platform/authority#sales-rules" tone="primary">Fix sales rules</ButtonLink> : undefined}>Sales rules invalid: {data.salesRules.problem}. Menu and sales unavailable.</Notice></div>
     : null;

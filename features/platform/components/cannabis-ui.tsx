@@ -240,9 +240,10 @@ export function RecordList({ columns, headers, label, children, className }: { c
 
 export function RecordRow({ columns, headers, cells, children, id, className }: { columns: string; headers: Array<{ label: string; align?: 'right' }>; cells: ReactNode[]; children?: ReactNode; id?: string; className?: string }) {
   return <div role="listitem" id={id} className={cn('px-3 py-2.5 text-[13px] transition-colors hover:bg-muted/20', className)}>
-    <div className="grid grid-cols-1 gap-1 md:items-baseline md:gap-4 md:[grid-template-columns:var(--cols)]" style={{ '--cols': columns } as React.CSSProperties}>
-      {cells.map((cell, index) => <div key={headers[index]?.label ?? index} className={cn('min-w-0 break-words', index > 0 && 'max-md:flex max-md:gap-2', headers[index]?.align === 'right' && 'md:text-right md:tabular-nums')}>
-        {index > 0 && <span className="w-28 shrink-0 text-xs text-muted-foreground md:hidden">{headers[index]?.label}</span>}
+    {/* Phone: the first value is the row's title, the rest sit two to a line with their label above. */}
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:items-baseline md:gap-4 md:[grid-template-columns:var(--cols)]" style={{ '--cols': columns } as React.CSSProperties}>
+      {cells.map((cell, index) => <div key={headers[index]?.label || index} className={cn('min-w-0 break-words', (index === 0 || !headers[index]?.label) && 'max-md:col-span-2', index === 0 && 'max-md:text-sm', headers[index]?.align === 'right' && 'md:text-right md:tabular-nums')}>
+        {index > 0 && headers[index]?.label && <span className="block text-xs text-muted-foreground md:hidden">{headers[index]?.label}</span>}
         <div className="min-w-0">{cell}</div>
       </div>)}
     </div>

@@ -37,8 +37,8 @@ export function StoreSettingsSaveBar({
         {status ? <span className="text-xs text-muted-foreground">{status}</span> : null}
         {control}
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-end gap-3 border-t border-border bg-background/95 py-3 pl-4 pr-[4.5rem] pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
-        {status ? <span className="mr-auto truncate text-xs text-muted-foreground">{status}</span> : null}
+      <div className="flex flex-col gap-2 border-t border-border pt-4 md:hidden [&_button]:min-h-11 [&_button]:w-full">
+        {status ? <span className="text-xs text-muted-foreground">{status}</span> : null}
         {control}
       </div>
     </>

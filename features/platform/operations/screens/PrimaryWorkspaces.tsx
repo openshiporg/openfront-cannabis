@@ -290,7 +290,7 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
 }
 
 const MENU_COLUMNS = '9.5rem minmax(0,2.2fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1fr) 4rem';
-const MENU_HEADERS = [{ label: 'Status' }, { label: 'Product' }, { label: 'Form' }, { label: 'Channel' }, { label: 'Price', align: 'right' as const }, { label: 'Free stock', align: 'right' as const }, { label: 'Edit', align: 'right' as const }];
+const MENU_HEADERS = [{ label: 'Status' }, { label: 'Product' }, { label: 'Form' }, { label: 'Channel' }, { label: 'Price', align: 'right' as const }, { label: 'Free stock', align: 'right' as const }, { label: '', align: 'right' as const }];
 
 export async function MenuWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
   const params = await readParams(searchParams);
@@ -308,7 +308,7 @@ export async function MenuWorkspacePage({ searchParams }: { searchParams?: Searc
             const tone: DotTone = missing ? 'danger' : product.readyPackageCount > 0 ? 'ok' : product.status === 'active' ? 'warn' : 'muted';
             return <RecordRow key={product.id} columns={MENU_COLUMNS} headers={MENU_HEADERS} cells={[
               <StatusText key="t" tone={tone}>{missing ? 'Rule missing' : product.readyPackageCount > 0 ? 'Ready to sell' : product.status === 'active' ? 'Not ready' : sentenceCase(product.status)}</StatusText>,
-              <span key="n" className="block min-w-0"><Link href={`/dashboard/platform/menu/${encodeURIComponent(product.id)}`} className="font-medium underline-offset-4 hover:underline">{product.name}</Link><span className="block truncate text-xs text-muted-foreground">{missing || <><Ref>{product.sku}</Ref> · limit {product.categoryCode} · tax {product.taxCategoryCode}</>}</span></span>,
+              <span key="n" className="block min-w-0"><Link href={`/dashboard/platform/menu/${encodeURIComponent(product.id)}`} className="font-medium underline-offset-4 hover:underline">{product.name}</Link><span className="block break-words text-xs text-muted-foreground">{missing || <Ref>{product.sku}</Ref>}</span></span>,
               <span key="f">{product.form}</span>,
               <span key="c" className="text-muted-foreground">{[product.adultUseEligible && 'Adult-use', product.medicalEligible && 'Medical'].filter(Boolean).join(', ') || 'None'}</span>,
               <span key="p" className="font-medium">{formatMinorUnits(product.priceCents, data.currencyCode)}</span>,
