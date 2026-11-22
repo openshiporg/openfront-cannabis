@@ -5053,6 +5053,7 @@ type Mutation {
   openRegisterShift(input: JSON!): JSON!
   closeRegisterShift(input: JSON!): JSON!
   approveCashVariance(input: JSON!): JSON!
+  recordCashMovement(input: JSON!): JSON!
   refundCannabisSale(input: JSON!): JSON!
   voidCannabisSale(input: JSON!): JSON!
   recordComplianceIncident(input: JSON!): JSON!

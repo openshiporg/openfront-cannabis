@@ -9,7 +9,7 @@ import { formatMinorUnits } from '@/features/lib/money';
 import { formatMicrounits, parseQuantityToMicrounits } from '@/features/lib/quantity';
 import { getAllocationQuote, type AllocationQuoteReadback } from '@/features/platform/fulfillment/actions/allocationQuote';
 import {
-  addCartLineFromDesk, advanceRecallFromDesk, cancelCartFromDesk, correctCountFromDesk, checkInAndStartSaleFromDesk, closeShiftFromDesk, finalizeSaleFromDesk,
+  addCartLineFromDesk, advanceRecallFromDesk, cancelCartFromDesk, correctCountFromDesk, checkInAndStartSaleFromDesk, closeShiftFromDesk, recordCashMovementFromDesk, finalizeSaleFromDesk,
   recordLabResultFromDesk, recordPotencyFromDesk, refundSaleFromDesk, voidSaleFromDesk, releaseHoldFromDesk, releasePackageFromDesk,
 } from '@/features/platform/workspaces/actions/workflows';
 import { CommandStatus, useCommand } from './useCommand';
@@ -289,6 +289,26 @@ function CancelCartForm({ cartId, reference }: { cartId: string; reference: stri
     <Actions><Button type="submit" tone="danger" disabled={pending}>{pending ? 'Cancelling…' : 'Cancel cart'}</Button></Actions>
     <CommandStatus state={state} summary={summary} />
   </form>;
+}
+
+/** Cash in, cash out or a safe drop on an open drawer, so the count at close still matches. */
+export function CashMovementForm({ shiftId }: { shiftId: string }) {
+  const { state, onSubmit, pending, key, summary, markDirty } = useCommand(recordCashMovementFromDesk);
+  const errors = state.fieldErrors;
+  const [type, setType] = useState<'paid_in' | 'paid_out' | 'safe_drop'>('safe_drop');
+  return <Disclosure label="Cash in, cash out or safe drop">
+    <form onSubmit={onSubmit()} onChange={markDirty} className="space-y-3" aria-label="Record cash moved in or out of the drawer">
+      <input type="hidden" name="idempotencyKey" value={key} /><input type="hidden" name="shiftId" value={shiftId} />
+      <fieldset disabled={pending} className="grid gap-3 sm:grid-cols-2">
+        <Select name="type" title="What happened" errors={errors} required value={type} onChange={event => setType(event.target.value as typeof type)}><option value="safe_drop">Cash moved to the safe</option><option value="paid_out">Cash paid out of the drawer</option><option value="paid_in">Cash put into the drawer</option></Select>
+        <Field name="amount" title="Amount" errors={errors} required inputMode="decimal" className="font-mono" placeholder="200.00" />
+        <ReasonSelect key={type} kind={type} errors={errors} disabled={pending} defaultValue={type === 'safe_drop' ? 'safe_drop' : undefined} />
+        <Field name="note" title="Note (optional)" errors={errors} />
+      </fieldset>
+      <Actions><Button type="submit" tone="primary" disabled={pending}>{pending ? 'Saving…' : 'Record'}</Button></Actions>
+      <CommandStatus state={state} summary={summary} />
+    </form>
+  </Disclosure>;
 }
 
 export function CloseShiftForm({ shiftId }: { shiftId: string }) {

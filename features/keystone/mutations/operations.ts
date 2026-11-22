@@ -70,6 +70,33 @@ export async function openRegisterShift(_root: unknown, args: { input: any }, co
   });
 }
 
+const CASH_MOVEMENTS = new Set(["paid_in", "paid_out", "safe_drop"]);
+
+/**
+ * Cash put into or taken out of an open drawer outside a sale: change brought in, a supplier paid
+ * in cash, or notes moved to the safe. The drawer's expected cash moves with it, so the count at
+ * close still balances.
+ */
+export async function recordCashMovement(_root: unknown, args: { input: any }, context: Context) {
+  const input = args.input || {};
+  const type = assertText(input.type, "Movement");
+  if (!CASH_MOVEMENTS.has(type)) throw new Error("Choose cash in, cash out or safe drop");
+  const amount = assertInteger(input.amountCents, "Amount", 1);
+  const reasonCode = assertReasonCode(input.reasonCode);
+  const note = input.note == null || input.note === "" ? "" : assertText(input.note, "Note", 2, 300);
+  return runControlledOperation(context, input, { permission: "canManageFinance", activity: "cash", scope: "recordCashMovement", resourceType: "RegisterShift", action: `cash.${type}`, lockKeys: [String(input.shiftId)] }, async (tx, authority, correlationId) => {
+    const sudo = tx.sudo(); const shift = await sudo.query.RegisterShift.findOne({ where: { id: assertText(input.shiftId, "Shift ID") }, query: "id status organization { id } premises { id } register { code } cashEvents(take: 500) { type amountCents }" });
+    if (!shift || shift.status !== "open" || shift.organization?.id !== authority.organizationId || shift.premises?.id !== authority.premisesId) throw new Error("No open shift at your premises with this ID");
+    if (!isCompleteShiftCashEventRead(shift.cashEvents)) throw new Error("This shift has too many cash entries to add another. Count and close it first.");
+    const expected = shift.cashEvents.reduce((sum: number, event) => sum + event.amountCents, 0);
+    const signed = type === "paid_in" ? amount : -amount;
+    if (expected + signed < 0) throw new Error("That is more cash than the drawer should hold");
+    await sudo.query.CashEvent.createOne({ data: { organization: { connect: { id: authority.organizationId } }, premises: { connect: { id: authority.premisesId } }, shift: { connect: { id: shift.id } }, type: type as "paid_in" | "paid_out" | "safe_drop", amountCents: signed, reasonCode, actor: { connect: { id: authority.actor.id } }, occurredAt: new Date(), idempotencyKey: `${correlationId}:${type}`, evidenceHash: stableHash({ shiftId: shift.id, type, amount, reasonCode, note }) }, query: "id" });
+    await sudo.query.RegisterShift.updateOne({ where: { id: shift.id }, data: { expectedCashCents: expected + signed }, query: "id" });
+    return { id: shift.id, status: "open", reference: String(shift.register?.code ?? ""), expectedCashCents: expected + signed };
+  });
+}
+
 export async function closeRegisterShift(_root: unknown, args: { input: any }, context: Context) {
   requireRuntimeCapability("finance.action-bound-approval", "Shift close is disabled until an authenticated, action-bound second-party approval workflow is implemented.");
   const actual = assertInteger(args.input?.actualCashCents, "Actual cash", 0);

@@ -9,6 +9,9 @@ export const REASONS = {
   refund: [['damaged_product', 'Damaged product'], ['wrong_item', 'Wrong item sold'], ['product_defect', 'Product did not work'], ['recalled_product', 'Recalled product'], ['overcharge', 'Charged too much'], ['manager_goodwill', 'Manager decision']],
   incident: [['contained_on_site', 'Contained on site'], ['under_investigation', 'Under investigation'], ['reported_to_regulator', 'Reported to the regulator'], ['corrective_action_taken', 'Corrective action taken'], ['no_action_needed', 'No action needed'], ['resolved', 'Resolved']],
   variance: [['counting_error', 'Counting error'], ['change_error', 'Wrong change given'], ['unrecorded_payout', 'Payout not recorded'], ['unrecorded_drop', 'Safe drop not recorded'], ['suspected_theft', 'Suspected theft'], ['unexplained', 'Unexplained']],
+  paid_in: [['change_added', 'Change added to the drawer'], ['float_top_up', 'Float topped up'], ['cash_returned', 'Cash returned to the drawer']],
+  paid_out: [['supplier_paid', 'Supplier paid in cash'], ['store_supplies', 'Store supplies'], ['change_run', 'Cash taken to get change'], ['other_expense', 'Other store expense']],
+  safe_drop: [['safe_drop', 'Moved to the safe'], ['bank_deposit', 'Taken for the bank deposit']],
   revoke: [['employment_ended', 'No longer works here'], ['badge_expired', 'Badge expired'], ['role_changed', 'Role changed'], ['policy_violation', 'Policy violation'], ['entered_in_error', 'Entered by mistake']],
 } as const satisfies Record<string, ReadonlyArray<readonly [string, string]>>;
 

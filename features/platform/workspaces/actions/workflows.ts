@@ -473,6 +473,18 @@ export async function cancelCartFromDesk(_state: CommandState, formData: FormDat
   return runCommand('cancelCannabisCart', 'cancelCannabisCart', { idempotencyKey, cartId: text(formData, 'cartId'), reasonCode: 'cart_cancelled' }, 'Cart cancelled. Its stock is free again.');
 }
 
+export async function recordCashMovementFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
+  const errors: FieldErrors = {};
+  const type = text(formData, 'type');
+  if (!['paid_in', 'paid_out', 'safe_drop'].includes(type)) errors.type = 'Choose what happened';
+  const amountCents = moneyCents(text(formData, 'amount'));
+  if (amountCents == null || amountCents < 1) errors.amount = 'Enter the amount, e.g. 200.00';
+  if (!REASON_CODE.test(text(formData, 'reasonCode'))) errors.reasonCode = 'Choose a reason';
+  const idempotencyKey = commandKey(formData);
+  if (Object.keys(errors).length || !idempotencyKey) return invalid(errors);
+  return runCommand('recordCashMovement', 'recordCashMovement', { idempotencyKey, shiftId: text(formData, 'shiftId'), type, amountCents, reasonCode: text(formData, 'reasonCode'), note: text(formData, 'note') }, type === 'paid_in' ? 'Cash in recorded.' : type === 'safe_drop' ? 'Safe drop recorded.' : 'Cash out recorded.');
+}
+
 export async function closeShiftFromDesk(_state: CommandState, formData: FormData): Promise<CommandState> {
   const errors: FieldErrors = {};
   const actualCashCents = moneyCents(text(formData, 'actualCash'));

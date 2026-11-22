@@ -8,7 +8,7 @@ import {
   type DotTone, codeLabel, INTERVAL_LABEL, sentenceCase,
 } from '@/features/platform/components/cannabis-ui';
 import { Empty, formatUsableThrough, formatWhen, Pager, SalesExportForm, SearchForm, Workboard } from '../components/WorkspaceKit';
-import { CartPanel, CheckInForm, CloseShiftForm } from '../components/SaleForms';
+import { CartPanel, CashMovementForm, CheckInForm, CloseShiftForm } from '../components/SaleForms';
 import { AmendRulesDisclosure, RulePackForm } from '../components/RulePackForm';
 import { ApproveVarianceForm, IncidentTransitionForm, NewProductForm, OpenShiftForm, RecordIncidentForm, RegisterForm, RegisterStatusForm, RenewAuthorityForm, TemporaryPasswordForm, PremisesDetailsForm, RevokeCredentialForm } from '../components/OperatorForms';
 
@@ -290,6 +290,7 @@ export async function ComplianceWorkspacePage({ searchParams }: { searchParams?:
 }
 
 const MENU_COLUMNS = '9.5rem minmax(0,2.2fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1fr) 4rem';
+const CASH_EVENT_LABEL: Record<string, string> = { opening_float: 'Opening float', sale: 'Cash sale', refund: 'Cash refund', paid_in: 'Cash in', paid_out: 'Cash out', safe_drop: 'Safe drop', count: 'Count at close', deposit: 'Deposit' };
 const MENU_HEADERS = [{ label: 'Status' }, { label: 'Product' }, { label: 'Form' }, { label: 'Channel' }, { label: 'Price', align: 'right' as const }, { label: 'Free stock', align: 'right' as const }, { label: '', align: 'right' as const }];
 
 export async function MenuWorkspacePage({ searchParams }: { searchParams?: SearchParams }) {
@@ -389,9 +390,9 @@ export async function CashWorkspacePage({ searchParams }: { searchParams?: Searc
             <StatusText key="s" tone={statusTone(shift.status)}>{sentenceCase(shift.status)}</StatusText>,
           ]}>
             {shift.status === 'variance_review' && <ApproveVarianceForm shiftId={shift.id} />}
-            {shift.status === 'open' && data.operating.open && <div className="mt-2"><CloseShiftForm shiftId={shift.id} /></div>}
+            {shift.status === 'open' && data.operating.open && <div className="mt-2 space-y-2"><CashMovementForm shiftId={shift.id} /><CloseShiftForm shiftId={shift.id} /></div>}
             {shift.cashEvents.length > 0 && <details className="mt-1.5"><summary className="inline-flex cursor-pointer list-none text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">Drawer ledger ({shift.cashEvents.length})</summary>
-              <ul className="mt-2 divide-y divide-border/70 rounded-[6px] border border-border text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 px-2.5 py-1.5"><span>{sentenceCase(event.type)} · {codeLabel(event.reasonCode)} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="tabular-nums">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
+              <ul className="mt-2 divide-y divide-border/70 rounded-[6px] border border-border text-xs">{shift.cashEvents.map(event => <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-x-3 px-2.5 py-1.5"><span>{CASH_EVENT_LABEL[event.type] ?? sentenceCase(event.type)}{['paid_in', 'paid_out', 'safe_drop'].includes(event.type) ? ` · ${codeLabel(event.reasonCode)}` : ''} · {event.actor?.name || 'System'} · {formatWhen(event.occurredAt, data.timezone)}</span><span className="tabular-nums">{formatMinorUnits(event.amountCents, data.currencyCode)}</span></li>)}</ul>
             </details>}
           </RecordRow>) : <Empty>No shifts yet.</Empty>}
           <Pager basePath="/dashboard/platform/cash" params={params} nextCursor={data.shifts.nextCursor} shown={data.shifts.items.length} total={data.shifts.total} noun="shifts" />

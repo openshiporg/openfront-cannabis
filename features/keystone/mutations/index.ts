@@ -6,7 +6,7 @@ import { cannabisCommandReceipt, cannabisSaleReceipt } from "./receipts";
 import { receiveCannabisPackage, postCannabisInventoryEvent, recordCannabisCountCorrection, releasePackageHold } from "./inventory";
 import { publicCannabisMenu, publicCannabisStorefrontSettings, submitCannabisCustomerIntake, recordEligibilityDecision } from "./public";
 import { cannabisCartAllocationQuote, createCustomerPickupCart, createPosCannabisCart, addCannabisCartLine, cancelCannabisCart, finalizeCannabisSale, voidCannabisSale } from "./commerce";
-import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
+import { configureCannabisProduct, configureRegister, openRegisterShift, closeRegisterShift, recordCashMovement, approveCashVariance, refundCannabisSale, recordComplianceIncident, transitionComplianceIncident, amendCannabisProduct, revokeStaffCredential, amendRegister, renewCannabisAuthority, activateIntegrationInstallation, recordStateInboxEvent, recordReconciliationRun, approveReconciliationRun, linkTenderPaymentProvider } from "./operations";
 import cannabisOperationsWorkspace from "./workspace";
 import { cannabisCartPreparation, transitionCannabisCartPreparation } from "./fulfillment";
 import { cannabisStorefrontSettingsWorkspace, configureCannabisStorefrontSettings, setCannabisStorefrontCover } from "./storefrontSettings";
@@ -86,6 +86,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         openRegisterShift(input: JSON!): JSON!
         closeRegisterShift(input: JSON!): JSON!
         approveCashVariance(input: JSON!): JSON!
+        recordCashMovement(input: JSON!): JSON!
         refundCannabisSale(input: JSON!): JSON!
         voidCannabisSale(input: JSON!): JSON!
         recordComplianceIncident(input: JSON!): JSON!
@@ -142,6 +143,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         openRegisterShift,
         closeRegisterShift,
         approveCashVariance,
+        recordCashMovement,
         refundCannabisSale,
         voidCannabisSale,
         recordComplianceIncident,
