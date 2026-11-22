@@ -19,24 +19,25 @@ export function OrderStatus({ reference }: { reference: string }) {
   const [error, setError] = useState('');
   const [proof, setProof] = useState('');
   const [busy, setBusy] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [asking, setAsking] = useState(false);
   useEffect(() => {
     // Arriving from checkout keeps the bag page's scroll; start at the top so the heading and reference are seen.
     const fromUrl = decodeURIComponent(window.location.hash.slice(1));
     const key = fromUrl || window.sessionStorage.getItem(`cn-order-${reference}`) || '';
-    if (!key) { setError('Open this page from your confirmation link to see your order.'); return; }
-    window.sessionStorage.setItem(`cn-order-${reference}`, key); setProof(key);
-    publicGraphql<{ cannabisPickupOrder: Order }>('query($r:String!,$p:String!){ cannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: key }).then(data => { setOrder(data.cannabisPickupOrder); window.scrollTo(0, 0); }).catch(failure => { setError(failure.message); window.scrollTo(0, 0); });
+    // No key: the order still opens for the signed-in shopper it belongs to.
+    if (key) { window.sessionStorage.setItem(`cn-order-${reference}`, key); setProof(key); }
+    publicGraphql<{ cannabisPickupOrder: Order }>('query($r:String!,$p:String!){ cannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: key }).then(data => { setOrder(data.cannabisPickupOrder); window.scrollTo(0, 0); }).catch(failure => { setError(key ? failure.message : 'Sign in to see this order, or open it from the link in your confirmation email.'); setLocked(!key); window.scrollTo(0, 0); });
   }, [reference]);
 
   const cancel = async () => {
-    if (!window.confirm('Cancel this order?')) return;
     setBusy(true); setError('');
     try { await publicGraphql('mutation($r:String!,$p:String!){ cancelCannabisPickupOrder(reference:$r, proof:$p) }', { r: reference, p: proof }); setOrder(current => current && { ...current, status: 'cancelled' }); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not cancel.'); }
-    setBusy(false);
+    setBusy(false); setAsking(false);
   };
 
-  if (error && !order) return <>{heading('Your order')}<p role="alert" className="text-[17px] text-cn-ink">{error}</p></>;
+  if (error && !order) return <>{heading('Your order')}<p role="alert" className="text-[17px] text-cn-ink">{error}</p>{locked && <p className="mt-6"><Link href={`/account/signin?next=${encodeURIComponent(`/order/${reference}`)}`} data-tone="ink" className="cn-btn min-h-12">Sign in</Link></p>}</>;
   if (!order) return <>{heading('Your order')}<p className="text-cn-ink-2">Loading your order…</p></>;
   const money = (cents: number) => formatPrice(cents, order.currencyCode);
   const when = (iso: string, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: order.timezone || undefined, ...opts }).format(new Date(iso));
@@ -57,6 +58,10 @@ export function OrderStatus({ reference }: { reference: string }) {
     </dl>
     <p className="text-cn-ink-2">{order.paymentMethod === 'card' && order.paymentStatus === 'unconfirmed' ? 'We are confirming your payment. Please do not pay again.' : ['cancelled', 'expired'].includes(order.status) ? (order.paymentMethod === 'card' ? 'Your card hold was released. You were not charged.' : 'No payment was taken.') : order.paymentMethod === 'card' ? (order.paymentStatus === 'authorized' ? 'Your card is authorized and is charged when you pick up.' : order.paymentStatus === 'voided' ? 'The card hold was released.' : order.paymentStatus === 'captured' ? 'Paid by card.' : order.paymentStatus === 'paid_at_pickup' ? 'Paid at pickup.' : '') : order.paymentStatus === 'paid_at_pickup' ? 'Paid at pickup.' : 'You’ll pay at pickup.'}</p>
     {error && <p role="alert" className="font-semibold text-cn-warn">{error}</p>}
-    <div className="flex flex-wrap gap-2"><Link href="/#menu" className="cn-btn">Back to the menu</Link>{active && <button type="button" className="cn-btn" disabled={busy} onClick={cancel}>{busy ? 'Cancelling…' : 'Cancel order'}</button>}</div>
+    <div className="flex flex-wrap gap-2"><Link href="/#menu" className="cn-btn">Back to the menu</Link>{active && !asking && <button type="button" className="cn-btn" onClick={() => setAsking(true)}>Cancel order</button>}</div>
+    {active && asking && <div role="group" aria-label="Cancel this order" className="space-y-3 border-l-2 border-cn-warn pl-4">
+      <p className="text-[17px] text-cn-ink">Cancel this order? Your items go back on the shelf.</p>
+      <div className="flex flex-wrap gap-2"><button type="button" data-tone="ink" className="cn-btn" disabled={busy} onClick={cancel}>{busy ? 'Cancelling…' : 'Yes, cancel it'}</button><button type="button" className="cn-btn" disabled={busy} onClick={() => setAsking(false)}>Keep my order</button></div>
+    </div>}
   </div></>;
 }

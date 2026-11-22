@@ -1,11 +1,12 @@
+import { getCustomerAccount } from '../lib/data/account';
 import { getPublicCannabisMenu, getPublicCannabisStorefrontSettings } from '../lib/data/menu';
 import { menuForms, menuItems } from './MenuPage';
 import { CheckoutForm } from '../components/CheckoutForm';
 import { StorefrontShell } from '../components/StorefrontShell';
 
 export async function BagPage() {
-  const [settings, menu] = await Promise.all([getPublicCannabisStorefrontSettings(), getPublicCannabisMenu()]);
+  const [settings, menu, account] = await Promise.all([getPublicCannabisStorefrontSettings(), getPublicCannabisMenu(), getCustomerAccount()]);
   return <StorefrontShell settings={settings} forms={menuForms(menuItems(menu))}>
-    <section className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 sm:py-14"><h1 className="cn-display mb-8 text-[56px] text-cn-ink sm:text-[88px]">Order for pickup</h1><CheckoutForm /></section>
+    <section className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 sm:py-14"><h1 className="cn-display mb-8 text-[56px] text-cn-ink sm:text-[88px]">Order for pickup</h1><CheckoutForm account={account ? { name: account.name, email: account.email, phone: account.phone, dateOfBirth: account.dateOfBirth } : null} /></section>
   </StorefrontShell>;
 }

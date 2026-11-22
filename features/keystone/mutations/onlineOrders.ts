@@ -10,6 +10,8 @@ import { createPayment } from "../utils/paymentProviderAdapter";
 import { getPublicPaymentProviderConfig } from "../utils/paymentProviderConfig";
 import { ALLOCATION_PACKAGE_SELECTION, cancelCannabisCart, purchaseWindowTotals, SYSTEM_CANCEL } from "./commerce";
 import { documentHash } from "./customers";
+import { accountCustomer } from "./customerAccounts";
+import { calculateTaxCents, requireTaxRule } from "../domain/cannabisPolicy";
 import { CARD_PROVIDER_CODE, onlineCardProvider, releaseOnlinePayment } from "./onlinePayments";
 import { EXPIRABLE_CART_STATUSES } from "../domain/lifecycles";
 import { publicAuthority } from "./public";
@@ -98,7 +100,7 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   if (replay) return { reference, proof, status: replay.status, paymentMethod: replay.paymentMethod, replayed: true };
 
   const name = assertText(raw.name, "Name", 2, 120);
-  const email = assertText(raw.email, "Email", 3, 254).toLowerCase();
+  let email = assertText(raw.email, "Email", 3, 254).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address");
   const phone = assertText(raw.phone, "Phone", 7, 30);
   if (!/^[+()\d\s.-]{7,30}$/.test(phone)) throw new Error("Enter a valid phone number");
@@ -123,6 +125,9 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   if (!window) throw new Error("That pickup time is no longer available. Choose another.");
 
   const scope = { organizationId: organization.id as string, premisesId: premises.id as string };
+  // A signed-in shopper's order goes on their account, under the account's own email.
+  const account = await accountCustomer(context, scope);
+  if (account) email = account.email.toLowerCase();
   const allowed = pack.allowedTenderTypes as string[];
   let provider: any = null;
   if (method === "card") {
@@ -141,11 +146,13 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   const placed = await serializableTransaction(context, async tx => {
     const sudo = tx.sudo();
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-policy", `${scope.organizationId}:${scope.premisesId}`);
-    const prior = await sudo.query.EligibilityEvidence.findMany({ where: { organization: { id: { equals: scope.organizationId } }, premises: { id: { equals: scope.premisesId } }, identityReferenceHash: { equals: identityHash } }, orderBy: [{ createdAt: "desc" }], take: 1, query: "customer { id status }" });
-    let customer = prior[0]?.customer ?? null;
+    const prior = await sudo.query.EligibilityEvidence.findMany({ where: { organization: { id: { equals: scope.organizationId } }, premises: { id: { equals: scope.premisesId } }, identityReferenceHash: { equals: identityHash } }, orderBy: [{ createdAt: "desc" }], take: 1, query: "customer { id status user { id } }" });
+    let customer: any = account ? { id: account.id, status: account.status, user: { id: account.userId } } : prior[0]?.customer ?? null;
     if (customer?.status === "suspended" || customer?.status === "ineligible") throw new Error("We can’t take an online order for this customer. Please visit the store.");
     if (!customer) customer = await sudo.query.Customer.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, reference: `CUS-${randomUUID().slice(0, 8).toUpperCase()}`, capacity: "adult_use", status: "pending_verification", intakeProofHash: sha(proof), contact: { name, email, phone } }, query: "id status" });
-    else await sudo.query.Customer.updateOne({ where: { id: customer.id }, data: { contact: { name, email, phone } }, query: "id" });
+    // An account's saved details are changed only by its owner, never by a guest order that happens to match it.
+    else if (account) await sudo.query.Customer.updateOne({ where: { id: customer.id }, data: { contact: { ...account.contact, name: account.name, email, phone, dateOfBirth } }, query: "id" });
+    else if (!customer.user) await sudo.query.Customer.updateOne({ where: { id: customer.id }, data: { contact: { name, email, phone } }, query: "id" });
     await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", "cannabis-customer-purchase-window", `${scope.organizationId}:${scope.premisesId}:${customer.id}`);
     const now = new Date();
     const evidence = await sudo.query.EligibilityEvidence.createOne({ data: { organization: { connect: { id: scope.organizationId } }, premises: { connect: { id: scope.premisesId } }, customer: { connect: { id: customer.id } }, capacity: "adult_use",
@@ -226,12 +233,34 @@ export async function placeCannabisPickupOrder(_root: unknown, args: { input: an
   return { reference, proof, status, paymentMethod: method, paymentStatus, totalCents: placed.totalCents, replayed: false, ...(unconfirmedMessage ? { message: unconfirmedMessage } : {}) };
 }
 
+/** An order belongs to whoever holds its link, or to the signed-in shopper whose account it is on. */
+function ownsOrder(context: Context, cart: { guestProofHash?: string | null; customer?: { user?: { id: string } | null } | null }, proof: string) {
+  if (proof.length >= 16 && proof.length <= 200 && cart.guestProofHash === sha(proof)) return true;
+  const session = context.session as { itemId?: string; data?: { status?: string } } | undefined;
+  return Boolean(session?.itemId && session.data?.status !== "disabled" && cart.customer?.user?.id === session.itemId);
+}
+
+/** What the bag will cost, tax included, before the shopper places the order. The order itself is priced again on the server. */
+export async function cannabisPickupQuote(_root: unknown, args: { items: unknown }, context: Context) {
+  const items = parseItems(args.items);
+  const { organization, premises, pack } = await publicAuthority(context);
+  let subtotalCents = 0; let taxCents = 0;
+  for (const item of items) {
+    const product = await context.sudo().query.Product.findOne({ where: { id: item.productId }, query: "id status priceCents taxCategoryCode organization { id } premises { id }" });
+    if (!product || product.status !== "active" || product.organization?.id !== organization.id || product.premises?.id !== premises.id) throw new Error("An item in your bag is no longer on the menu");
+    const line = product.priceCents * item.units;
+    subtotalCents += line;
+    taxCents += calculateTaxCents(line, 0, requireTaxRule((pack as any).taxRules, product.taxCategoryCode, "adult_use").basisPoints);
+  }
+  return { subtotalCents, taxCents, totalCents: subtotalCents + taxCents, currencyCode: premises.currencyCode ?? "USD" };
+}
+
 /** The shopper's own order, found by its reference plus the proof returned at checkout. */
 export async function cannabisPickupOrder(_root: unknown, args: { reference: string; proof: string }, context: Context) {
   const reference = assertText(args.reference, "Order reference", 3, 40);
-  const proof = assertText(args.proof, "Order key", 16, 200);
-  const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id reference status source guestProofHash subtotalCents taxCents discountCents totalCents pickupWindowStart pickupWindowEnd pickupName paymentMethod paymentStatus premises { timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits subtotalCents totalCents product { unitQuantityMicrounits } }" });
-  if (!cart || cart.source !== "pickup" || cart.guestProofHash !== sha(proof)) throw new Error("We couldn’t find that order");
+  const proof = typeof args.proof === "string" ? args.proof.trim() : "";
+  const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id reference status source guestProofHash customer { user { id } } subtotalCents taxCents discountCents totalCents pickupWindowStart pickupWindowEnd pickupName paymentMethod paymentStatus premises { timezone currencyCode } lines(take: 50) { titleSnapshot quantityMicrounits subtotalCents totalCents product { unitQuantityMicrounits } }" });
+  if (!cart || cart.source !== "pickup" || !ownsOrder(context, cart, proof)) throw new Error("We couldn’t find that order");
   return {
     reference: cart.reference, status: cart.status, name: cart.pickupName, paymentMethod: cart.paymentMethod, paymentStatus: cart.paymentStatus, currencyCode: cart.premises?.currencyCode ?? "USD", timezone: cart.premises?.timezone ?? "",
     pickupStart: cart.pickupWindowStart, pickupEnd: cart.pickupWindowEnd, subtotalCents: cart.subtotalCents, taxCents: cart.taxCents, discountCents: cart.discountCents, totalCents: cart.totalCents,
@@ -242,10 +271,11 @@ export async function cannabisPickupOrder(_root: unknown, args: { reference: str
 /** The shopper cancels their own order: the stock goes back and any card hold is released. */
 export async function cancelCannabisPickupOrder(_root: unknown, args: { reference: string; proof: string }, context: Context) {
   const reference = assertText(args.reference, "Order reference", 3, 40);
-  const proof = assertText(args.proof, "Order key", 16, 200);
-  const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id source guestProofHash status" });
-  if (!cart || cart.source !== "pickup" || cart.guestProofHash !== sha(proof)) throw new Error("We couldn’t find that order");
+  const proof = typeof args.proof === "string" ? args.proof.trim() : "";
+  const cart = await context.sudo().query.Cart.findOne({ where: { reference }, query: "id source guestProofHash status customer { user { id } }" });
+  if (!cart || cart.source !== "pickup" || !ownsOrder(context, cart, proof)) throw new Error("We couldn’t find that order");
+  const byLink = proof.length >= 16 && cart.guestProofHash === sha(proof);
   if (!["reserved", "preliminarily_eligible"].includes(cart.status) && cart.status !== "cancelled") throw new Error("This order can no longer be cancelled online. Please call the store.");
-  const result = await cancelCannabisCart(null as any, { input: { cartId: cart.id, proof, idempotencyKey: `${reference}:shopper-cancel`, reasonCode: "customer_cancelled" } }, context);
+  const result = await cancelCannabisCart(null as any, { input: { cartId: cart.id, ...(byLink ? { proof } : { system: SYSTEM_CANCEL }), idempotencyKey: `${reference}:shopper-cancel`, reasonCode: "customer_cancelled" } }, context);
   return { reference, status: result.status };
 }

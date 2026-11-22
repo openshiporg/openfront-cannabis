@@ -10,6 +10,7 @@ import { addressLines, ageRule, ageStripLabel, directionsHref, openState, tender
 import { AgeGate } from './AgeGate';
 import { BagLink } from './BagLink';
 import { PhoneMenu } from './PhoneMenu';
+import { getCustomerAccount } from '../lib/data/account';
 import { StoreLogo } from './StoreLogo';
 
 export type ShellForm = { key: string; label: string; count: number };
@@ -32,8 +33,11 @@ export function coverPhoto(settings: PublicStorefrontSettingsResult) {
 }
 
 /** Public frame: age gate, age and open-state strip, header, phone menu, and the catalog colophon. */
-export async function StorefrontShell({ settings, forms = [], current, children }: { settings: PublicStorefrontSettingsResult; forms?: ShellForm[]; current?: 'menu' | 'visit'; children: ReactNode }) {
+export async function StorefrontShell({ settings, forms = [], current, children }: { settings: PublicStorefrontSettingsResult; forms?: ShellForm[]; current?: 'menu' | 'visit' | 'account'; children: ReactNode }) {
   const confirmed = (await cookies()).get(AGE_COOKIE)?.value === '1';
+  const account = await getCustomerAccount();
+  const accountHref = account ? '/account' : '/account/signin';
+  const accountLabel = account ? 'Account' : 'Sign in';
   const brand = storeBrand(settings);
   const name = storeName(settings);
   const cover = coverPhoto(settings);
@@ -59,6 +63,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
         <nav aria-label="Store" className="hidden items-center gap-7 sm:flex">
           <Link href="/#menu" aria-current={current === 'menu' ? 'page' : undefined} className="cn-tab">Menu</Link>
           <Link href="/visit" aria-current={current === 'visit' ? 'page' : undefined} className="cn-tab">Visit</Link>
+          <Link href={accountHref} aria-current={current === 'account' ? 'page' : undefined} className="cn-tab">{accountLabel}</Link>
           <BagLink />
         </nav>
         <div className="flex shrink-0 items-center gap-1 sm:hidden">
@@ -76,6 +81,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
                 </Link></li>)}
                 <li><BagLink className="flex min-h-14 items-center text-[18px] font-semibold text-cn-ink" /></li>
                 <li><Link href="/visit" className="flex min-h-14 items-center text-[18px] font-semibold text-cn-ink">Visit</Link></li>
+                <li><Link href={accountHref} className="flex min-h-14 items-center justify-between gap-3 text-[18px] font-semibold text-cn-ink">{accountLabel}{account && <span className="truncate text-[15px] font-normal text-cn-ink-3">{account.name}</span>}</Link></li>
               </ul>
             </nav>
             <div className="space-y-1 px-4 py-5 text-[15px] text-cn-ink-2">
@@ -116,6 +122,7 @@ export async function StorefrontShell({ settings, forms = [], current, children 
         <span className="cn-display text-[20px] text-cn-ink">{ages.medical != null ? `${ages.adult}+ · patients ${ages.medical}+` : `${ages.adult}+`}</span>
         <Link href="/#menu" className="inline-flex min-h-11 items-center hover:text-cn-ink">Menu</Link>
         <Link href="/visit" className="inline-flex min-h-11 items-center hover:text-cn-ink">Visit</Link>
+        <Link href={accountHref} className="inline-flex min-h-11 items-center hover:text-cn-ink">{accountLabel}</Link>
         <Link href="/dashboard/signin" className="inline-flex min-h-11 items-center gap-1 hover:text-cn-ink">Staff sign in<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
         {cover.credit && <a href={cover.href!} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center hover:text-cn-ink">{cover.credit}</a>}
         <span className="cn-num inline-flex min-h-11 items-center">© {new Date().getFullYear()}</span>

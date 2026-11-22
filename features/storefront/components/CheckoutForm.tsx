@@ -12,7 +12,10 @@ import { CardFields, useAcceptJs } from './AuthorizeNetCardFields';
 const PLACE = `mutation($input: JSON!) { placeCannabisPickupOrder(input: $input) }`;
 
 /** The bag and the checkout: contact, date of birth, pickup window, payment. The server re-prices everything. */
-export function CheckoutForm() {
+type Quote = { subtotalCents: number; taxCents: number; totalCents: number };
+const usDate = (iso: string) => { const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[2]}/${m[3]}/${m[1]}` : ''; };
+
+export function CheckoutForm({ account = null }: { account?: { name: string; email: string; phone: string; dateOfBirth: string } | null }) {
   const router = useRouter();
   const bag = useBag();
   const [options, setOptions] = useState<PickupOptions | null>(null);
@@ -25,6 +28,17 @@ export function CheckoutForm() {
   if (!key.current && typeof crypto !== 'undefined') key.current = crypto.randomUUID();
   const card = options?.card ?? null;
   const anet = useAcceptJs(card?.env ?? null);
+
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const bagKey = bag.items.map(item => `${item.id}:${item.units}`).join(',');
+  // The server prices the bag with tax, so the shopper sees the full total before placing the order.
+  useEffect(() => {
+    if (!bagKey) { setQuote(null); return; }
+    let current = true;
+    publicGraphql<{ cannabisPickupQuote: Quote }>('query($items: JSON!) { cannabisPickupQuote(items: $items) }', { items: bagKey.split(',').map(entry => { const [productId, units] = entry.split(':'); return { productId, units: Number(units) }; }) })
+      .then(data => { if (current) setQuote(data.cannabisPickupQuote); }).catch(() => { if (current) setQuote(null); });
+    return () => { current = false; };
+  }, [bagKey]);
 
   useEffect(() => { getPickupOptions().then(next => { setOptions(next); setMethod(next.card ? 'card' : 'pickup'); }).catch(failure => setLoadError(failure.message)); }, []);
 
@@ -84,16 +98,23 @@ export function CheckoutForm() {
           </span>
         </li>)}
       </ul>
-      <p className="mt-4 flex items-baseline justify-between text-[17px]"><span className="text-cn-ink-2">Subtotal</span><span className="cn-num text-cn-ink">{money(bag.subtotalCents)}</span></p>
-      <p className="mt-1 text-[14px] text-cn-ink-3">Tax is added at checkout and shown on your confirmation. Purchase limits apply.</p>
+      <dl className="mt-4 space-y-1 text-[17px]">
+        <div className="flex items-baseline justify-between"><dt className="text-cn-ink-2">Subtotal</dt><dd className="cn-num text-cn-ink">{money(quote?.subtotalCents ?? bag.subtotalCents)}</dd></div>
+        <div className="flex items-baseline justify-between"><dt className="text-cn-ink-2">Tax</dt><dd className="cn-num text-cn-ink">{quote ? money(quote.taxCents) : '…'}</dd></div>
+        <div className="flex items-baseline justify-between border-t border-cn-line pt-2 text-[20px] font-semibold text-cn-ink"><dt>Total</dt><dd className="cn-num" data-testid="bag-total">{quote ? money(quote.totalCents) : '…'}</dd></div>
+      </dl>
+      <p className="mt-2 text-[14px] text-cn-ink-3">Purchase limits apply.</p>
     </section>
     <form onSubmit={submit} aria-label="Pickup order" className="space-y-6">
       <h2 className="cn-display text-[44px] text-cn-ink">Pickup details</h2>
+      {account
+        ? <p className="text-[15px] text-cn-ink-2">Signed in as <span className="text-cn-ink">{account.email}</span>. This order is saved to <Link href="/account" className="cn-link">your account</Link>.</p>
+        : <p className="text-[15px] text-cn-ink-2"><Link href="/account/signin?next=/bag" className="cn-link">Sign in</Link> to fill this in and keep your orders, or continue as a guest.</p>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Full name</span><input name="name" autoComplete="name" required minLength={2} maxLength={120} className="cn-field" /></label>
-        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Phone</span><input name="phone" type="tel" autoComplete="tel" required maxLength={30} className="cn-field" /></label>
-        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Email</span><input name="email" type="email" autoComplete="email" required maxLength={254} className="cn-field" /></label>
-        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Date of birth ({options?.minimumAge ?? 21}+ only)</span><input name="dateOfBirth" type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10} pattern={BIRTH_DATE_PATTERN} title="Month/day/year, for example 04/09/1986" autoComplete="bday" required onChange={event => formatBirthDateInput(event.currentTarget)} className="cn-field" /></label>
+        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Full name</span><input name="name" autoComplete="name" required minLength={2} maxLength={120} defaultValue={account?.name} className="cn-field" /></label>
+        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Phone</span><input name="phone" type="tel" autoComplete="tel" required maxLength={30} defaultValue={account?.phone} className="cn-field" /></label>
+        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Email</span><input name="email" type="email" autoComplete="email" required maxLength={254} defaultValue={account?.email} readOnly={Boolean(account)} className="cn-field" /></label>
+        <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Date of birth ({options?.minimumAge ?? 21}+ only)</span><input name="dateOfBirth" type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10} pattern={BIRTH_DATE_PATTERN} title="Month/day/year, for example 04/09/1986" autoComplete="bday" required defaultValue={account ? usDate(account.dateOfBirth) : undefined} onChange={event => formatBirthDateInput(event.currentTarget)} className="cn-field" /></label>
       </div>
       <label className="block"><span className="mb-1 block text-[14px] text-cn-ink-2">Pickup window</span>
         <select name="pickupStart" required defaultValue="" className="cn-field">
@@ -109,7 +130,7 @@ export function CheckoutForm() {
       {method === 'card' && card && <><CardFields />{anet.error && <p role="alert">{anet.error}</p>}</>}
       <label className="flex min-h-11 items-start gap-3 text-[16px]"><input type="checkbox" name="idNotice" required className="cn-check mt-0.5" /><span>I’ll bring a valid government-issued photo ID to pickup. No ID, no order.</span></label>
       {error && <p role="alert" className="text-[16px] font-semibold text-cn-warn">{error}</p>}
-      <button type="submit" data-tone="ink" className="cn-btn min-h-12 w-full sm:w-auto" disabled={busy || !options || (method === 'card' && !anet.loaded)}>{busy ? 'Placing your order…' : 'Place pickup order'}</button>
+      <button type="submit" data-tone="ink" className="cn-btn min-h-12 w-full sm:w-auto" disabled={busy || !options || (method === 'card' && !anet.loaded)}>{busy ? 'Placing your order…' : quote ? `Place pickup order · ${money(quote.totalCents)}` : 'Place pickup order'}</button>
     </form>
   </div>;
 }

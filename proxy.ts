@@ -21,6 +21,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`${dashboardPath}/init`, request.url));
   }
 
+  // A signed-in shopper has no role and no place on the staff side: send them to their account (the reset page stays open).
+  if (user && !user.role && request.nextUrl.pathname.startsWith(dashboardPath) && !isDashboardRoute(request.nextUrl.pathname, "reset")) {
+    return NextResponse.redirect(new URL("/account", request.url));
+  }
+
   // Let each handler manage its own routes and logic
   const response = await handleDashboardRoutes(request, user, redirectToInit);
   

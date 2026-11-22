@@ -280,6 +280,9 @@ body {
     accent-color: #ece8dc;
   }
 
+  .cn-link { font-weight: 600; color: #ece8dc; text-decoration: underline; text-decoration-color: rgb(236 232 220 / 0.35); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  @media (hover: hover) and (pointer: fine) { .cn-link:hover { text-decoration-color: #ece8dc; } }
+
   .cn-dot { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 999px; transform: translateY(-0.1em); }
 
   /* Chapter band: solid process ink, pinned under the header and the rail while its entries scroll. */

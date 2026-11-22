@@ -5011,6 +5011,9 @@ type Mutation {
   redeemUserPasswordResetToken(email: String!, token: String!, password: String!): RedeemUserPasswordResetTokenResult
   placeCannabisPickupOrder(input: JSON!): JSON!
   cancelCannabisPickupOrder(reference: String!, proof: String!): JSON!
+  registerCannabisCustomer(input: JSON!): JSON!
+  updateCannabisCustomerProfile(input: JSON!): JSON!
+  changeCannabisCustomerPassword(currentPassword: String!, newPassword: String!): JSON!
   runCannabisOnboarding(input: JSON!): JSON!
   dismissCannabisOnboarding: JSON!
   transitionComplianceIncident(input: JSON!): JSON!
@@ -5193,6 +5196,8 @@ type Query {
   publicCannabisMenu: JSON!
   cannabisPickupOptions: JSON!
   cannabisPickupOrder(reference: String!, proof: String!): JSON!
+  cannabisPickupQuote(items: JSON!): JSON!
+  cannabisCustomerAccount: JSON
   publicCannabisStorefrontSettings: JSON!
   cannabisOperationsWorkspace(section: String!, options: JSON): JSON!
   cannabisStorefrontSettingsWorkspace: JSON!

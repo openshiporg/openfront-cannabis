@@ -15,7 +15,8 @@ import { changeStaffPermissions, setStaffTemporaryPassword } from "./staffAccess
 import { exposeRuleErrors } from "./ruleErrors";
 import { advanceRecallCase, openRecallCase, placePackageHold, recordPackageLabResult, releaseCannabisPackage } from "./custody";
 import { checkInCannabisCustomer } from "./customers";
-import { cancelCannabisPickupOrder, cannabisPickupOptions, cannabisPickupOrder, placeCannabisPickupOrder } from "./onlineOrders";
+import { cancelCannabisPickupOrder, cannabisPickupOptions, cannabisPickupOrder, cannabisPickupQuote, placeCannabisPickupOrder } from "./onlineOrders";
+import { cannabisCustomerAccount, changeCannabisCustomerPassword, registerCannabisCustomer, updateCannabisCustomerProfile } from "./customerAccounts";
 
 const graphql = String.raw;
 
@@ -28,6 +29,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         publicCannabisMenu: JSON!
         cannabisPickupOptions: JSON!
         cannabisPickupOrder(reference: String!, proof: String!): JSON!
+        cannabisPickupQuote(items: JSON!): JSON!
+        cannabisCustomerAccount: JSON
         publicCannabisStorefrontSettings: JSON!
         cannabisOperationsWorkspace(section: String!, options: JSON): JSON!
         cannabisStorefrontSettingsWorkspace: JSON!
@@ -39,6 +42,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type Mutation {
         placeCannabisPickupOrder(input: JSON!): JSON!
         cancelCannabisPickupOrder(reference: String!, proof: String!): JSON!
+        registerCannabisCustomer(input: JSON!): JSON!
+        updateCannabisCustomerProfile(input: JSON!): JSON!
+        changeCannabisCustomerPassword(currentPassword: String!, newPassword: String!): JSON!
         runCannabisOnboarding(input: JSON!): JSON!
         dismissCannabisOnboarding: JSON!
         transitionComplianceIncident(input: JSON!): JSON!
@@ -87,10 +93,13 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
     `,
     resolvers: {
-      Query: exposeRuleErrors({ cannabisPickupOptions, cannabisPickupOrder, redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
+      Query: exposeRuleErrors({ cannabisPickupOptions, cannabisPickupOrder, cannabisPickupQuote, cannabisCustomerAccount, redirectToInit, publicCannabisMenu, publicCannabisStorefrontSettings, cannabisOperationsWorkspace, cannabisStorefrontSettingsWorkspace, cannabisCartPreparation, cannabisCartAllocationQuote, cannabisCommandReceipt, cannabisSaleReceipt }),
       Mutation: exposeRuleErrors({
         placeCannabisPickupOrder,
         cancelCannabisPickupOrder,
+        registerCannabisCustomer,
+        updateCannabisCustomerProfile,
+        changeCannabisCustomerPassword,
         runCannabisOnboarding,
         dismissCannabisOnboarding,
         transitionComplianceIncident,
